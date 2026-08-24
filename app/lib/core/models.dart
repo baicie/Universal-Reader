@@ -1,0 +1,110 @@
+enum DocumentFormat {
+  epub,
+  pdf,
+  mobi,
+  azw3,
+  fb2,
+  txt,
+  markdown,
+  html,
+  cbz,
+  cbr,
+  unknown,
+}
+
+enum DocumentType { reflow, fixedPage, comic }
+
+extension DocumentFormatLabel on DocumentFormat {
+  String get label => switch (this) {
+    DocumentFormat.epub => 'EPUB',
+    DocumentFormat.pdf => 'PDF',
+    DocumentFormat.mobi => 'MOBI',
+    DocumentFormat.azw3 => 'AZW3',
+    DocumentFormat.fb2 => 'FB2',
+    DocumentFormat.txt => 'TXT',
+    DocumentFormat.markdown => 'MD',
+    DocumentFormat.html => 'HTML',
+    DocumentFormat.cbz => 'CBZ',
+    DocumentFormat.cbr => 'CBR',
+    DocumentFormat.unknown => 'FILE',
+  };
+
+  DocumentType get type => switch (this) {
+    DocumentFormat.pdf => DocumentType.fixedPage,
+    DocumentFormat.cbz || DocumentFormat.cbr => DocumentType.comic,
+    _ => DocumentType.reflow,
+  };
+}
+
+class DocumentSource {
+  const DocumentSource({required this.name, this.path, this.bytes});
+
+  final String name;
+  final String? path;
+  final List<int>? bytes;
+}
+
+class DocumentMetadata {
+  const DocumentMetadata({
+    required this.id,
+    required this.title,
+    required this.author,
+    required this.format,
+    required this.type,
+    this.coverColor = 0xFF527882,
+  });
+
+  final String id;
+  final String title;
+  final String author;
+  final DocumentFormat format;
+  final DocumentType type;
+  final int coverColor;
+}
+
+class ReadingState {
+  const ReadingState({required this.progress, required this.lastOpened});
+
+  final double progress;
+  final DateTime lastOpened;
+}
+
+class LibraryDocument {
+  const LibraryDocument({required this.metadata, required this.readingState});
+
+  final DocumentMetadata metadata;
+  final ReadingState readingState;
+
+  LibraryDocument copyWith({ReadingState? readingState}) => LibraryDocument(
+    metadata: metadata,
+    readingState: readingState ?? this.readingState,
+  );
+}
+
+sealed class Locator {
+  const Locator();
+}
+
+class PdfLocator extends Locator {
+  const PdfLocator({required this.page, this.x, this.y});
+  final int page;
+  final double? x;
+  final double? y;
+}
+
+class EpubLocator extends Locator {
+  const EpubLocator({required this.href, this.cfi, this.progression});
+  final String href;
+  final String? cfi;
+  final double? progression;
+}
+
+class TextLocator extends Locator {
+  const TextLocator({required this.offset});
+  final int offset;
+}
+
+class ComicLocator extends Locator {
+  const ComicLocator({required this.page});
+  final int page;
+}

@@ -1,0 +1,130 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to release
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  web:
+    name: Build Web release
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.0'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify release
+        run: |
+          flutter analyze
+          flutter test
+
+      - name: Build Web
+        run: flutter build web --release
+
+      - name: Package Web
+        shell: bash
+        run: zip -r ../universal-reader-${{ env.RELEASE_TAG }}-web.zip build/web
+
+      - name: Upload Web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-reader-${{ env.RELEASE_TAG }}-web
+          path: universal-reader-${{ env.RELEASE_TAG }}-web.zip
+          if-no-files-found: error
+
+  windows:
+    name: Build Windows release
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.0'
+          cache: true
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Windows
+        run: flutter build windows --release
+
+      - name: Package Windows
+        shell: pwsh
+        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath ..\universal-reader-${{ env.RELEASE_TAG }}-windows.zip
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-reader-${{ env.RELEASE_TAG }}-windows
+          path: universal-reader-${{ env.RELEASE_TAG }}-windows.zip
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: [web, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: universal-reader-*
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ env.RELEASE_TAG }}" artifacts/* \
+            --repo "${{ github.repository }}" \
+            --title "Universal Reader ${{ env.RELEASE_TAG }}" \
+            --notes-file <(printf '%s\n' \
+              '## Universal Reader 0.0.1-dev.0' \
+              '' \
+              '- Flutter Library / Reader / Settings MVP' \
+              '- Local-first library persistence' \
+              '- Web and Windows release artifacts' \
+              '- Reader Runtime adapter contracts for future Rust and native renderers')
