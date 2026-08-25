@@ -7,9 +7,9 @@ repository.workspace = true
 description = "Local HTTP service for Universal Reader core capabilities."
 
 [dependencies]
-axum = "0.8"
+axum = { version = "0.8", features = ["multipart"] }
 serde = { version = "1.0", features = ["derive"] }
-tokio = { version = "1.48", features = ["macros", "net", "rt-multi-thread"] }
+tokio = { version = "1.48", features = ["fs", "macros", "net", "rt-multi-thread"] }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

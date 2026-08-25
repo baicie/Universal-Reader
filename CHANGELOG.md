@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.1-dev.2 - 2026-08-25
+
+- Added local Rust multipart upload endpoint at `/v1/library/files`.
+- Restricted uploads to supported reading formats with a 64 MiB size limit.
+- Stored imported files under a controlled library directory using generated safe names.
+- Removed the obsolete root-level static prototype and aligned the README with the Flutter app.
+
 ## 0.0.1-dev.1 - 2026-08-25
 
 - Added `universal-reader-server`, a Rust local backend service for health reporting and first-pass document format detection.

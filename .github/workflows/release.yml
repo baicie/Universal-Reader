@@ -301,7 +301,7 @@ jobs:
             --title "Universal Reader ${{ env.RELEASE_TAG }}" \
             --prerelease \
             --notes-file <(printf '%s\n' \
-              '## Universal Reader 0.0.1-dev.1' \
+              '## Universal Reader 0.0.1-dev.2' \
               '' \
               '- Flutter Library / Reader / Settings MVP' \
               '- Local-first library persistence' \
