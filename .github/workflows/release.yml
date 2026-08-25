@@ -189,18 +189,39 @@ jobs:
       - name: Build Windows
         run: flutter build windows --release
 
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress --yes
+
       - name: Package Windows
         shell: pwsh
+        env:
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+          RELEASE_VERSION: ${{ env.RELEASE_TAG }}
         run: |
-          $bundle = "build\windows\x64\runner\Release\*"
-          Compress-Archive -Path $bundle -DestinationPath ..\universal-reader-${{ env.RELEASE_TAG }}-windows.zip
-          Compress-Archive -Path $bundle -DestinationPath ..\universal-reader-${{ env.RELEASE_TAG }}-windows-x86_64.zip
+          $env:RELEASE_VERSION = "${{ env.RELEASE_TAG }}".TrimStart('v')
+          $bundle = "build\windows\x64\runner\Release"
+          Compress-Archive -Path "$bundle\*" -DestinationPath "..\universal-reader-${{ env.RELEASE_TAG }}-windows.zip"
+          Compress-Archive -Path "$bundle\*" -DestinationPath "..\universal-reader-${{ env.RELEASE_TAG }}-windows-x86_64.zip"
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+            "/DSourceDir=$((Resolve-Path $bundle).Path)" `
+            windows\UniversalReader.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify Windows artifacts
+        shell: pwsh
+        run: |
+          Get-Item "..\universal-reader-${{ env.RELEASE_TAG }}-windows.zip"
+          Get-Item "windows\universal-reader-${{ env.RELEASE_TAG }}-windows-x86_64-setup.exe"
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v7
         with:
           name: universal-reader-${{ env.RELEASE_TAG }}-windows
-          path: universal-reader-${{ env.RELEASE_TAG }}-windows*.zip
+          path: |
+            universal-reader-${{ env.RELEASE_TAG }}-windows.zip
+            universal-reader-${{ env.RELEASE_TAG }}-windows-x86_64.zip
+            windows/universal-reader-${{ env.RELEASE_TAG }}-windows-x86_64-setup.exe
           if-no-files-found: error
 
   linux:
@@ -257,9 +278,17 @@ jobs:
           path: universal-reader-${{ env.RELEASE_TAG }}-linux*.tar.gz
           if-no-files-found: error
 
-  macos:
-    name: Build macOS desktop release
-    runs-on: macos-14
+  macos-native:
+    name: Build macOS ${{ matrix.arch }} release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-14
+          - arch: x86_64
+            runner: macos-13
+    runs-on: ${{ matrix.runner }}
     defaults:
       run:
         working-directory: app
@@ -282,28 +311,71 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build macOS
+      - name: Build macOS ${{ matrix.arch }}
         run: flutter build macos --release
 
-      - name: Package macOS
+      - name: Package macOS ${{ matrix.arch }}
         shell: bash
         run: |
-          bundle="build/macos/Build/Products/Release"
-          tar -C "$bundle" -czf "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-macos.tar.gz" app.app
-          tar -C "$bundle" -czf "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-macos-arm64.tar.gz" app.app
+          bundle="build/macos/Build/Products/Release/app.app"
+          tar -C "$(dirname "$bundle")" -czf "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-macos-${{ matrix.arch }}.tar.gz" "$(basename "$bundle")"
+          hdiutil create -volname "Universal Reader ${{ matrix.arch }}" -srcfolder "$bundle" -ov -format UDZO "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-macos-${{ matrix.arch }}.dmg"
 
-      - name: Verify macOS artifacts
+      - name: Verify macOS ${{ matrix.arch }} artifacts
         shell: bash
         run: |
-          for archive in "$GITHUB_WORKSPACE"/universal-reader-${{ env.RELEASE_TAG }}-macos*.tar.gz; do
-            tar -tzf "$archive" | grep -q '^app.app/$'
-          done
+          tar -tzf "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-macos-${{ matrix.arch }}.tar.gz" | grep -q '^app.app/$'
+          hdiutil imageinfo "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-macos-${{ matrix.arch }}.dmg" >/dev/null
 
-      - name: Upload macOS artifacts
+      - name: Upload macOS ${{ matrix.arch }} artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-macos
-          path: universal-reader-${{ env.RELEASE_TAG }}-macos*.tar.gz
+          name: universal-reader-${{ env.RELEASE_TAG }}-macos-${{ matrix.arch }}
+          path: |
+            universal-reader-${{ env.RELEASE_TAG }}-macos-${{ matrix.arch }}.tar.gz
+            universal-reader-${{ env.RELEASE_TAG }}-macos-${{ matrix.arch }}.dmg
+          if-no-files-found: error
+
+  macos-universal:
+    name: Build macOS Universal installer
+    needs: macos-native
+    runs-on: macos-14
+    steps:
+      - name: Download native macOS bundles
+        uses: actions/download-artifact@v8
+        with:
+          pattern: universal-reader-${{ env.RELEASE_TAG }}-macos-*
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create Universal app and DMG
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p arm64 x86_64 universal
+          tar -xzf "artifacts/universal-reader-${{ env.RELEASE_TAG }}-macos-arm64.tar.gz" -C arm64
+          tar -xzf "artifacts/universal-reader-${{ env.RELEASE_TAG }}-macos-x86_64.tar.gz" -C x86_64
+          ditto arm64/app.app universal/app.app
+          while IFS= read -r file; do
+            relative="${file#universal/app.app/}"
+            arm_file="arm64/app.app/$relative"
+            x86_file="x86_64/app.app/$relative"
+            if [[ -f "$arm_file" && -f "$x86_file" ]] && file "$arm_file" | grep -q 'Mach-O'; then
+              lipo -create "$arm_file" "$x86_file" -output "$file"
+            fi
+          done < <(find universal/app.app -type f)
+          ditto universal/app.app "universal-reader-${{ env.RELEASE_TAG }}-macos-universal.app"
+          hdiutil create -volname "Universal Reader" -srcfolder universal/app.app -ov -format UDZO "universal-reader-${{ env.RELEASE_TAG }}-macos-universal.dmg"
+          tar -C universal -czf "universal-reader-${{ env.RELEASE_TAG }}-macos-universal.tar.gz" app.app
+          hdiutil imageinfo "universal-reader-${{ env.RELEASE_TAG }}-macos-universal.dmg" >/dev/null
+
+      - name: Upload macOS Universal artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: universal-reader-${{ env.RELEASE_TAG }}-macos-universal
+          path: |
+            universal-reader-${{ env.RELEASE_TAG }}-macos-universal.tar.gz
+            universal-reader-${{ env.RELEASE_TAG }}-macos-universal.dmg
           if-no-files-found: error
 
   server-linux:
@@ -392,7 +464,7 @@ jobs:
 
   publish:
     name: Publish GitHub Release
-    needs: [android, web, windows, linux, macos, server-linux, server-windows]
+    needs: [android, web, windows, linux, macos-native, macos-universal, server-linux, server-windows]
     runs-on: ubuntu-latest
     steps:
       - name: Download release artifacts
@@ -416,5 +488,5 @@ jobs:
               '- Flutter Library / Reader / Settings MVP' \
               '- Local-first library persistence' \
               '- Rust local backend service with health and document format detection APIs' \
-              '- Platform packages plus architecture packages for Android, Windows, Linux, and macOS; Android also includes split ABI APKs (debug-signed for this development release)' \
+              '- Platform packages plus architecture packages for Android, Windows, Linux, and macOS; Windows includes x86_64 ZIP and EXE installer packages, while macOS includes Universal, arm64, and x86_64 DMG installers; Android also includes split ABI APKs (debug-signed for this development release)' \
               '- Reader Runtime adapter contracts for future Rust and native renderers')
