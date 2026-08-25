@@ -191,9 +191,93 @@ jobs:
           path: universal-reader-${{ env.RELEASE_TAG }}-windows.zip
           if-no-files-found: error
 
+  server-linux:
+    name: Build Rust server (Linux)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Verify Rust service
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets -- -D warnings
+          cargo test --workspace
+
+      - name: Build Rust server
+        run: cargo build --release --package universal-reader-server
+
+      - name: Package Rust server
+        shell: bash
+        run: tar -C target/release -czf ../universal-reader-${{ env.RELEASE_TAG }}-server-linux-x86_64.tar.gz universal-reader-server
+
+      - name: Upload Rust server artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: universal-reader-${{ env.RELEASE_TAG }}-server-linux-x86_64
+          path: universal-reader-${{ env.RELEASE_TAG }}-server-linux-x86_64.tar.gz
+          if-no-files-found: error
+
+  server-windows:
+    name: Build Rust server (Windows)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Verify Rust service
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets -- -D warnings
+          cargo test --workspace
+
+      - name: Build Rust server
+        run: cargo build --release --package universal-reader-server
+
+      - name: Package Rust server
+        shell: pwsh
+        run: Compress-Archive -Path target\release\universal-reader-server.exe -DestinationPath ..\universal-reader-${{ env.RELEASE_TAG }}-server-windows-x86_64.zip
+
+      - name: Upload Rust server artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: universal-reader-${{ env.RELEASE_TAG }}-server-windows-x86_64
+          path: universal-reader-${{ env.RELEASE_TAG }}-server-windows-x86_64.zip
+          if-no-files-found: error
+
   publish:
     name: Publish GitHub Release
-    needs: [android, web, windows]
+    needs: [android, web, windows, server-linux, server-windows]
     runs-on: ubuntu-latest
     steps:
       - name: Download release artifacts
@@ -212,9 +296,10 @@ jobs:
             --title "Universal Reader ${{ env.RELEASE_TAG }}" \
             --prerelease \
             --notes-file <(printf '%s\n' \
-              '## Universal Reader 0.0.1-dev.0' \
+              '## Universal Reader 0.0.1-dev.1' \
               '' \
               '- Flutter Library / Reader / Settings MVP' \
               '- Local-first library persistence' \
-              '- Android APKs split by ABI, plus Web and Windows release artifacts' \
+              '- Rust local backend service with health and document format detection APIs' \
+              '- Android APKs split by ABI, plus Web, Windows, and Rust service release artifacts' \
               '- Reader Runtime adapter contracts for future Rust and native renderers')

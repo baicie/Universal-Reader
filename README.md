@@ -23,6 +23,17 @@ python -m http.server 8080
 - 响应式桌面/移动布局
 - 预留后续 Flutter `Reader Runtime`、`DocumentAdapter`、`Locator` 的产品边界
 
+## Rust 后端服务
+
+`rust/crates/reader-server` 是随应用发布的本地 Rust HTTP 服务基座。它默认只监听 `127.0.0.1:8787`，不暴露公网接口，当前提供健康检查与文档格式检测；SQLite、索引和文件扫描将在该服务边界内逐步加入。
+
+```powershell
+cd rust
+cargo run --release --package universal-reader-server
+```
+
+可访问 `http://127.0.0.1:8787/health`，或请求 `http://127.0.0.1:8787/v1/formats/book.epub`。使用环境变量 `UNIVERSAL_READER_SERVER_PORT` 可修改监听端口。
+
 ## 后续工程化
 
-正式跨平台版本应按设计方案迁移到 Flutter + Rust Core，并把当前页面拆为 `features/library`，将格式检测、SQLite、索引和文件扫描下沉到 Rust。
+Flutter UI 保持在 `app/`，Rust 后端服务保持在 `rust/`。后续可通过 `flutter_rust_bridge` 或本地 HTTP 客户端将服务能力接入现有 repository 接口，同时将格式检测、SQLite、索引和文件扫描下沉到 Rust。

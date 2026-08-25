@@ -32,6 +32,10 @@ flutter build web --release
 - Reader screen with TOC, progress slider, content theme surface, and mobile chrome behavior
 - Settings screen with light/dark/system theme selection
 
+## Rust backend integration
+
+The local Rust service is in `../rust/crates/reader-server`. It currently supplies health reporting and first-pass format detection over loopback HTTP. Flutter continues to use its existing repository during this development release; the service boundary lets SQLite/FTS5, library scanning, and richer document inspection move into Rust without coupling them to the UI.
+
 ## Architecture follow-up
 
 The renderer contracts intentionally isolate third-party implementations. The next production layers can add `FoliateEngineAdapter`, `PdfRenderer`, and `ComicRenderer` without coupling those packages to Library or Reader UI. Rust Core and SQLite/FTS5 should be connected behind repository interfaces after the Flutter application contracts stabilize.

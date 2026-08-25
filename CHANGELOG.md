@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.1-dev.1 - 2026-08-25
+
+- Added `universal-reader-server`, a Rust local backend service for health reporting and first-pass document format detection.
+- Added CI quality gates for Rust formatting, Clippy, tests, and release builds.
+- Release artifacts now include Linux and Windows Rust service packages.
+
 ## 0.0.1-dev.0 - 2026-08-25
 
 Initial development release.
