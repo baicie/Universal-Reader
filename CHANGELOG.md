@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Windows release artifacts now include a ZIP package and an x86_64 Inno Setup `.exe` installer.
+- macOS release artifacts now include Universal, arm64, and x86_64 `.dmg` installers plus matching archives.
+
 ## 0.0.1-dev.3 - 2026-08-25
 
 - Release artifacts now provide a platform-level package plus an explicit architecture package; Android also includes arm64-v8a, armeabi-v7a, and x86_64 APKs.

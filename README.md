@@ -22,7 +22,7 @@ flutter build web --release
 flutter build windows --release
 ```
 
-Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK 和 arm64-v8a、armeabi-v7a、x86_64 架构 APK；Windows 提供通用包和 x86_64 包；Linux 提供通用包和 x86_64 包；macOS 提供通用包和 arm64 包。
+Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK 和 arm64-v8a、armeabi-v7a、x86_64 架构 APK；Windows 提供通用 ZIP、x86_64 ZIP 和 x86_64 `.exe` 安装包；Linux 提供通用包和 x86_64 包；macOS 提供 Universal、arm64、x86_64 三种 `.dmg` 安装包，并保留对应 `.tar.gz` 包。
 
 ## 当前实现
 
