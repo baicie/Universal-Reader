@@ -30,7 +30,7 @@ jobs:
         working-directory: app
     steps:
       - name: Checkout release tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
 
@@ -40,6 +40,12 @@ jobs:
           channel: stable
           flutter-version: '3.47.0'
           cache: true
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
 
       - name: Install dependencies
         run: flutter pub get
@@ -57,10 +63,93 @@ jobs:
         run: zip -r ../universal-reader-${{ env.RELEASE_TAG }}-web.zip build/web
 
       - name: Upload Web artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: universal-reader-${{ env.RELEASE_TAG }}-web
           path: universal-reader-${{ env.RELEASE_TAG }}-web.zip
+          if-no-files-found: error
+
+  android:
+    name: Build Android release
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.0'
+          cache: true
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Configure Android release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for variable in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!variable:-}" ]]; then
+              echo "Missing required repository secret: $variable" >&2
+              exit 1
+            fi
+          done
+
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/universal-reader-release.jks
+          {
+            printf 'storeFile=universal-reader-release.jks\n'
+            printf 'storePassword=%s\n' "$ANDROID_KEYSTORE_PASSWORD"
+            printf 'keyAlias=%s\n' "$ANDROID_KEY_ALIAS"
+            printf 'keyPassword=%s\n' "$ANDROID_KEY_PASSWORD"
+          } > android/key.properties
+
+      - name: Build Android split APKs
+        run: flutter build apk --release --split-per-abi
+
+      - name: Package Android APKs
+        shell: bash
+        run: |
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk ../universal-reader-${{ env.RELEASE_TAG }}-android-arm64-v8a.apk
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk ../universal-reader-${{ env.RELEASE_TAG }}-android-armeabi-v7a.apk
+          cp build/app/outputs/flutter-apk/app-x86_64-release.apk ../universal-reader-${{ env.RELEASE_TAG }}-android-x86_64.apk
+
+      - name: Verify Android artifacts
+        shell: bash
+        run: |
+          for apk in ../universal-reader-${{ env.RELEASE_TAG }}-android-*.apk; do
+            test -s "$apk"
+            unzip -tq "$apk"
+          done
+
+      - name: Remove Android signing material
+        if: always()
+        shell: bash
+        run: rm -f android/key.properties android/universal-reader-release.jks
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: universal-reader-${{ env.RELEASE_TAG }}-android
+          path: universal-reader-${{ env.RELEASE_TAG }}-android-*.apk
           if-no-files-found: error
 
   windows:
@@ -71,7 +160,7 @@ jobs:
         working-directory: app
     steps:
       - name: Checkout release tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
 
@@ -96,7 +185,7 @@ jobs:
         run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath ..\universal-reader-${{ env.RELEASE_TAG }}-windows.zip
 
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: universal-reader-${{ env.RELEASE_TAG }}-windows
           path: universal-reader-${{ env.RELEASE_TAG }}-windows.zip
@@ -104,11 +193,11 @@ jobs:
 
   publish:
     name: Publish GitHub Release
-    needs: [web, windows]
+    needs: [android, web, windows]
     runs-on: ubuntu-latest
     steps:
       - name: Download release artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           pattern: universal-reader-*
@@ -127,5 +216,5 @@ jobs:
               '' \
               '- Flutter Library / Reader / Settings MVP' \
               '- Local-first library persistence' \
-              '- Web and Windows release artifacts' \
+              '- Android APKs split by ABI, plus Web and Windows release artifacts' \
               '- Reader Runtime adapter contracts for future Rust and native renderers')
