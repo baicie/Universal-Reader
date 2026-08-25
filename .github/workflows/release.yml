@@ -106,6 +106,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "${{ contains(env.RELEASE_TAG, '-dev.') }}" == "true" && -z "${ANDROID_KEYSTORE_BASE64:-}" ]]; then
+            echo "Development release: building unsigned APKs with the Gradle debug signing key"
+            exit 0
+          fi
+
           for variable in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
             if [[ -z "${!variable:-}" ]]; then
               echo "Missing required repository secret: $variable" >&2
@@ -301,5 +306,5 @@ jobs:
               '- Flutter Library / Reader / Settings MVP' \
               '- Local-first library persistence' \
               '- Rust local backend service with health and document format detection APIs' \
-              '- Android APKs split by ABI, plus Web, Windows, and Rust service release artifacts' \
+              '- Android APKs split by ABI (debug-signed for this development release), plus Web, Windows, and Rust service release artifacts' \
               '- Reader Runtime adapter contracts for future Rust and native renderers')
