@@ -19,7 +19,10 @@ cd app
 flutter analyze
 flutter test
 flutter build web --release
+flutter build windows --release
 ```
+
+Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK 和 arm64-v8a、armeabi-v7a、x86_64 架构 APK；Windows 提供通用包和 x86_64 包；Linux 提供通用包和 x86_64 包；macOS 提供通用包和 arm64 包。
 
 ## 当前实现
 

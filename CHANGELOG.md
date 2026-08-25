@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.1-dev.3 - 2026-08-25
+
+- Release artifacts now provide a platform-level package plus an explicit architecture package; Android also includes arm64-v8a, armeabi-v7a, and x86_64 APKs.
+
 ## 0.0.1-dev.2 - 2026-08-25
 
 - Added local Rust multipart upload endpoint at `/v1/library/files`.
