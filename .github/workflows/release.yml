@@ -285,9 +285,11 @@ jobs:
       matrix:
         include:
           - arch: arm64
+            target_platform: darwin-arm64
             runner: macos-14
           - arch: x86_64
-            runner: macos-13
+            target_platform: darwin-x64
+            runner: macos-14
     runs-on: ${{ matrix.runner }}
     defaults:
       run:
@@ -312,7 +314,7 @@ jobs:
         run: flutter pub get
 
       - name: Build macOS ${{ matrix.arch }}
-        run: flutter build macos --release
+        run: flutter build macos --release --target-platform=${{ matrix.target_platform }}
 
       - name: Package macOS ${{ matrix.arch }}
         shell: bash
