@@ -268,7 +268,7 @@ jobs:
         shell: bash
         run: |
           for archive in "$GITHUB_WORKSPACE"/universal-reader-${{ env.RELEASE_TAG }}-linux*.tar.gz; do
-            tar -tzf "$archive" | grep -Eq '^\./?app$'
+            tar -tzf "$archive" | grep -Eq '^(.\/)?app$'
           done
 
       - name: Upload Linux artifacts
