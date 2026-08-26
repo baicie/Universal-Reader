@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.0.1-dev.4 - 2026-08-26
+
 - Windows release artifacts now include a ZIP package and an x86_64 Inno Setup `.exe` installer.
 - macOS release artifacts now include Universal, arm64, and x86_64 `.dmg` installers plus matching archives.
 
