@@ -268,7 +268,7 @@ jobs:
         shell: bash
         run: |
           for archive in "$GITHUB_WORKSPACE"/universal-reader-${{ env.RELEASE_TAG }}-linux*.tar.gz; do
-            tar -tzf "$archive" | grep -q '^app$'
+            tar -tzf "$archive" | grep -Eq '^\./?app$'
           done
 
       - name: Upload Linux artifacts
@@ -285,11 +285,9 @@ jobs:
       matrix:
         include:
           - arch: arm64
-            target_platform: darwin-arm64
             runner: macos-14
           - arch: x86_64
-            target_platform: darwin-x64
-            runner: macos-14
+            runner: macos-13
     runs-on: ${{ matrix.runner }}
     defaults:
       run:
@@ -314,7 +312,7 @@ jobs:
         run: flutter pub get
 
       - name: Build macOS ${{ matrix.arch }}
-        run: flutter build macos --release --target-platform=${{ matrix.target_platform }}
+        run: flutter build macos --release
 
       - name: Package macOS ${{ matrix.arch }}
         shell: bash
