@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.0.1-dev.6 - 2026-08-27
+
+- Configured the Intel macOS build to exclude arm64 before Universal app assembly.
+
 ## 0.0.1-dev.5 - 2026-08-27
 
 - Fixed desktop release validation so Linux archives do not fail from an early-closed verification pipeline.

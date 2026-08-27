@@ -321,6 +321,11 @@ jobs:
         if: matrix.arch == 'arm64'
         run: flutter config --enable-macos-arm64-only
 
+      - name: Configure x86_64-only macOS build
+        if: matrix.arch == 'x86_64'
+        shell: bash
+        run: echo 'EXCLUDED_ARCHS = arm64' >> macos/Flutter/Flutter-Release.xcconfig
+
       - name: Build macOS ${{ matrix.arch }}
         run: flutter build macos --release
 
