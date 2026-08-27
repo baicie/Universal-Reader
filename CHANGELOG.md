@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.0.1-dev.5 - 2026-08-27
+
+- Fixed desktop release validation so Linux archives do not fail from an early-closed verification pipeline.
+- Built and verified separate macOS arm64 and x86_64 binaries before creating the Universal installer.
+- Uploaded the Windows x86_64 Inno Setup installer with the other Windows release artifacts.
+
 ## 0.0.1-dev.4 - 2026-08-26
 
 - Windows release artifacts now include a ZIP package and an x86_64 Inno Setup `.exe` installer.

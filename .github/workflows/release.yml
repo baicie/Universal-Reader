@@ -221,7 +221,7 @@ jobs:
           path: |
             universal-reader-${{ env.RELEASE_TAG }}-windows.zip
             universal-reader-${{ env.RELEASE_TAG }}-windows-x86_64.zip
-            windows/universal-reader-${{ env.RELEASE_TAG }}-windows-x86_64-setup.exe
+            app/windows/universal-reader-${{ env.RELEASE_TAG }}-windows-x86_64-setup.exe
           if-no-files-found: error
 
   linux:
@@ -267,8 +267,11 @@ jobs:
       - name: Verify Linux artifacts
         shell: bash
         run: |
+          archive_contents="$(mktemp)"
+          trap 'rm -f "$archive_contents"' EXIT
           for archive in "$GITHUB_WORKSPACE"/universal-reader-${{ env.RELEASE_TAG }}-linux*.tar.gz; do
-            tar -tzf "$archive" | grep -Eq '^(.\/)?app$'
+            tar -tzf "$archive" > "$archive_contents"
+            grep -Eq '^(.\/)?app$' "$archive_contents"
           done
 
       - name: Upload Linux artifacts
@@ -285,8 +288,10 @@ jobs:
       matrix:
         include:
           - arch: arm64
+            flutter_architecture: arm64
             runner: macos-14
           - arch: x86_64
+            flutter_architecture: x64
             runner: macos-15-intel
     runs-on: ${{ matrix.runner }}
     defaults:
@@ -303,6 +308,7 @@ jobs:
         with:
           channel: stable
           flutter-version: '3.47.0'
+          architecture: ${{ matrix.flutter_architecture }}
           cache: true
 
       - name: Enable macOS desktop
@@ -311,8 +317,23 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Configure ARM64-only macOS build
+        if: matrix.arch == 'arm64'
+        run: flutter config --enable-macos-arm64-only
+
       - name: Build macOS ${{ matrix.arch }}
         run: flutter build macos --release
+
+      - name: Verify macOS ${{ matrix.arch }} binary architecture
+        shell: bash
+        run: |
+          binary="build/macos/Build/Products/Release/app.app/Contents/MacOS/app"
+          expected_arch="${{ matrix.arch }}"
+          actual_arches="$(lipo -archs "$binary")"
+          if [[ "$actual_arches" != "$expected_arch" ]]; then
+            echo "Expected $expected_arch, got: $actual_arches" >&2
+            exit 1
+          fi
 
       - name: Package macOS ${{ matrix.arch }}
         shell: bash
@@ -324,7 +345,10 @@ jobs:
       - name: Verify macOS ${{ matrix.arch }} artifacts
         shell: bash
         run: |
-          tar -tzf "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-macos-${{ matrix.arch }}.tar.gz" | grep -q '^app.app/$'
+          archive_contents="$(mktemp)"
+          trap 'rm -f "$archive_contents"' EXIT
+          tar -tzf "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-macos-${{ matrix.arch }}.tar.gz" > "$archive_contents"
+          grep -Eq '^app.app/$' "$archive_contents"
           hdiutil imageinfo "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-macos-${{ matrix.arch }}.dmg" >/dev/null
 
       - name: Upload macOS ${{ matrix.arch }} artifacts
@@ -478,7 +502,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ env.RELEASE_TAG }}" artifacts/* \
+          mapfile -d '' -t release_assets < <(find artifacts -type f -print0)
+          if [[ "${#release_assets[@]}" -eq 0 ]]; then
+            echo "No release assets were downloaded." >&2
+            exit 1
+          fi
+
+          gh release create "${{ env.RELEASE_TAG }}" "${release_assets[@]}" \
             --repo "${{ github.repository }}" \
             --title "Universal Reader ${{ env.RELEASE_TAG }}" \
             --prerelease \
