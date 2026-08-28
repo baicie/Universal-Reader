@@ -1,4 +1,5 @@
 import '../../../core/reader_runtime.dart';
+import '../../../l10n/l10n.dart';
 import '../reader_tool.dart';
 import 'ai_settings.dart';
 import 'grounding.dart';
@@ -22,7 +23,7 @@ class AiReaderTool implements ReaderTool {
   String get id => 'ai.reader';
 
   @override
-  String get label => '阅读助手';
+  String get label => 'readingAssistant';
 
   @override
   bool get enabled => settings.ready;
@@ -31,20 +32,26 @@ class AiReaderTool implements ReaderTool {
   Future<ReaderToolResult> run({
     required ReaderDocument document,
     required ReaderToolRequest request,
+    AppLocalizations? l10n,
   }) async {
     if (!settings.enabled) {
-      return const ReaderToolResult.unavailable('阅读助手未启用。可在设置中打开。');
+      return ReaderToolResult.unavailable(
+        l10n?.assistantDisabled ?? '阅读助手未启用。可在设置中打开。',
+      );
     }
     if (settings.endpoint.trim().isEmpty || settings.model.trim().isEmpty) {
-      return const ReaderToolResult.unavailable('请先在设置中填写接口地址和模型名称。');
+      return ReaderToolResult.unavailable(
+        l10n?.assistantNotConfigured ?? '请先在设置中填写接口地址和模型名称。',
+      );
     }
     final context = await grounding.fromDocument(
       document,
       range: request.range,
       locator: request.locator,
+      l10n: l10n,
     );
     if (context.excerpt.isEmpty) {
-      return const ReaderToolResult.unavailable('当前页没有可发送的摘录。');
+      return ReaderToolResult.unavailable(l10n?.noExcerpt ?? '当前页没有可发送的摘录。');
     }
     final client =
         clientFactory?.call(settings) ??

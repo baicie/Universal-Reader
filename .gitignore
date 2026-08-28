@@ -1,2 +1,6 @@
 # Rust build output
 rust/target/
+
+# Local book drive created by reader-server
+data/library/
+rust/data/

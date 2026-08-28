@@ -1,21 +1,31 @@
 use std::{
-    path::PathBuf,
-    sync::atomic::{AtomicU64, Ordering},
-    time::{SystemTime, UNIX_EPOCH},
+    env,
+    path::{Path, PathBuf},
 };
 
 use axum::{
     Json, Router,
-    extract::{Multipart, Path, State},
-    http::StatusCode,
+    body::Bytes,
+    extract::{Multipart, Path as PathParam, State},
+    http::{StatusCode, header},
     response::IntoResponse,
     routing::{get, post},
 };
+use serde::Deserialize;
+use tower_http::{
+    cors::CorsLayer,
+    services::{ServeDir, ServeFile},
+};
+
+mod library;
+
+pub use library::{LibraryDocumentRecord, LibraryStore};
+
+use library::{LibraryError, content_type_for};
 
 pub const SERVICE_NAME: &str = "universal-reader-server";
 pub const SERVICE_VERSION: &str = env!("CARGO_PKG_VERSION");
 const MAX_UPLOAD_BYTES: usize = 64 * 1024 * 1024;
-static FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DetectedFormat {
@@ -46,23 +56,79 @@ pub fn detect_format(file_name: &str) -> Option<DetectedFormat> {
 
 #[derive(Clone)]
 struct AppState {
-    storage_dir: PathBuf,
+    store: LibraryStore,
 }
 
 pub fn app() -> Router {
-    let storage_dir = std::env::var_os("UNIVERSAL_READER_STORAGE_DIR")
+    let storage_dir = env::var_os("UNIVERSAL_READER_STORAGE_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("data/library"));
     app_with_storage_dir(storage_dir)
 }
 
 pub fn app_with_storage_dir(storage_dir: PathBuf) -> Router {
-    let state = AppState { storage_dir };
+    api_router(LibraryStore::new(storage_dir))
+}
+
+pub fn app_for_server() -> Router {
+    let storage_dir = env::var_os("UNIVERSAL_READER_STORAGE_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("data/library"));
+    app_with_storage_and_web(storage_dir, resolve_web_dir())
+}
+
+pub fn app_with_storage_and_web(storage_dir: PathBuf, web_dir: Option<PathBuf>) -> Router {
+    with_optional_web(api_router(LibraryStore::new(storage_dir)), web_dir)
+}
+
+pub fn resolve_web_dir() -> Option<PathBuf> {
+    if let Some(dir) = env::var_os("UNIVERSAL_READER_WEB_DIR") {
+        let path = PathBuf::from(dir);
+        return has_web_index(&path).then_some(path);
+    }
+    if let Ok(exe) = env::current_exe()
+        && let Some(parent) = exe.parent()
+    {
+        let beside_exe = parent.join("web");
+        if has_web_index(&beside_exe) {
+            return Some(beside_exe);
+        }
+    }
+    let cwd_web = PathBuf::from("web");
+    has_web_index(&cwd_web).then_some(cwd_web)
+}
+
+fn has_web_index(dir: &Path) -> bool {
+    dir.join("index.html").is_file()
+}
+
+fn api_router(store: LibraryStore) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/v1/formats/{file_name}", get(format))
+        .route("/v1/library/documents", get(list_documents))
+        .route(
+            "/v1/library/documents/{id}",
+            get(get_document)
+                .patch(update_document)
+                .delete(delete_document),
+        )
+        .route("/v1/library/documents/{id}/file", get(download_document))
         .route("/v1/library/files", post(upload_file))
-        .with_state(state)
+        .layer(CorsLayer::permissive())
+        .with_state(AppState { store })
+}
+
+fn with_optional_web(api: Router, web_dir: Option<PathBuf>) -> Router {
+    let Some(web_dir) = web_dir.filter(|dir| has_web_index(dir)) else {
+        return api;
+    };
+    let index = web_dir.join("index.html");
+    api.fallback_service(
+        ServeDir::new(web_dir)
+            .append_index_html_on_directories(true)
+            .fallback(ServeFile::new(index)),
+    )
 }
 
 async fn health() -> Json<HealthResponse> {
@@ -73,7 +139,7 @@ async fn health() -> Json<HealthResponse> {
     })
 }
 
-async fn format(Path(file_name): Path<String>) -> impl IntoResponse {
+async fn format(PathParam(file_name): PathParam<String>) -> impl IntoResponse {
     if file_name.trim().is_empty() || file_name.len() > 255 {
         return (
             StatusCode::BAD_REQUEST,
@@ -104,9 +170,74 @@ async fn format(Path(file_name): Path<String>) -> impl IntoResponse {
     }
 }
 
+async fn list_documents(State(state): State<AppState>) -> impl IntoResponse {
+    match state.store.list().await {
+        Ok(documents) => (StatusCode::OK, Json(ListResponse { documents })).into_response(),
+        Err(_) => library_error(LibraryError::Io).into_response(),
+    }
+}
+
+async fn get_document(
+    State(state): State<AppState>,
+    PathParam(id): PathParam<String>,
+) -> impl IntoResponse {
+    match state.store.get(&id).await {
+        Ok(document) => (StatusCode::OK, Json(document)).into_response(),
+        Err(error) => library_error(error).into_response(),
+    }
+}
+
+async fn update_document(
+    State(state): State<AppState>,
+    PathParam(id): PathParam<String>,
+    Json(body): Json<UpdateDocumentRequest>,
+) -> impl IntoResponse {
+    let Some(progress) = body.progress else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(ApiError {
+                error: "progress is required",
+            }),
+        )
+            .into_response();
+    };
+    match state.store.update_progress(&id, progress).await {
+        Ok(document) => (StatusCode::OK, Json(document)).into_response(),
+        Err(error) => library_error(error).into_response(),
+    }
+}
+
+async fn delete_document(
+    State(state): State<AppState>,
+    PathParam(id): PathParam<String>,
+) -> impl IntoResponse {
+    match state.store.delete(&id).await {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(error) => library_error(error).into_response(),
+    }
+}
+
+async fn download_document(
+    State(state): State<AppState>,
+    PathParam(id): PathParam<String>,
+) -> impl IntoResponse {
+    match state.store.read_file(&id).await {
+        Ok((document, bytes)) => (
+            StatusCode::OK,
+            [
+                (header::CONTENT_TYPE, content_type_for(&document.format)),
+                (header::CONTENT_DISPOSITION, "attachment"),
+            ],
+            bytes,
+        )
+            .into_response(),
+        Err(error) => library_error(error).into_response(),
+    }
+}
+
 async fn upload_file(State(state): State<AppState>, mut multipart: Multipart) -> impl IntoResponse {
     let mut file_name = None;
-    let mut content = None;
+    let mut content: Option<Bytes> = None;
 
     while let Ok(Some(field)) = multipart.next_field().await {
         if field.name() != Some("file") {
@@ -121,24 +252,6 @@ async fn upload_file(State(state): State<AppState>, mut multipart: Multipart) ->
             )
                 .into_response();
         };
-        if candidate_name.len() > 255 || candidate_name.contains(['/', '\\']) {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(ApiError {
-                    error: "file name is invalid",
-                }),
-            )
-                .into_response();
-        }
-        if detect_format(&candidate_name).is_none() {
-            return (
-                StatusCode::UNSUPPORTED_MEDIA_TYPE,
-                Json(ApiError {
-                    error: "unsupported document format",
-                }),
-            )
-                .into_response();
-        }
         match field.bytes().await {
             Ok(bytes) if bytes.len() <= MAX_UPLOAD_BYTES => {
                 file_name = Some(candidate_name);
@@ -175,47 +288,27 @@ async fn upload_file(State(state): State<AppState>, mut multipart: Multipart) ->
         )
             .into_response();
     };
-    let detected = detect_format(&file_name).expect("file format was validated before reading");
 
-    if tokio::fs::create_dir_all(&state.storage_dir).await.is_err() {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiError {
-                error: "could not prepare library storage",
-            }),
-        )
-            .into_response();
+    match state.store.ingest(file_name, &content).await {
+        Ok(document) => (StatusCode::CREATED, Json(document)).into_response(),
+        Err(error) => library_error(error).into_response(),
     }
+}
 
-    let sequence = FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |duration| duration.as_millis());
-    let extension = file_name.rsplit_once('.').map_or("bin", |(_, value)| value);
-    let stored_name = format!("{timestamp}-{sequence}.{extension}");
-    let stored_path = state.storage_dir.join(&stored_name);
-
-    if tokio::fs::write(&stored_path, &content).await.is_err() {
-        return (
+fn library_error(error: LibraryError) -> impl IntoResponse {
+    let (status, message) = match error {
+        LibraryError::InvalidName => (StatusCode::BAD_REQUEST, "file name is invalid"),
+        LibraryError::Unsupported => (
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            "unsupported document format",
+        ),
+        LibraryError::NotFound => (StatusCode::NOT_FOUND, "document not found"),
+        LibraryError::Io => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiError {
-                error: "could not store uploaded file",
-            }),
-        )
-            .into_response();
-    }
-
-    (
-        StatusCode::CREATED,
-        Json(UploadResponse {
-            file_name,
-            stored_name,
-            format: detected.format,
-            document_type: detected.document_type,
-            size: content.len(),
-        }),
-    )
-        .into_response()
+            "could not access library storage",
+        ),
+    };
+    (status, Json(ApiError { error: message }))
 }
 
 #[derive(serde::Serialize)]
@@ -233,12 +326,13 @@ struct FormatResponse {
 }
 
 #[derive(serde::Serialize)]
-struct UploadResponse {
-    file_name: String,
-    stored_name: String,
-    format: &'static str,
-    document_type: &'static str,
-    size: usize,
+struct ListResponse {
+    documents: Vec<LibraryDocumentRecord>,
+}
+
+#[derive(Deserialize)]
+struct UpdateDocumentRequest {
+    progress: Option<f64>,
 }
 
 #[derive(serde::Serialize)]

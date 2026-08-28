@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/reader_runtime.dart';
+import '../../l10n/l10n.dart';
 import 'ai/ai_reader_tool.dart';
 import 'ai/ai_settings.dart';
 import 'ai/grounding.dart';
@@ -30,11 +31,15 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
   String? reply;
   String? error;
   bool sending = false;
+  var previewStarted = false;
 
   @override
-  void initState() {
-    super.initState();
-    _loadPreview();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!previewStarted) {
+      previewStarted = true;
+      _loadPreview();
+    }
   }
 
   @override
@@ -46,6 +51,7 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
   Future<void> _loadPreview() async {
     final grounding = await const DocumentGrounding().fromDocument(
       widget.document,
+      l10n: AppLocalizations.of(context),
     );
     if (!mounted) return;
     setState(() {
@@ -62,9 +68,11 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
     });
     try {
       final tool = AiReaderTool(settings: widget.settings);
+      final l10n = AppLocalizations.of(context);
       final result = await tool.run(
         document: widget.document,
         request: ReaderToolRequest(kind: kind, question: question.text),
+        l10n: l10n,
       );
       if (!mounted) return;
       setState(() {
@@ -80,7 +88,7 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
       if (!mounted) return;
       setState(() {
         sending = false;
-        error = '请求失败：$e';
+        error = AppLocalizations.of(context).requestFailed('$e');
       });
     }
   }
@@ -88,6 +96,7 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     return Material(
       color: theme.colorScheme.surface,
       child: SafeArea(
@@ -99,7 +108,7 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: Text(
-                  '问这一页',
+                  l10n.askThisPage,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -109,8 +118,8 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
                   locatorLabel == null
-                      ? '将发送当前章节摘录，不上整本书。'
-                      : '定位：$locatorLabel。将发送当前摘录，不上整本书。',
+                      ? l10n.sendExcerptHint
+                      : l10n.sendExcerptHintLocated(locatorLabel!),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -123,10 +132,10 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
                   spacing: 8,
                   children: [
                     for (final item in [
-                      (ReaderToolKind.summarize, '总结'),
-                      (ReaderToolKind.explain, '解释'),
-                      (ReaderToolKind.translate, '翻译'),
-                      (ReaderToolKind.ask, '提问'),
+                      (ReaderToolKind.summarize, l10n.summarize),
+                      (ReaderToolKind.explain, l10n.explain),
+                      (ReaderToolKind.translate, l10n.translate),
+                      (ReaderToolKind.ask, l10n.ask),
                     ])
                       ChoiceChip(
                         label: Text(item.$2),
@@ -143,7 +152,7 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
                     controller: question,
                     minLines: 2,
                     maxLines: 3,
-                    decoration: const InputDecoration(hintText: '输入关于这一页的问题'),
+                    decoration: InputDecoration(hintText: l10n.askQuestionHint),
                   ),
                 ),
               Expanded(
@@ -151,7 +160,7 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
                   padding: const EdgeInsets.all(16),
                   child: SingleChildScrollView(
                     child: Text(
-                      reply ?? error ?? excerptPreview ?? '正在读取当前摘录…',
+                      reply ?? error ?? excerptPreview ?? l10n.readingExcerpt,
                       style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
                     ),
                   ),
@@ -162,11 +171,11 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
                 child: widget.settings.ready
                     ? FilledButton(
                         onPressed: sending ? null : _send,
-                        child: Text(sending ? '发送中…' : '发送摘录'),
+                        child: Text(sending ? l10n.sending : l10n.sendExcerpt),
                       )
                     : OutlinedButton(
                         onPressed: () => context.push('/settings'),
-                        child: const Text('到设置中启用阅读助手'),
+                        child: Text(l10n.enableAssistantInSettings),
                       ),
               ),
             ],

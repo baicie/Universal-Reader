@@ -1,0 +1,261 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Chinese (`zh`).
+class AppLocalizationsZh extends AppLocalizations {
+  AppLocalizationsZh([String locale = 'zh']) : super(locale);
+
+  @override
+  String get appTitle => 'Universal Reader';
+
+  @override
+  String get openMenu => '打开菜单';
+
+  @override
+  String get settings => '设置';
+
+  @override
+  String get importBooks => '导入书籍';
+
+  @override
+  String get allBooks => '全部书籍';
+
+  @override
+  String get currentlyReading => '正在阅读';
+
+  @override
+  String get favorites => '收藏';
+
+  @override
+  String get library => '资料库';
+
+  @override
+  String get libraryWithServer => '资料库 · 本机服务';
+
+  @override
+  String bookCount(int count) {
+    return '$count 本书籍';
+  }
+
+  @override
+  String get toggleView => '切换视图';
+
+  @override
+  String get all => '全部';
+
+  @override
+  String get reflow => '可重排';
+
+  @override
+  String get fixedLayout => '固定版式';
+
+  @override
+  String get comic => '漫画';
+
+  @override
+  String get sortRecent => '最近阅读';
+
+  @override
+  String get sortTitle => '标题';
+
+  @override
+  String get sortProgress => '阅读进度';
+
+  @override
+  String get continueReading => '继续阅读';
+
+  @override
+  String get browse => '浏览';
+
+  @override
+  String get collections => '收藏夹';
+
+  @override
+  String get collectionDesign => '设计与灵感';
+
+  @override
+  String get collectionTech => '技术阅读';
+
+  @override
+  String get importFolder => '导入文件夹';
+
+  @override
+  String get localFirstOffline => 'Local-first · 离线可用';
+
+  @override
+  String get searchHint => '搜索书名、作者或格式';
+
+  @override
+  String get emptyLibraryTitle => '书库还是空的';
+
+  @override
+  String get emptyLibraryFilteredTitle => '没有找到匹配的书籍';
+
+  @override
+  String get emptyLibraryFilteredSubtitle => '尝试更换搜索词或筛选条件。';
+
+  @override
+  String get emptyLibraryRemoteSubtitle => '点击 + 把书上传到本机服务，刷新后也会还在。';
+
+  @override
+  String get emptyLibraryLocalSubtitle => '点击 + 导入本地书籍。';
+
+  @override
+  String importedBooks(int count) {
+    return '已导入 $count 本书籍';
+  }
+
+  @override
+  String get importFailed => '导入失败，请确认本机服务可用';
+
+  @override
+  String get noSupportedFormat => '没有识别到支持的格式';
+
+  @override
+  String get localLibraryAuthor => '本地书库';
+
+  @override
+  String get backToLibrary => '返回书库';
+
+  @override
+  String get askThisPage => '问这一页';
+
+  @override
+  String get tableOfContents => '目录';
+
+  @override
+  String get readingSettings => '阅读设置';
+
+  @override
+  String get preferences => '偏好';
+
+  @override
+  String get appearance => '外观';
+
+  @override
+  String get theme => '主题';
+
+  @override
+  String get themeLight => '浅色';
+
+  @override
+  String get themeDark => '深色';
+
+  @override
+  String get themeSystem => '跟随系统';
+
+  @override
+  String get language => '语言';
+
+  @override
+  String get languageChinese => '中文';
+
+  @override
+  String get languageEnglish => 'English';
+
+  @override
+  String get languageSystem => '跟随系统';
+
+  @override
+  String get readingAssistant => '阅读助手';
+
+  @override
+  String get enableAssistant => '启用阅读助手';
+
+  @override
+  String get enableAssistantSubtitle => '默认关闭。关闭时阅读页不会请求任何模型。';
+
+  @override
+  String get endpointLabel => '接口地址';
+
+  @override
+  String get modelLabel => '模型名称';
+
+  @override
+  String get modelHint => 'llama3.1 或 gpt-4o-mini';
+
+  @override
+  String get apiKeyLabel => 'API Key（可选）';
+
+  @override
+  String get apiKeyHint => '仅保存在本机';
+
+  @override
+  String get assistantPrivacyNote =>
+      '发送时会把当前摘录交给你配置的 OpenAI 兼容接口，例如本机 Ollama。不上整本书，也不上传书库。';
+
+  @override
+  String get defaultImportLocation => '默认导入位置';
+
+  @override
+  String get defaultImportLocationSubtitle => '由系统文件选择器管理';
+
+  @override
+  String get localFirstStorage => '本地优先存储';
+
+  @override
+  String get localFirstStorageSubtitle => '阅读进度和标注保存在本设备';
+
+  @override
+  String get sendExcerptHint => '将发送当前章节摘录，不上整本书。';
+
+  @override
+  String sendExcerptHintLocated(String locator) {
+    return '定位：$locator。将发送当前摘录，不上整本书。';
+  }
+
+  @override
+  String get summarize => '总结';
+
+  @override
+  String get explain => '解释';
+
+  @override
+  String get translate => '翻译';
+
+  @override
+  String get ask => '提问';
+
+  @override
+  String get askQuestionHint => '输入关于这一页的问题';
+
+  @override
+  String get readingExcerpt => '正在读取当前摘录…';
+
+  @override
+  String get sending => '发送中…';
+
+  @override
+  String get sendExcerpt => '发送摘录';
+
+  @override
+  String get enableAssistantInSettings => '到设置中启用阅读助手';
+
+  @override
+  String requestFailed(String error) {
+    return '请求失败：$error';
+  }
+
+  @override
+  String get assistantDisabled => '阅读助手未启用。可在设置中打开。';
+
+  @override
+  String get assistantNotConfigured => '请先在设置中填写接口地址和模型名称。';
+
+  @override
+  String get noExcerpt => '当前页没有可发送的摘录。';
+
+  @override
+  String pageNumber(int page) {
+    return '第 $page 页';
+  }
+
+  @override
+  String textOffset(int offset) {
+    return '偏移 $offset';
+  }
+}

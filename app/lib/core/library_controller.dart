@@ -1,7 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
-import 'format_detector.dart';
 import 'library_repository.dart';
 import 'models.dart';
 
@@ -13,7 +12,6 @@ class PersistedLibraryController extends ChangeNotifier {
 
   final LibraryRepository repository;
   final List<LibraryDocument> _initialDocuments;
-  final FormatDetector detector = const FormatDetector();
   List<LibraryDocument> _documents = [];
   String query = '';
   String section = 'all';
@@ -21,6 +19,9 @@ class PersistedLibraryController extends ChangeNotifier {
   String sort = 'recent';
   bool listView = false;
   bool loading = true;
+
+  bool get usesRemoteStore => repository.usesRemoteStore;
+  bool get hasStoredDocuments => _documents.isNotEmpty;
 
   List<LibraryDocument> get documents {
     final result = _documents.where((document) {
@@ -73,9 +74,14 @@ class PersistedLibraryController extends ChangeNotifier {
   }
 
   Future<void> load() async {
-    final stored = await repository.load();
-    _documents = stored.isEmpty ? List.of(_initialDocuments) : stored;
-    if (stored.isEmpty) await repository.save(_documents);
+    try {
+      final stored = await repository.load();
+      final seedLocalEmpty = stored.isEmpty && !repository.usesRemoteStore;
+      _documents = seedLocalEmpty ? List.of(_initialDocuments) : stored;
+      if (seedLocalEmpty) await repository.save(_documents);
+    } catch (_) {
+      _documents = repository.usesRemoteStore ? [] : List.of(_initialDocuments);
+    }
     loading = false;
     notifyListeners();
   }
@@ -105,47 +111,50 @@ class PersistedLibraryController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<String?> importFiles() async {
+  Future<ImportOutcome> importFiles() async {
     final files = await FilePicker.pickFiles();
-    if (files.isEmpty) return null;
+    if (files.isEmpty) return const ImportOutcome.cancelled();
     var count = 0;
+    var failed = false;
     for (final file in files) {
-      final source = DocumentSource(name: file.name, path: file.path);
-      final format = detector.detect(source);
-      if (format == DocumentFormat.unknown) continue;
-      _documents.removeWhere((document) => document.metadata.id == file.name);
-      _documents.insert(
-        0,
-        LibraryDocument(
-          metadata: DocumentMetadata(
-            id: file.name,
-            title: file.name.replaceFirst(RegExp(r'\.[^.]+$'), ''),
-            author: '本地文件',
-            format: format,
-            type: format.type,
-            coverColor: 0xFF6F8179,
-          ),
-          readingState: ReadingState(progress: 0, lastOpened: DateTime.now()),
-        ),
-      );
-      count++;
+      try {
+        final bytes = await file.readAsBytes();
+        final document = await repository.importBytes(file.name, bytes);
+        _documents.removeWhere(
+          (item) => item.metadata.id == document.metadata.id,
+        );
+        _documents.insert(0, document);
+        count++;
+      } on FormatException {
+        continue;
+      } catch (_) {
+        failed = true;
+      }
     }
-    await repository.save(_documents);
     notifyListeners();
-    return count == 0 ? '没有识别到支持的格式' : '已导入 $count 本书籍';
+    if (count > 0) return ImportOutcome.imported(count);
+    if (failed) return const ImportOutcome.failed();
+    return const ImportOutcome.unsupported();
   }
 
   Future<void> opened(String id) async {
     final index = _documents.indexWhere((item) => item.metadata.id == id);
     if (index < 0) return;
     final item = _documents[index];
-    _documents[index] = item.copyWith(
+    final next = item.copyWith(
       readingState: ReadingState(
         progress: item.readingState.progress,
         lastOpened: DateTime.now(),
       ),
     );
-    await repository.save(_documents);
+    _documents[index] = next;
+    try {
+      await repository.writeReadingState(
+        id: id,
+        progress: next.readingState.progress,
+        lastOpened: next.readingState.lastOpened,
+      );
+    } catch (_) {}
     notifyListeners();
   }
 
@@ -153,13 +162,34 @@ class PersistedLibraryController extends ChangeNotifier {
     final index = _documents.indexWhere((item) => item.metadata.id == id);
     if (index < 0) return;
     final item = _documents[index];
-    _documents[index] = item.copyWith(
+    final next = item.copyWith(
       readingState: ReadingState(
         progress: progress.clamp(0, 1),
         lastOpened: DateTime.now(),
       ),
     );
-    await repository.save(_documents);
+    _documents[index] = next;
+    try {
+      await repository.writeReadingState(
+        id: id,
+        progress: next.readingState.progress,
+        lastOpened: next.readingState.lastOpened,
+      );
+    } catch (_) {}
     notifyListeners();
   }
+}
+
+class ImportOutcome {
+  const ImportOutcome.cancelled() : count = 0, failed = false, cancelled = true;
+  const ImportOutcome.imported(this.count) : failed = false, cancelled = false;
+  const ImportOutcome.failed() : count = 0, failed = true, cancelled = false;
+  const ImportOutcome.unsupported()
+    : count = 0,
+      failed = false,
+      cancelled = false;
+
+  final int count;
+  final bool failed;
+  final bool cancelled;
 }

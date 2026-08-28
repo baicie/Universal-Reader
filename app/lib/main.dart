@@ -7,25 +7,31 @@ import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/http_library_repository.dart';
 import 'core/library_controller.dart';
 import 'core/library_repository.dart';
+import 'core/locale_controller.dart';
 import 'core/models.dart';
 import 'core/format_detector.dart';
 import 'features/tools/ai/ai_settings.dart';
 import 'features/tools/ai/ai_settings_controller.dart';
 import 'features/tools/reader_ai_panel.dart';
 import 'features/tools/sample_reader_document.dart';
+import 'l10n/l10n.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final preferences = await SharedPreferences.getInstance();
-  final repository = SharedPreferencesLibraryRepository(preferences);
+  final repository = await resolveLibraryRepository(preferences);
   final aiSettings = SharedPreferencesAiSettingsRepository(preferences);
+  final localeController = LocaleController(preferences);
+  await localeController.load();
   runApp(
     ProviderScope(
       overrides: [
         libraryRepositoryProvider.overrideWithValue(repository),
         aiSettingsRepositoryProvider.overrideWithValue(aiSettings),
+        localeProvider.overrideWith((ref) => localeController),
       ],
       child: const UniversalReaderApp(),
     ),
@@ -58,6 +64,9 @@ final aiSettingsProvider = ChangeNotifierProvider<AiSettingsController>((ref) {
   return controller;
 });
 final themeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
+final localeProvider = ChangeNotifierProvider<LocaleController>((ref) {
+  return LocaleController();
+});
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     routes: [
@@ -76,9 +85,16 @@ class UniversalReaderApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final locales = ref.watch(localeProvider);
     return MaterialApp.router(
-      title: 'Universal Reader',
+      onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       debugShowCheckedModeBanner: false,
+      locale: locales.overrideLocale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      localeListResolutionCallback: (device, supported) {
+        return resolveAppLocale(device, preference: locales.language);
+      },
       themeMode: ref.watch(themeProvider),
       theme: readerTheme(Brightness.light),
       darkTheme: readerTheme(Brightness.dark),
@@ -419,6 +435,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   @override
   Widget build(BuildContext context) {
     final controller = ref.watch(libraryProvider);
+    final l10n = AppLocalizations.of(context);
     final wide = MediaQuery.sizeOf(context).width >= 900;
     return Scaffold(
       drawer: wide ? null : const LibraryDrawer(),
@@ -427,7 +444,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             ? null
             : Builder(
                 builder: (context) => IconButton(
-                  tooltip: '打开菜单',
+                  tooltip: l10n.openMenu,
                   icon: const Icon(Icons.menu),
                   onPressed: () => Scaffold.of(context).openDrawer(),
                 ),
@@ -442,12 +459,13 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 width: 280,
                 child: SearchField(
                   controller: searchController,
+                  hintText: l10n.searchHint,
                   onChanged: controller.search,
                 ),
               ),
             ),
           IconButton(
-            tooltip: '设置',
+            tooltip: l10n.settings,
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => context.push('/settings'),
           ),
@@ -457,7 +475,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
       floatingActionButton: wide
           ? null
           : FloatingActionButton(
-              tooltip: '导入书籍',
+              tooltip: l10n.importBooks,
               onPressed: () => _import(context),
               child: const Icon(Icons.add),
             ),
@@ -476,6 +494,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     PersistedLibraryController controller,
     bool wide,
   ) {
+    final l10n = AppLocalizations.of(context);
     final side = wide ? 40.0 : 20.0;
     return CustomScrollView(
       slivers: [
@@ -490,6 +509,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                     const SizedBox(height: 16),
                     SearchField(
                       controller: searchController,
+                      hintText: AppLocalizations.of(context).searchHint,
                       onChanged: controller.search,
                     ),
                   ],
@@ -514,7 +534,19 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           ),
         ),
         if (controller.documents.isEmpty)
-          const SliverFillRemaining(hasScrollBody: false, child: EmptyLibrary())
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: EmptyLibrary(
+              title: controller.hasStoredDocuments
+                  ? l10n.emptyLibraryFilteredTitle
+                  : l10n.emptyLibraryTitle,
+              subtitle: controller.hasStoredDocuments
+                  ? l10n.emptyLibraryFilteredSubtitle
+                  : controller.usesRemoteStore
+                  ? l10n.emptyLibraryRemoteSubtitle
+                  : l10n.emptyLibraryLocalSubtitle,
+            ),
+          )
         else
           SliverPadding(
             padding: EdgeInsets.fromLTRB(side, 0, side, wide ? 48 : 88),
@@ -581,13 +613,8 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     PersistedLibraryController controller,
     bool wide,
   ) {
-    final title =
-        {
-          'all': '全部书籍',
-          'reading': '正在阅读',
-          'favorites': '收藏',
-        }[controller.section] ??
-        '全部书籍';
+    final l10n = AppLocalizations.of(context);
+    final title = l10n.sectionTitle(controller.section);
     final theme = Theme.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -596,7 +623,11 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Eyebrow('资料库'),
+              Eyebrow(
+                controller.usesRemoteStore
+                    ? l10n.libraryWithServer
+                    : l10n.library,
+              ),
               const SizedBox(height: 8),
               Text(
                 title,
@@ -607,7 +638,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               ),
               const SizedBox(height: 6),
               Text(
-                '${controller.documents.length} 本书籍',
+                l10n.bookCount(controller.documents.length),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -616,7 +647,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           ),
         ),
         IconButton(
-          tooltip: '切换视图',
+          tooltip: l10n.toggleView,
           icon: Icon(controller.listView ? Icons.grid_view : Icons.view_list),
           onPressed: controller.toggleView,
         ),
@@ -625,7 +656,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           FilledButton.icon(
             onPressed: () => _import(context),
             icon: const Icon(Icons.add, size: 18),
-            label: const Text('导入书籍'),
+            label: Text(l10n.importBooks),
           ),
         ],
       ],
@@ -633,11 +664,12 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   }
 
   Widget _filters(PersistedLibraryController controller) {
+    final l10n = AppLocalizations.of(context);
     final options = [
-      ('all', '全部'),
-      ('reflow', '可重排'),
-      ('fixedPage', '固定版式'),
-      ('comic', '漫画'),
+      ('all', l10n.all),
+      ('reflow', l10n.reflow),
+      ('fixedPage', l10n.fixedLayout),
+      ('comic', l10n.comic),
     ];
     return Row(
       children: [
@@ -664,10 +696,13 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           child: DropdownButton<String>(
             value: controller.sort,
             borderRadius: BorderRadius.circular(8),
-            items: const [
-              DropdownMenuItem(value: 'recent', child: Text('最近阅读')),
-              DropdownMenuItem(value: 'title', child: Text('标题')),
-              DropdownMenuItem(value: 'progress', child: Text('阅读进度')),
+            items: [
+              DropdownMenuItem(value: 'recent', child: Text(l10n.sortRecent)),
+              DropdownMenuItem(value: 'title', child: Text(l10n.sortTitle)),
+              DropdownMenuItem(
+                value: 'progress',
+                child: Text(l10n.sortProgress),
+              ),
             ],
             onChanged: (value) {
               if (value != null) controller.selectSort(value);
@@ -679,11 +714,16 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   }
 
   Future<void> _import(BuildContext context) async {
-    final message = await ref.read(libraryProvider).importFiles();
-    if (context.mounted && message != null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
-    }
+    final outcome = await ref.read(libraryProvider).importFiles();
+    if (!context.mounted || outcome.cancelled) return;
+    final l10n = AppLocalizations.of(context);
+    final message = outcome.count > 0
+        ? l10n.importedBooks(outcome.count)
+        : outcome.failed
+        ? l10n.importFailed
+        : l10n.noSupportedFormat;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -694,6 +734,7 @@ class ContinueCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final percent = (document.readingState.progress * 100).round();
     return Card(
       color: theme.colorScheme.primaryContainer.withValues(alpha: 0.55),
@@ -710,7 +751,7 @@ class ContinueCard extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Eyebrow('继续阅读'),
+                    Eyebrow(l10n.continueReading),
                     const SizedBox(height: 8),
                     Text(
                       document.metadata.title,
@@ -723,7 +764,7 @@ class ContinueCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      document.metadata.author,
+                      l10n.authorLabel(document.metadata.author),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -758,7 +799,7 @@ class ContinueCard extends ConsumerWidget {
                         context.push('/reader/${document.metadata.id}');
                       },
                       icon: const Icon(Icons.arrow_forward, size: 16),
-                      label: const Text('继续阅读'),
+                      label: Text(l10n.continueReading),
                     ),
                   ],
                 ),
@@ -781,14 +822,15 @@ class LibraryDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.watch(libraryProvider);
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final items = [
-      ('all', Icons.grid_view_outlined, '全部'),
-      ('reading', Icons.auto_stories_outlined, '正在阅读'),
-      ('favorites', Icons.favorite_border, '收藏'),
+      ('all', Icons.grid_view_outlined, l10n.all),
+      ('reading', Icons.auto_stories_outlined, l10n.currentlyReading),
+      ('favorites', Icons.favorite_border, l10n.favorites),
     ];
     final collections = [
-      (const Color(0xFFC69355), '设计与灵感'),
-      (const Color(0xFF6C9EB4), '技术阅读'),
+      (const Color(0xFFC69355), l10n.collectionDesign),
+      (const Color(0xFF6C9EB4), l10n.collectionTech),
     ];
     final nav = SafeArea(
       child: Padding(
@@ -796,9 +838,9 @@ class LibraryDrawer extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Eyebrow('浏览'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Eyebrow(l10n.browse),
             ),
             const SizedBox(height: 8),
             for (final item in items)
@@ -814,9 +856,9 @@ class LibraryDrawer extends ConsumerWidget {
                 },
               ),
             const SizedBox(height: 20),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Eyebrow('收藏夹'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Eyebrow(l10n.collections),
             ),
             const SizedBox(height: 8),
             for (final item in collections)
@@ -844,11 +886,11 @@ class LibraryDrawer extends ConsumerWidget {
             OutlinedButton.icon(
               onPressed: () {},
               icon: const Icon(Icons.create_new_folder_outlined, size: 18),
-              label: const Text('导入文件夹'),
+              label: Text(l10n.importFolder),
             ),
             const SizedBox(height: 10),
             Text(
-              'Local-first · 离线可用',
+              l10n.localFirstOffline,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -876,6 +918,7 @@ class BookCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final metadata = document.metadata;
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final details = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -891,7 +934,7 @@ class BookCard extends ConsumerWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          metadata.author,
+          l10n.authorLabel(metadata.author),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodySmall?.copyWith(
@@ -1002,7 +1045,7 @@ class CoverArt extends StatelessWidget {
             ),
           ),
           Text(
-            metadata.author,
+            AppLocalizations.of(context).authorLabel(metadata.author),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(color: muted, fontSize: 11),
@@ -1050,10 +1093,12 @@ class SearchField extends StatelessWidget {
   const SearchField({
     required this.controller,
     required this.onChanged,
+    required this.hintText,
     super.key,
   });
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final String hintText;
 
   @override
   Widget build(BuildContext context) {
@@ -1061,9 +1106,9 @@ class SearchField extends StatelessWidget {
       controller: controller,
       onChanged: onChanged,
       textInputAction: TextInputAction.search,
-      decoration: const InputDecoration(
-        hintText: '搜索书名、作者或格式',
-        prefixIcon: Icon(Icons.search, size: 18),
+      decoration: InputDecoration(
+        hintText: hintText,
+        prefixIcon: const Icon(Icons.search, size: 18),
       ),
     );
   }
@@ -1085,7 +1130,9 @@ class Eyebrow extends StatelessWidget {
 }
 
 class EmptyLibrary extends StatelessWidget {
-  const EmptyLibrary({super.key});
+  const EmptyLibrary({required this.title, required this.subtitle, super.key});
+  final String title;
+  final String subtitle;
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1102,14 +1149,15 @@ class EmptyLibrary extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              '没有找到匹配的书籍',
+              title,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 6),
             Text(
-              '尝试更换搜索词或筛选条件。',
+              subtitle,
+              textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -1155,6 +1203,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final document =
         ref.watch(libraryProvider).documentById(widget.id) ??
         seedDocuments.firstWhere(
@@ -1177,7 +1226,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               backgroundColor: paper,
               foregroundColor: ink,
               leading: IconButton(
-                tooltip: '返回书库',
+                tooltip: l10n.backToLibrary,
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () => context.go('/'),
               ),
@@ -1192,7 +1241,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               ),
               actions: [
                 IconButton(
-                  tooltip: '问这一页',
+                  tooltip: l10n.askThisPage,
                   icon: Icon(
                     ask ? Icons.chat_bubble : Icons.chat_bubble_outline,
                     color: ask ? _pine : ink,
@@ -1203,7 +1252,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                   }),
                 ),
                 IconButton(
-                  tooltip: '目录',
+                  tooltip: l10n.tableOfContents,
                   icon: Icon(
                     toc ? Icons.menu_book : Icons.menu_book_outlined,
                     color: toc ? _pine : ink,
@@ -1211,7 +1260,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                   onPressed: () => setState(() => toc = !toc),
                 ),
                 IconButton(
-                  tooltip: '阅读设置',
+                  tooltip: l10n.readingSettings,
                   icon: const Icon(Icons.text_fields),
                   onPressed: () {},
                 ),
@@ -1232,7 +1281,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       child: ListView(
                         padding: const EdgeInsets.fromLTRB(20, 24, 16, 24),
                         children: [
-                          const Eyebrow('目录'),
+                          Eyebrow(l10n.tableOfContents),
                           const SizedBox(height: 12),
                           for (var i = 0; i < _chapters.length; i++)
                             Padding(
@@ -1394,31 +1443,38 @@ class SettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(themeProvider);
+    final language = ref.watch(localeProvider).language;
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final themeLabel = switch (mode) {
-      ThemeMode.dark => '深色',
-      ThemeMode.light => '浅色',
-      ThemeMode.system => '跟随系统',
+      ThemeMode.dark => l10n.themeDark,
+      ThemeMode.light => l10n.themeLight,
+      ThemeMode.system => l10n.themeSystem,
+    };
+    final languageLabel = switch (language) {
+      AppLanguage.zh => l10n.languageChinese,
+      AppLanguage.en => l10n.languageEnglish,
+      AppLanguage.system => l10n.languageSystem,
     };
     return Scaffold(
-      appBar: AppBar(title: const Text('设置')),
+      appBar: AppBar(title: Text(l10n.settings)),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
           child: ListView(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 48),
             children: [
-              const Eyebrow('偏好'),
+              Eyebrow(l10n.preferences),
               const SizedBox(height: 8),
               Text(
-                '设置',
+                l10n.settings,
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 28),
               Text(
-                '外观',
+                l10n.appearance,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -1427,24 +1483,24 @@ class SettingsPage extends ConsumerWidget {
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.palette_outlined),
-                  title: const Text('主题'),
+                  title: Text(l10n.theme),
                   subtitle: Text(themeLabel),
                   trailing: DropdownButtonHideUnderline(
                     child: DropdownButton<ThemeMode>(
                       value: mode,
                       borderRadius: BorderRadius.circular(8),
-                      items: const [
+                      items: [
                         DropdownMenuItem(
                           value: ThemeMode.light,
-                          child: Text('浅色'),
+                          child: Text(l10n.themeLight),
                         ),
                         DropdownMenuItem(
                           value: ThemeMode.dark,
-                          child: Text('深色'),
+                          child: Text(l10n.themeDark),
                         ),
                         DropdownMenuItem(
                           value: ThemeMode.system,
-                          child: Text('跟随系统'),
+                          child: Text(l10n.themeSystem),
                         ),
                       ],
                       onChanged: (value) {
@@ -1456,9 +1512,42 @@ class SettingsPage extends ConsumerWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 12),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.language),
+                  title: Text(l10n.language),
+                  subtitle: Text(languageLabel),
+                  trailing: DropdownButtonHideUnderline(
+                    child: DropdownButton<AppLanguage>(
+                      value: language,
+                      borderRadius: BorderRadius.circular(8),
+                      items: [
+                        DropdownMenuItem(
+                          value: AppLanguage.zh,
+                          child: Text(l10n.languageChinese),
+                        ),
+                        DropdownMenuItem(
+                          value: AppLanguage.en,
+                          child: Text(l10n.languageEnglish),
+                        ),
+                        DropdownMenuItem(
+                          value: AppLanguage.system,
+                          child: Text(l10n.languageSystem),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          ref.read(localeProvider).setLanguage(value);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(height: 28),
               Text(
-                '阅读助手',
+                l10n.readingAssistant,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -1467,25 +1556,25 @@ class SettingsPage extends ConsumerWidget {
               const _AiSettingsCard(),
               const SizedBox(height: 28),
               Text(
-                '资料库',
+                l10n.library,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 12),
-              const Card(
+              Card(
                 child: Column(
                   children: [
                     ListTile(
-                      leading: Icon(Icons.folder_outlined),
-                      title: Text('默认导入位置'),
-                      subtitle: Text('由系统文件选择器管理'),
+                      leading: const Icon(Icons.folder_outlined),
+                      title: Text(l10n.defaultImportLocation),
+                      subtitle: Text(l10n.defaultImportLocationSubtitle),
                     ),
-                    Divider(),
+                    const Divider(),
                     ListTile(
-                      leading: Icon(Icons.storage_outlined),
-                      title: Text('本地优先存储'),
-                      subtitle: Text('阅读进度和标注保存在本设备'),
+                      leading: const Icon(Icons.storage_outlined),
+                      title: Text(l10n.localFirstStorage),
+                      subtitle: Text(l10n.localFirstStorageSubtitle),
                     ),
                   ],
                 ),
@@ -1543,6 +1632,7 @@ class _AiSettingsCardState extends ConsumerState<_AiSettingsCard> {
       _sync(settings);
     }
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     return Card(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -1551,8 +1641,8 @@ class _AiSettingsCardState extends ConsumerState<_AiSettingsCard> {
           children: [
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('启用阅读助手'),
-              subtitle: const Text('默认关闭。关闭时阅读页不会请求任何模型。'),
+              title: Text(l10n.enableAssistant),
+              subtitle: Text(l10n.enableAssistantSubtitle),
               value: settings.enabled,
               onChanged: (value) {
                 controller.update(settings.copyWith(enabled: value));
@@ -1561,8 +1651,8 @@ class _AiSettingsCardState extends ConsumerState<_AiSettingsCard> {
             const SizedBox(height: 8),
             TextField(
               controller: endpoint,
-              decoration: const InputDecoration(
-                labelText: '接口地址',
+              decoration: InputDecoration(
+                labelText: l10n.endpointLabel,
                 hintText: 'http://127.0.0.1:11434/v1',
               ),
               onChanged: (value) {
@@ -1572,9 +1662,9 @@ class _AiSettingsCardState extends ConsumerState<_AiSettingsCard> {
             const SizedBox(height: 12),
             TextField(
               controller: model,
-              decoration: const InputDecoration(
-                labelText: '模型名称',
-                hintText: 'llama3.1 或 gpt-4o-mini',
+              decoration: InputDecoration(
+                labelText: l10n.modelLabel,
+                hintText: l10n.modelHint,
               ),
               onChanged: (value) {
                 controller.update(settings.copyWith(model: value));
@@ -1584,9 +1674,9 @@ class _AiSettingsCardState extends ConsumerState<_AiSettingsCard> {
             TextField(
               controller: apiKey,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'API Key（可选）',
-                hintText: '仅保存在本机',
+              decoration: InputDecoration(
+                labelText: l10n.apiKeyLabel,
+                hintText: l10n.apiKeyHint,
               ),
               onChanged: (value) {
                 controller.update(settings.copyWith(apiKey: value));
@@ -1594,7 +1684,7 @@ class _AiSettingsCardState extends ConsumerState<_AiSettingsCard> {
             ),
             const SizedBox(height: 12),
             Text(
-              '发送时会把当前摘录交给你配置的 OpenAI 兼容接口，例如本机 Ollama。不上整本书，也不上传书库。',
+              l10n.assistantPrivacyNote,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
