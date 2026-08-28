@@ -10,6 +10,7 @@ abstract interface class LibraryRepository {
   Future<List<LibraryDocument>> load();
   Future<void> save(List<LibraryDocument> documents);
   Future<LibraryDocument> importBytes(String fileName, List<int> bytes);
+  Future<List<int>?> readFile(String id);
   Future<void> writeReadingState({
     required String id,
     required double progress,
@@ -81,6 +82,9 @@ class SharedPreferencesLibraryRepository implements LibraryRepository {
   }
 
   @override
+  Future<List<int>?> readFile(String id) async => null;
+
+  @override
   Future<void> writeReadingState({
     required String id,
     required double progress,
@@ -101,6 +105,7 @@ class InMemoryLibraryRepository implements LibraryRepository {
     : _documents = List.of(initial);
 
   List<LibraryDocument> _documents;
+  final Map<String, List<int>> _files = {};
 
   @override
   bool get usesRemoteStore => false;
@@ -118,7 +123,14 @@ class InMemoryLibraryRepository implements LibraryRepository {
     final document = importedLibraryDocument(fileName, bytes);
     _documents.removeWhere((item) => item.metadata.id == document.metadata.id);
     _documents.insert(0, document);
+    _files[document.metadata.id] = List<int>.from(bytes);
     return document;
+  }
+
+  @override
+  Future<List<int>?> readFile(String id) async {
+    final bytes = _files[id];
+    return bytes == null ? null : List<int>.from(bytes);
   }
 
   @override

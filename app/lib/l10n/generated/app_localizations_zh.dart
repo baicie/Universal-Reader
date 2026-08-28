@@ -131,6 +131,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readingSettings => '阅读设置';
 
   @override
+  String get bodyFontSize => '正文字号';
+
+  @override
   String get preferences => '偏好';
 
   @override
@@ -258,4 +261,26 @@ class AppLocalizationsZh extends AppLocalizations {
   String textOffset(int offset) {
     return '偏移 $offset';
   }
+
+  @override
+  String get readerLoading => '正在打开…';
+
+  @override
+  String get untitledSection => '正文';
+
+  @override
+  String readerSection(int current, int total) {
+    return '$current / $total';
+  }
+
+  @override
+  String readerUnavailable(String format) {
+    return '$format 阅读器尚未接入。当前可以阅读 TXT、Markdown 和 HTML。';
+  }
+
+  @override
+  String get readerMissingFile => '找不到这本书的原文件。';
+
+  @override
+  String get readerTruncated => '文件较大，仅显示开头部分。';
 }

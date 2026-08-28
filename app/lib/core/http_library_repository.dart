@@ -94,6 +94,16 @@ class HttpLibraryRepository implements LibraryRepository {
   }
 
   @override
+  Future<List<int>?> readFile(String id) async {
+    final response = await _http.get(_uri('/v1/library/documents/$id/file'));
+    if (response.statusCode == 404) return null;
+    if (response.statusCode != 200) {
+      throw FormatException('无法读取文件 (${response.statusCode})');
+    }
+    return response.bodyBytes;
+  }
+
+  @override
   Future<void> writeReadingState({
     required String id,
     required double progress,

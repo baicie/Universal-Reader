@@ -39,6 +39,7 @@
   "askThisPage": "Ask this page",
   "tableOfContents": "Contents",
   "readingSettings": "Reading settings",
+  "bodyFontSize": "Body text size",
   "preferences": "Preferences",
   "appearance": "Appearance",
   "theme": "Theme",
@@ -78,5 +79,11 @@
   "assistantNotConfigured": "Add an endpoint and model name in Settings first.",
   "noExcerpt": "This page has no excerpt to send.",
   "pageNumber": "Page {page}",
-  "textOffset": "Offset {offset}"
+  "textOffset": "Offset {offset}",
+  "readerLoading": "Opening…",
+  "untitledSection": "Text",
+  "readerSection": "{current} / {total}",
+  "readerUnavailable": "{format} is not readable yet. TXT, Markdown, and HTML work now.",
+  "readerMissingFile": "The original file for this book could not be found.",
+  "readerTruncated": "This file is large, so only the beginning is shown."
 }

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/http_library_repository.dart';
@@ -12,7 +11,10 @@ import 'core/library_controller.dart';
 import 'core/library_repository.dart';
 import 'core/locale_controller.dart';
 import 'core/models.dart';
-import 'core/format_detector.dart';
+import 'core/reader_prefs.dart';
+import 'core/reader_runtime.dart';
+import 'core/text_document.dart';
+import 'features/reader/open_reader.dart';
 import 'features/tools/ai/ai_settings.dart';
 import 'features/tools/ai/ai_settings_controller.dart';
 import 'features/tools/reader_ai_panel.dart';
@@ -26,12 +28,15 @@ Future<void> main() async {
   final aiSettings = SharedPreferencesAiSettingsRepository(preferences);
   final localeController = LocaleController(preferences);
   await localeController.load();
+  final readerPrefs = ReaderPrefsController(preferences);
+  await readerPrefs.load();
   runApp(
     ProviderScope(
       overrides: [
         libraryRepositoryProvider.overrideWithValue(repository),
         aiSettingsRepositoryProvider.overrideWithValue(aiSettings),
         localeProvider.overrideWith((ref) => localeController),
+        readerPrefsProvider.overrideWith((ref) => readerPrefs),
       ],
       child: const UniversalReaderApp(),
     ),
@@ -66,6 +71,11 @@ final aiSettingsProvider = ChangeNotifierProvider<AiSettingsController>((ref) {
 final themeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
 final localeProvider = ChangeNotifierProvider<LocaleController>((ref) {
   return LocaleController();
+});
+final readerPrefsProvider = ChangeNotifierProvider<ReaderPrefsController>((
+  ref,
+) {
+  return ReaderPrefsController();
 });
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -227,111 +237,19 @@ Widget _constrainedPage({required Widget child}) {
   );
 }
 
-class LegacyLibraryController extends ChangeNotifier {
-  LegacyLibraryController() : _documents = List.of(seedDocuments);
-
-  final FormatDetector detector = const FormatDetector();
-  final List<LibraryDocument> _documents;
-  String query = '';
-  String section = 'all';
-  String formatType = 'all';
-  String sort = 'recent';
-  bool listView = false;
-
-  List<LibraryDocument> get documents {
-    final result = _documents.where((document) {
-      final metadata = document.metadata;
-      final text =
-          '${metadata.title} ${metadata.author} ${metadata.format.label}'
-              .toLowerCase();
-      final queryMatches = query.isEmpty || text.contains(query.toLowerCase());
-      final typeMatches =
-          formatType == 'all' || metadata.type.name == formatType;
-      final progress = document.readingState.progress;
-      final sectionMatches = switch (section) {
-        'reading' => progress > 0 && progress < 1,
-        'favorites' => {'design', 'prince', 'rust'}.contains(metadata.id),
-        _ => true,
-      };
-      return queryMatches && typeMatches && sectionMatches;
-    }).toList();
-    result.sort(
-      (a, b) => switch (sort) {
-        'title' => a.metadata.title.compareTo(b.metadata.title),
-        'progress' => b.readingState.progress.compareTo(
-          a.readingState.progress,
-        ),
-        _ => b.readingState.lastOpened.compareTo(a.readingState.lastOpened),
-      },
-    );
-    return result;
-  }
-
-  void search(String value) {
-    query = value;
-    notifyListeners();
-  }
-
-  void selectSection(String value) {
-    section = value;
-    notifyListeners();
-  }
-
-  void selectType(String value) {
-    formatType = value;
-    notifyListeners();
-  }
-
-  void selectSort(String value) {
-    sort = value;
-    notifyListeners();
-  }
-
-  void toggleView() {
-    listView = !listView;
-    notifyListeners();
-  }
-
-  Future<String?> importFiles() async {
-    final files = await FilePicker.pickFiles();
-    if (files.isEmpty) return null;
-    var count = 0;
-    for (final file in files) {
-      final source = DocumentSource(name: file.name, path: file.path);
-      final format = detector.detect(source);
-      if (format == DocumentFormat.unknown) continue;
-      _documents.insert(
-        0,
-        LibraryDocument(
-          metadata: DocumentMetadata(
-            id: file.name,
-            title: file.name.replaceFirst(RegExp(r'\.[^.]+$'), ''),
-            author: '本地文件',
-            format: format,
-            type: format.type,
-            coverColor: 0xFF6F8179,
-          ),
-          readingState: ReadingState(progress: 0, lastOpened: DateTime.now()),
-        ),
-      );
-      count++;
-    }
-    notifyListeners();
-    return count == 0 ? '没有识别到支持的格式' : '已导入 $count 本书籍';
-  }
-
-  void opened(String id) {
-    final index = _documents.indexWhere((item) => item.metadata.id == id);
-    if (index < 0) return;
-    final item = _documents[index];
-    _documents[index] = item.copyWith(
-      readingState: ReadingState(
-        progress: item.readingState.progress,
-        lastOpened: DateTime.now(),
-      ),
-    );
-    notifyListeners();
-  }
+Future<void> importBooksWithFeedback(
+  BuildContext context,
+  WidgetRef ref,
+) async {
+  final outcome = await ref.read(libraryProvider).importFiles();
+  if (!context.mounted || outcome.cancelled) return;
+  final l10n = AppLocalizations.of(context);
+  final message = outcome.count > 0
+      ? l10n.importedBooks(outcome.count)
+      : outcome.failed
+      ? l10n.importFailed
+      : l10n.noSupportedFormat;
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }
 
 final seedDocuments = <LibraryDocument>[
@@ -713,18 +631,8 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     );
   }
 
-  Future<void> _import(BuildContext context) async {
-    final outcome = await ref.read(libraryProvider).importFiles();
-    if (!context.mounted || outcome.cancelled) return;
-    final l10n = AppLocalizations.of(context);
-    final message = outcome.count > 0
-        ? l10n.importedBooks(outcome.count)
-        : outcome.failed
-        ? l10n.importFailed
-        : l10n.noSupportedFormat;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-  }
+  Future<void> _import(BuildContext context) =>
+      importBooksWithFeedback(context, ref);
 }
 
 class ContinueCard extends ConsumerWidget {
@@ -884,7 +792,7 @@ class LibraryDrawer extends ConsumerWidget {
               ),
             const Spacer(),
             OutlinedButton.icon(
-              onPressed: () {},
+              onPressed: () => importBooksWithFeedback(context, ref),
               icon: const Icon(Icons.create_new_folder_outlined, size: 18),
               label: Text(l10n.importFolder),
             ),
@@ -1181,13 +1089,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   bool toc = false;
   bool ask = false;
   late double progress;
-
-  static const _chapters = [
-    '第 1 章 设计的轮廓',
-    '第 2 章 无印良品',
-    '第 3 章 白与空',
-    '第 4 章 白',
-  ];
+  bool loading = true;
+  ReaderDocument? opened;
+  List<TocItem> tocItems = const [];
+  String body = '';
 
   @override
   void initState() {
@@ -1198,12 +1103,81 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
             .documentById(widget.id)
             ?.readingState
             .progress ??
-        0.37;
+        0;
+    Future.microtask(_open);
+  }
+
+  Future<void> _open() async {
+    var library = ref.read(libraryProvider);
+    while (library.loading && mounted) {
+      await Future<void>.delayed(const Duration(milliseconds: 16));
+      library = ref.read(libraryProvider);
+    }
+    if (!mounted) return;
+    final document = library.documentById(widget.id);
+    if (document == null) {
+      setState(() {
+        opened = UnavailableReaderDocument(
+          metadata: DocumentMetadata(
+            id: widget.id,
+            title: widget.id,
+            author: '',
+            format: DocumentFormat.unknown,
+            type: DocumentType.reflow,
+          ),
+        );
+        loading = false;
+      });
+      return;
+    }
+    final bytes = await library.readFile(widget.id);
+    if (!mounted) return;
+    final reader = openReaderDocument(
+      metadata: document.metadata,
+      bytes: bytes,
+    );
+    if (reader is TextReaderDocument && progress > 0) {
+      await reader.goTo(
+        TextLocator(offset: (progress * reader.parsed.fullText.length).round()),
+      );
+    }
+    final items = await reader.getToc();
+    if (!mounted) return;
+    setState(() {
+      opened = reader;
+      tocItems = items;
+      body = _bodyFor(reader);
+      loading = false;
+    });
+  }
+
+  String _bodyFor(ReaderDocument reader) {
+    if (reader is TextReaderDocument) return reader.currentSection.body;
+    if (reader is SampleReaderDocument) return reader.body;
+    return '';
+  }
+
+  Future<void> _goTo(TocItem item) async {
+    final reader = opened;
+    if (reader == null) return;
+    await reader.goTo(item.locator);
+    if (!mounted) return;
+    setState(() {
+      body = _bodyFor(reader);
+      if (reader is TextReaderDocument) {
+        final length = reader.parsed.fullText.isEmpty
+            ? 1
+            : reader.parsed.fullText.length;
+        progress = reader.currentSection.startOffset / length;
+        ref.read(libraryProvider).updateProgress(widget.id, progress);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final fontSize = ref.watch(readerPrefsProvider).fontSize;
     final document =
         ref.watch(libraryProvider).documentById(widget.id) ??
         seedDocuments.firstWhere(
@@ -1216,8 +1190,23 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final muted = dark ? const Color(0xFFB7A894) : const Color(0xFF8A7358);
     final tocBg = dark ? const Color(0xFF24231F) : const Color(0xFFF0EADF);
     final wide = MediaQuery.sizeOf(context).width >= 900;
-    final readerDocument = SampleReaderDocument(metadata: document.metadata);
+    final readerDocument =
+        opened ?? SampleReaderDocument(metadata: document.metadata);
     final aiSettings = ref.watch(aiSettingsProvider).settings;
+    final currentIndex = opened is TextReaderDocument
+        ? (opened as TextReaderDocument).sectionIndex
+        : 0;
+    final currentTitle = tocItems.isEmpty
+        ? ''
+        : tocItems[currentIndex.clamp(0, tocItems.length - 1)].title;
+    final heading = currentTitle.trim().isEmpty
+        ? l10n.untitledSection
+        : currentTitle;
+    final paragraphs = body
+        .split(RegExp(r'\n+'))
+        .map((paragraph) => paragraph.trim())
+        .where((paragraph) => paragraph.isNotEmpty)
+        .toList();
 
     return Scaffold(
       backgroundColor: paper,
@@ -1262,7 +1251,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                 IconButton(
                   tooltip: l10n.readingSettings,
                   icon: const Icon(Icons.text_fields),
-                  onPressed: () {},
+                  onPressed: _openReadingSettings,
                 ),
               ],
             )
@@ -1276,28 +1265,43 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                 if (toc)
                   Material(
                     color: tocBg,
-                    child: SizedBox(
-                      width: 240,
-                      child: ListView(
-                        padding: const EdgeInsets.fromLTRB(20, 24, 16, 24),
-                        children: [
-                          Eyebrow(l10n.tableOfContents),
-                          const SizedBox(height: 12),
-                          for (var i = 0; i < _chapters.length; i++)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 6),
-                              child: Text(
-                                _chapters[i],
-                                style: TextStyle(
-                                  fontWeight: i == 3
-                                      ? FontWeight.w700
-                                      : FontWeight.w400,
-                                  color: i == 3 ? _pine : ink,
-                                  height: 1.4,
+                    child: GestureDetector(
+                      onTap: () {},
+                      child: SizedBox(
+                        width: 240,
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(20, 24, 16, 24),
+                          children: [
+                            Eyebrow(l10n.tableOfContents),
+                            const SizedBox(height: 12),
+                            if (tocItems.isEmpty)
+                              Text(
+                                l10n.untitledSection,
+                                style: TextStyle(color: muted, height: 1.4),
+                              ),
+                            for (var i = 0; i < tocItems.length; i++)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
+                                ),
+                                child: InkWell(
+                                  onTap: () => _goTo(tocItems[i]),
+                                  child: Text(
+                                    tocItems[i].title.trim().isEmpty
+                                        ? l10n.untitledSection
+                                        : tocItems[i].title,
+                                    style: TextStyle(
+                                      fontWeight: i == currentIndex
+                                          ? FontWeight.w700
+                                          : FontWeight.w400,
+                                      color: i == currentIndex ? _pine : ink,
+                                      height: 1.4,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -1312,56 +1316,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                           28,
                           chrome ? 112 : 48,
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '第 4 章',
-                              style: TextStyle(
-                                color: muted,
-                                letterSpacing: 2,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              '白',
-                              style: TextStyle(
-                                color: ink,
-                                fontSize: 36,
-                                fontWeight: FontWeight.w600,
-                                height: 1.15,
-                              ),
-                            ),
-                            const SizedBox(height: 28),
-                            Text(
-                              '白是一种包容所有颜色的颜色。它没有自己的主张，却能让其他事物显现出清晰的轮廓。在设计中，空白从来不是缺席，而是一种主动的表达。',
-                              style: TextStyle(
-                                color: ink,
-                                fontSize: 18,
-                                height: 1.85,
-                              ),
-                            ),
-                            const SizedBox(height: 22),
-                            Text(
-                              '我们习惯于把信息填满，把空间占据，把每一个空隙都看作需要解决的问题。但真正成熟的设计，知道什么时候应该停下来，让事物自己说话。',
-                              style: TextStyle(
-                                color: ink,
-                                fontSize: 18,
-                                height: 1.85,
-                              ),
-                            ),
-                            const SizedBox(height: 22),
-                            Text(
-                              '阅读是一种与留白相处的方式。文字之间的距离、章节之间的停顿，以及读者暂时离开页面的片刻，共同构成了完整的体验。',
-                              style: TextStyle(
-                                color: ink,
-                                fontSize: 18,
-                                height: 1.85,
-                              ),
-                            ),
-                          ],
+                        child: _readerBody(
+                          l10n: l10n,
+                          document: document,
+                          ink: ink,
+                          muted: muted,
+                          heading: heading,
+                          showHeading: currentTitle.trim().isNotEmpty,
+                          paragraphs: paragraphs,
+                          currentIndex: currentIndex,
+                          fontSize: fontSize,
                         ),
                       ),
                     ),
@@ -1399,18 +1363,35 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Slider(
-                              value: progress,
+                              value: progress.clamp(0, 1),
                               onChanged: (value) {
                                 setState(() => progress = value);
                                 ref
                                     .read(libraryProvider)
                                     .updateProgress(widget.id, value);
+                                final reader = opened;
+                                if (reader is TextReaderDocument) {
+                                  final length = reader.parsed.fullText.isEmpty
+                                      ? 1
+                                      : reader.parsed.fullText.length;
+                                  reader.goTo(
+                                    TextLocator(
+                                      offset: (value * length).round(),
+                                    ),
+                                  );
+                                  body = _bodyFor(reader);
+                                }
                               },
                             ),
                             Row(
                               children: [
                                 Text(
-                                  '第 4 章',
+                                  tocItems.isEmpty
+                                      ? document.metadata.format.label
+                                      : l10n.readerSection(
+                                          currentIndex + 1,
+                                          tocItems.length,
+                                        ),
                                   style: TextStyle(color: muted, fontSize: 12),
                                 ),
                                 const Spacer(),
@@ -1434,6 +1415,132 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _openReadingSettings() async {
+    final l10n = AppLocalizations.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final prefs = ref.watch(readerPrefsProvider);
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    l10n.readingSettings,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(l10n.bodyFontSize),
+                  Slider(
+                    min: ReaderPrefsController.minFontSize,
+                    max: ReaderPrefsController.maxFontSize,
+                    divisions:
+                        (ReaderPrefsController.maxFontSize -
+                                ReaderPrefsController.minFontSize)
+                            .round(),
+                    value: prefs.fontSize,
+                    label: prefs.fontSize.round().toString(),
+                    onChanged: (value) {
+                      ref.read(readerPrefsProvider).setFontSize(value);
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _readerBody({
+    required AppLocalizations l10n,
+    required LibraryDocument document,
+    required Color ink,
+    required Color muted,
+    required String heading,
+    required bool showHeading,
+    required List<String> paragraphs,
+    required int currentIndex,
+    required double fontSize,
+  }) {
+    if (loading) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 80),
+        child: Column(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(l10n.readerLoading, style: TextStyle(color: muted)),
+          ],
+        ),
+      );
+    }
+    if (opened is UnavailableReaderDocument) {
+      final missingFile = document.metadata.format.isPlainText;
+      return Padding(
+        padding: const EdgeInsets.only(top: 48),
+        child: Text(
+          missingFile
+              ? l10n.readerMissingFile
+              : l10n.readerUnavailable(document.metadata.format.label),
+          style: TextStyle(color: ink, fontSize: fontSize, height: 1.7),
+        ),
+      );
+    }
+    final truncated =
+        opened is TextReaderDocument &&
+        (opened as TextReaderDocument).parsed.truncated;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          tocItems.isEmpty
+              ? document.metadata.format.label
+              : l10n.readerSection(currentIndex + 1, tocItems.length),
+          style: TextStyle(
+            color: muted,
+            letterSpacing: 2,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (showHeading) ...[
+          Text(
+            heading,
+            style: TextStyle(
+              color: ink,
+              fontSize: fontSize * 2,
+              fontWeight: FontWeight.w600,
+              height: 1.15,
+            ),
+          ),
+          const SizedBox(height: 28),
+        ],
+        if (truncated) ...[
+          Text(
+            l10n.readerTruncated,
+            style: TextStyle(color: muted, height: 1.5),
+          ),
+          const SizedBox(height: 22),
+        ],
+        for (var i = 0; i < paragraphs.length; i++) ...[
+          if (i > 0) const SizedBox(height: 22),
+          Text(
+            paragraphs[i],
+            style: TextStyle(color: ink, fontSize: fontSize, height: 1.85),
+          ),
+        ],
+      ],
     );
   }
 }

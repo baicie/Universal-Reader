@@ -33,10 +33,11 @@ Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK
 - 本地文件导入
 - 阅读器目录、进度、主题和移动端交互
 - 界面默认中文，可在设置中切换 English 或跟随系统
+- TXT / Markdown / HTML 可阅读原文件（EPUB/PDF 等仍提示尚未接入）
 
 ## Rust 后端服务
 
-`rust/crates/reader-server` 是随应用发布的本地 Rust HTTP 服务基座。它默认只监听 `127.0.0.1:8787`，不暴露公网接口，当前提供健康检查、文档格式检测，以及可选的 Flutter Web 静态资源托管；SQLite、索引和文件扫描将在该服务边界内逐步加入。
+`rust/crates/reader-server` 是随应用发布的本地 Rust HTTP 服务基座。它默认只监听 `127.0.0.1:8787`，不暴露公网接口，当前提供健康检查、文档格式检测、本机书库网盘，以及可选的 Flutter Web 静态资源托管。Flutter 在服务可达时通过 HTTP 读写该书库；SQLite、索引和文件扫描将在该服务边界内逐步加入。
 
 ```powershell
 cd rust
@@ -77,4 +78,4 @@ cargo run --release --package universal-reader-server
 
 ## 后续工程化
 
-Flutter UI 保持在 `app/`，Rust 后端服务保持在 `rust/`。后续可通过 `flutter_rust_bridge` 或本地 HTTP 客户端将服务能力接入现有 repository 接口，同时将格式检测、SQLite、索引和文件扫描下沉到 Rust。
+Flutter UI 保持在 `app/`，Rust 后端服务保持在 `rust/`。服务可达时，书架已通过本地 HTTP 接入现有 repository 接口。后续可将 EPUB/PDF 引擎、SQLite/FTS5 和文件扫描继续下沉到 Rust。

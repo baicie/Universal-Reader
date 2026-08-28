@@ -226,7 +226,14 @@ async fn download_document(
             StatusCode::OK,
             [
                 (header::CONTENT_TYPE, content_type_for(&document.format)),
-                (header::CONTENT_DISPOSITION, "attachment"),
+                (
+                    header::CONTENT_DISPOSITION,
+                    if matches!(document.format.as_str(), "txt" | "markdown" | "html") {
+                        "inline"
+                    } else {
+                        "attachment"
+                    },
+                ),
             ],
             bytes,
         )

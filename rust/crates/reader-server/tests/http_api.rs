@@ -1,6 +1,6 @@
 use axum::{
     body::{Body, to_bytes},
-    http::{Request, StatusCode},
+    http::{Request, StatusCode, header},
 };
 use std::{
     fs,
@@ -272,6 +272,13 @@ async fn library_drive_lists_updates_downloads_and_deletes_documents() {
         .await
         .unwrap();
     assert_eq!(downloaded.status(), StatusCode::OK);
+    assert_eq!(
+        downloaded
+            .headers()
+            .get(header::CONTENT_DISPOSITION)
+            .unwrap(),
+        "inline"
+    );
     let file_body = to_bytes(downloaded.into_body(), usize::MAX).await.unwrap();
     assert_eq!(&file_body[..], b"hello drive");
 

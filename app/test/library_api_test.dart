@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -53,6 +55,10 @@ void main() {
           200,
         );
       }
+      if (request.method == 'GET' &&
+          request.url.path == '/v1/library/documents/9-1/file') {
+        return http.Response('hello', 200);
+      }
       return http.Response('missing', 404);
     });
 
@@ -73,11 +79,13 @@ void main() {
       progress: 0.5,
       lastOpened: DateTime.now(),
     );
+    expect(await repository.readFile('9-1'), utf8.encode('hello'));
 
     expect(requests.map((request) => request.method).toList(), [
       'GET',
       'POST',
       'PATCH',
+      'GET',
     ]);
   });
 }

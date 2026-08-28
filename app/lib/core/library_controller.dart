@@ -111,6 +111,14 @@ class PersistedLibraryController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<List<int>?> readFile(String id) async {
+    try {
+      return await repository.readFile(id);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<ImportOutcome> importFiles() async {
     final files = await FilePicker.pickFiles();
     if (files.isEmpty) return const ImportOutcome.cancelled();
