@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -9,14 +11,22 @@ import 'core/library_controller.dart';
 import 'core/library_repository.dart';
 import 'core/models.dart';
 import 'core/format_detector.dart';
+import 'features/tools/ai/ai_settings.dart';
+import 'features/tools/ai/ai_settings_controller.dart';
+import 'features/tools/reader_ai_panel.dart';
+import 'features/tools/sample_reader_document.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final preferences = await SharedPreferences.getInstance();
   final repository = SharedPreferencesLibraryRepository(preferences);
+  final aiSettings = SharedPreferencesAiSettingsRepository(preferences);
   runApp(
     ProviderScope(
-      overrides: [libraryRepositoryProvider.overrideWithValue(repository)],
+      overrides: [
+        libraryRepositoryProvider.overrideWithValue(repository),
+        aiSettingsRepositoryProvider.overrideWithValue(aiSettings),
+      ],
       child: const UniversalReaderApp(),
     ),
   );
@@ -32,6 +42,17 @@ final libraryProvider = ChangeNotifierProvider<PersistedLibraryController>((
   final controller = PersistedLibraryController(
     repository: ref.watch(libraryRepositoryProvider),
     initialDocuments: seedDocuments,
+  );
+  controller.load();
+  return controller;
+});
+final aiSettingsRepositoryProvider = Provider<AiSettingsRepository>((ref) {
+  throw StateError('AI settings repository must be overridden at startup');
+});
+
+final aiSettingsProvider = ChangeNotifierProvider<AiSettingsController>((ref) {
+  final controller = AiSettingsController(
+    repository: ref.watch(aiSettingsRepositoryProvider),
   );
   controller.load();
   return controller;
@@ -66,30 +87,126 @@ class UniversalReaderApp extends ConsumerWidget {
   }
 }
 
+const _pine = Color(0xFF2F5B57);
+const _pageMaxWidth = 1120.0;
+const _coverRatio = 3 / 4;
+
 ThemeData readerTheme(Brightness brightness) {
-  const accent = Color(0xFF2F5B57);
   final dark = brightness == Brightness.dark;
   final scheme = ColorScheme.fromSeed(
-    seedColor: accent,
+    seedColor: _pine,
     brightness: brightness,
     surface: dark ? const Color(0xFF151A1B) : const Color(0xFFF7F8FA),
   );
+  final radius = BorderRadius.circular(8);
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
     colorScheme: scheme,
     scaffoldBackgroundColor: scheme.surface,
-    fontFamily: 'Arial',
+    visualDensity: VisualDensity.standard,
+    appBarTheme: AppBarTheme(
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: scheme.surface,
+      foregroundColor: scheme.onSurface,
+      surfaceTintColor: Colors.transparent,
+      toolbarHeight: 64,
+      titleSpacing: 16,
+    ),
     cardTheme: CardThemeData(
       elevation: 0,
       color: dark ? const Color(0xFF202728) : Colors.white,
-      shape: const RoundedRectangleBorder(),
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: radius),
+    ),
+    listTileTheme: ListTileThemeData(
+      dense: true,
+      selectedTileColor: scheme.primary.withValues(alpha: 0.12),
+      selectedColor: scheme.primary,
+      iconColor: scheme.onSurfaceVariant,
+      shape: RoundedRectangleBorder(borderRadius: radius),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+      minLeadingWidth: 24,
+      visualDensity: VisualDensity.compact,
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: radius),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: radius),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ),
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: scheme.primary,
+      linearTrackColor: scheme.primary.withValues(alpha: 0.12),
+      linearMinHeight: 3,
+    ),
+    sliderTheme: SliderThemeData(
+      activeTrackColor: scheme.primary,
+      inactiveTrackColor: scheme.primary.withValues(alpha: 0.16),
+      thumbColor: scheme.primary,
+      overlayColor: scheme.primary.withValues(alpha: 0.1),
+      trackHeight: 3,
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: radius),
+    ),
+    dividerTheme: DividerThemeData(
+      color: scheme.outlineVariant,
+      space: 1,
+      thickness: 1,
     ),
     inputDecorationTheme: InputDecorationTheme(
+      isDense: true,
       filled: true,
       fillColor: dark ? const Color(0xFF202728) : const Color(0xFFF0F2F4),
-      border: InputBorder.none,
+      hintStyle: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+      prefixIconColor: scheme.onSurfaceVariant,
+      border: OutlineInputBorder(
+        borderSide: BorderSide.none,
+        borderRadius: radius,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderSide: BorderSide.none,
+        borderRadius: radius,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: scheme.primary.withValues(alpha: 0.4)),
+        borderRadius: radius,
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    ),
+    chipTheme: ChipThemeData(
+      selectedColor: scheme.primary.withValues(alpha: 0.16),
+      backgroundColor: dark ? const Color(0xFF202728) : const Color(0xFFEEF1F2),
+      labelStyle: const TextStyle(fontSize: 13),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      side: BorderSide.none,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      showCheckmark: false,
+    ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: scheme.primary,
+      foregroundColor: scheme.onPrimary,
+      elevation: 0,
+      highlightElevation: 0,
+    ),
+  );
+}
+
+Widget _constrainedPage({required Widget child}) {
+  return Center(
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: _pageMaxWidth),
+      child: child,
     ),
   );
 }
@@ -310,42 +427,44 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             ? null
             : Builder(
                 builder: (context) => IconButton(
+                  tooltip: '打开菜单',
                   icon: const Icon(Icons.menu),
                   onPressed: () => Scaffold.of(context).openDrawer(),
                 ),
               ),
-        titleSpacing: wide ? 42 : 0,
-        title: const BrandMark(),
+        titleSpacing: wide ? 24 : 0,
+        title: BrandMark(compact: MediaQuery.sizeOf(context).width < 600),
         actions: [
-          SizedBox(
-            width: wide ? 290 : 145,
-            child: TextField(
-              controller: searchController,
-              onChanged: controller.search,
-              decoration: const InputDecoration(
-                hintText: '搜索书名、作者或格式',
-                prefixIcon: Icon(Icons.search, size: 18),
+          if (wide)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: SizedBox(
+                width: 280,
+                child: SearchField(
+                  controller: searchController,
+                  onChanged: controller.search,
+                ),
               ),
             ),
-          ),
           IconButton(
             tooltip: '设置',
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => context.push('/settings'),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 18),
-            child: CircleAvatar(
-              radius: 15,
-              backgroundColor: Color(0xFFD7E3DF),
-              child: Text('L', style: TextStyle(color: Color(0xFF2F5B57))),
-            ),
-          ),
+          const SizedBox(width: 8),
         ],
       ),
+      floatingActionButton: wide
+          ? null
+          : FloatingActionButton(
+              tooltip: '导入书籍',
+              onPressed: () => _import(context),
+              child: const Icon(Icons.add),
+            ),
       body: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (wide) const SizedBox(width: 238, child: LibraryDrawer()),
+          if (wide) const LibraryDrawer(embedded: true),
           Expanded(child: _content(context, controller, wide)),
         ],
       ),
@@ -357,40 +476,100 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     PersistedLibraryController controller,
     bool wide,
   ) {
-    final side = wide ? 70.0 : 20.0;
+    final side = wide ? 40.0 : 20.0;
     return CustomScrollView(
       slivers: [
         SliverPadding(
-          padding: EdgeInsets.fromLTRB(side, 42, side, 36),
-          sliver: SliverToBoxAdapter(child: _header(context, controller, wide)),
+          padding: EdgeInsets.fromLTRB(side, 28, side, 20),
+          sliver: SliverToBoxAdapter(
+            child: _constrainedPage(
+              child: Column(
+                children: [
+                  _header(context, controller, wide),
+                  if (!wide) ...[
+                    const SizedBox(height: 16),
+                    SearchField(
+                      controller: searchController,
+                      onChanged: controller.search,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
         ),
+        if (controller.continueReading != null)
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(side, 0, side, 8),
+            sliver: SliverToBoxAdapter(
+              child: _constrainedPage(
+                child: ContinueCard(document: controller.continueReading!),
+              ),
+            ),
+          ),
         SliverPadding(
-          padding: EdgeInsets.symmetric(horizontal: side),
-          sliver: SliverToBoxAdapter(child: const ContinueCard()),
-        ),
-        SliverPadding(
-          padding: EdgeInsets.fromLTRB(side, 32, side, 22),
-          sliver: SliverToBoxAdapter(child: _filters(controller)),
+          padding: EdgeInsets.fromLTRB(side, 20, side, 16),
+          sliver: SliverToBoxAdapter(
+            child: _constrainedPage(child: _filters(controller)),
+          ),
         ),
         if (controller.documents.isEmpty)
           const SliverFillRemaining(hasScrollBody: false, child: EmptyLibrary())
         else
           SliverPadding(
-            padding: EdgeInsets.symmetric(horizontal: side),
-            sliver: SliverGrid(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) => BookCard(
-                  document: controller.documents[index],
-                  listView: controller.listView,
-                ),
-                childCount: controller.documents.length,
-              ),
-              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: controller.listView ? 1000 : 190,
-                mainAxisExtent: controller.listView ? 100 : 300,
-                crossAxisSpacing: 26,
-                mainAxisSpacing: 30,
-              ),
+            padding: EdgeInsets.fromLTRB(side, 0, side, wide ? 48 : 88),
+            sliver: SliverLayoutBuilder(
+              builder: (context, constraints) {
+                final maxW = math.min(
+                  constraints.crossAxisExtent,
+                  _pageMaxWidth,
+                );
+                if (controller.listView) {
+                  return SliverToBoxAdapter(
+                    child: _constrainedPage(
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < controller.documents.length; i++)
+                            Padding(
+                              padding: EdgeInsets.only(
+                                bottom: i == controller.documents.length - 1
+                                    ? 0
+                                    : 12,
+                              ),
+                              child: BookCard(
+                                document: controller.documents[i],
+                                listView: true,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                const gap = 20.0;
+                final columns = math.max(2, (maxW / 196).floor());
+                final cellW = (maxW - gap * (columns - 1)) / columns;
+                final extent = cellW / _coverRatio + 100;
+                return SliverToBoxAdapter(
+                  child: _constrainedPage(
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: controller.documents.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        mainAxisExtent: extent,
+                        crossAxisSpacing: gap,
+                        mainAxisSpacing: 24,
+                      ),
+                      itemBuilder: (context, index) => BookCard(
+                        document: controller.documents[index],
+                        listView: false,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
       ],
@@ -409,47 +588,46 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           'favorites': '收藏',
         }[controller.section] ??
         '全部书籍';
+    final theme = Theme.of(context);
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Eyebrow('YOUR LIBRARY'),
-            const SizedBox(height: 9),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.headlineMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${controller.documents.length} 本书籍 · 最近同步于刚刚',
-              style: TextStyle(
-                color: Theme.of(context).hintColor,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-        if (wide)
-          Row(
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                tooltip: '切换视图',
-                icon: Icon(
-                  controller.listView ? Icons.grid_view : Icons.view_list,
+              const Eyebrow('资料库'),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.4,
                 ),
-                onPressed: controller.toggleView,
               ),
-              FilledButton.icon(
-                onPressed: () => _import(context),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('导入书籍'),
+              const SizedBox(height: 6),
+              Text(
+                '${controller.documents.length} 本书籍',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
+        ),
+        IconButton(
+          tooltip: '切换视图',
+          icon: Icon(controller.listView ? Icons.grid_view : Icons.view_list),
+          onPressed: controller.toggleView,
+        ),
+        if (wide) ...[
+          const SizedBox(width: 4),
+          FilledButton.icon(
+            onPressed: () => _import(context),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('导入书籍'),
+          ),
+        ],
       ],
     );
   }
@@ -467,32 +645,34 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
-              children: options
-                  .map(
-                    (item) => Padding(
-                      padding: const EdgeInsets.only(right: 10),
-                      child: ChoiceChip(
-                        label: Text(item.$2),
-                        selected: controller.formatType == item.$1,
-                        onSelected: (_) => controller.selectType(item.$1),
-                      ),
+              children: [
+                for (final item in options)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(item.$2),
+                      selected: controller.formatType == item.$1,
+                      onSelected: (_) => controller.selectType(item.$1),
                     ),
-                  )
-                  .toList(),
+                  ),
+              ],
             ),
           ),
         ),
-        DropdownButton<String>(
-          value: controller.sort,
-          underline: const SizedBox(),
-          items: const [
-            DropdownMenuItem(value: 'recent', child: Text('最近添加')),
-            DropdownMenuItem(value: 'title', child: Text('标题')),
-            DropdownMenuItem(value: 'progress', child: Text('阅读进度')),
-          ],
-          onChanged: (value) {
-            if (value != null) controller.selectSort(value);
-          },
+        const SizedBox(width: 8),
+        DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: controller.sort,
+            borderRadius: BorderRadius.circular(8),
+            items: const [
+              DropdownMenuItem(value: 'recent', child: Text('最近阅读')),
+              DropdownMenuItem(value: 'title', child: Text('标题')),
+              DropdownMenuItem(value: 'progress', child: Text('阅读进度')),
+            ],
+            onChanged: (value) {
+              if (value != null) controller.selectSort(value);
+            },
+          ),
         ),
       ],
     );
@@ -508,66 +688,85 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
 }
 
 class ContinueCard extends ConsumerWidget {
-  const ContinueCard({super.key});
+  const ContinueCard({required this.document, super.key});
+  final LibraryDocument document;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final document = seedDocuments.first;
+    final theme = Theme.of(context);
+    final percent = (document.readingState.progress * 100).round();
     return Card(
-      color: const Color(0xFFE4ECE8),
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Eyebrow('CONTINUE READING'),
-                  const SizedBox(height: 9),
-                  Text(
-                    document.metadata.title,
-                    style: const TextStyle(fontFamily: 'Georgia', fontSize: 26),
-                  ),
-                  const SizedBox(height: 7),
-                  Text(
-                    '${document.metadata.author}  ·  第 4 章：白',
-                    style: const TextStyle(
-                      color: Color(0xFF70807D),
-                      fontSize: 12,
+      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.55),
+      child: InkWell(
+        onTap: () {
+          ref.read(libraryProvider).opened(document.metadata.id);
+          context.push('/reader/${document.metadata.id}');
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Eyebrow('继续阅读'),
+                    const SizedBox(height: 8),
+                    Text(
+                      document.metadata.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        height: 1.2,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 170,
-                        child: LinearProgressIndicator(
-                          value: document.readingState.progress,
-                          minHeight: 3,
-                        ),
+                    const SizedBox(height: 6),
+                    Text(
+                      document.metadata.author,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        '37%',
-                        style: TextStyle(
-                          color: Color(0xFF2F5B57),
-                          fontSize: 11,
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(99),
+                            child: LinearProgressIndicator(
+                              value: document.readingState.progress,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 13),
-                  TextButton.icon(
-                    onPressed: () => context.push('/reader/design'),
-                    icon: const Icon(Icons.arrow_forward, size: 16),
-                    label: const Text('继续阅读'),
-                  ),
-                ],
+                        const SizedBox(width: 10),
+                        Text(
+                          '$percent%',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    TextButton.icon(
+                      onPressed: () {
+                        ref.read(libraryProvider).opened(document.metadata.id);
+                        context.push('/reader/${document.metadata.id}');
+                      },
+                      icon: const Icon(Icons.arrow_forward, size: 16),
+                      label: const Text('继续阅读'),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 26),
-            CoverArt(metadata: document.metadata, width: 90, height: 120),
-          ],
+              const SizedBox(width: 20),
+              CoverArt(metadata: document.metadata, width: 84, height: 112),
+            ],
+          ),
         ),
       ),
     );
@@ -575,74 +774,96 @@ class ContinueCard extends ConsumerWidget {
 }
 
 class LibraryDrawer extends ConsumerWidget {
-  const LibraryDrawer({super.key});
+  const LibraryDrawer({this.embedded = false, super.key});
+  final bool embedded;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.watch(libraryProvider);
+    final theme = Theme.of(context);
     final items = [
-      ('all', Icons.grid_view, '全部'),
-      ('reading', Icons.radio_button_checked, '正在阅读'),
+      ('all', Icons.grid_view_outlined, '全部'),
+      ('reading', Icons.auto_stories_outlined, '正在阅读'),
       ('favorites', Icons.favorite_border, '收藏'),
     ];
-    return Drawer(
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 30, 18, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Eyebrow('LIBRARY'),
+    final collections = [
+      (const Color(0xFFC69355), '设计与灵感'),
+      (const Color(0xFF6C9EB4), '技术阅读'),
+    ];
+    final nav = SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 20, 12, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Eyebrow('浏览'),
+            ),
+            const SizedBox(height: 8),
+            for (final item in items)
+              ListTile(
+                leading: Icon(item.$2, size: 20),
+                title: Text(item.$3),
+                selected: controller.section == item.$1,
+                onTap: () {
+                  controller.selectSection(item.$1);
+                  if (!embedded && Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+                },
               ),
-              const SizedBox(height: 14),
-              ...items.map(
-                (item) => ListTile(
-                  leading: Icon(item.$2, size: 19),
-                  title: Text(item.$3, style: const TextStyle(fontSize: 13)),
-                  selected: controller.section == item.$1,
-                  onTap: () {
-                    controller.selectSection(item.$1);
-                    if (Navigator.canPop(context)) Navigator.pop(context);
-                  },
+            const SizedBox(height: 20),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Eyebrow('收藏夹'),
+            ),
+            const SizedBox(height: 8),
+            for (final item in collections)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: item.$1,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(item.$2, style: theme.textTheme.bodyMedium),
+                  ],
                 ),
               ),
-              const SizedBox(height: 25),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Eyebrow('COLLECTIONS'),
+            const Spacer(),
+            OutlinedButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.create_new_folder_outlined, size: 18),
+              label: const Text('导入文件夹'),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Local-first · 离线可用',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(height: 12),
-              const ListTile(
-                leading: CircleAvatar(
-                  radius: 4,
-                  backgroundColor: Color(0xFFC69355),
-                ),
-                title: Text('设计与灵感', style: TextStyle(fontSize: 12)),
-              ),
-              const ListTile(
-                leading: CircleAvatar(
-                  radius: 4,
-                  backgroundColor: Color(0xFF6C9EB4),
-                ),
-                title: Text('技术阅读', style: TextStyle(fontSize: 12)),
-              ),
-              const Spacer(),
-              OutlinedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.create_new_folder_outlined, size: 17),
-                label: const Text('导入文件夹'),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'Local-first · 离线可用',
-                style: TextStyle(color: Color(0xFFA5ADB5), fontSize: 10),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
+    if (embedded) {
+      return Material(
+        color: theme.colorScheme.surfaceContainerLow,
+        child: SizedBox(width: 232, child: nav),
+      );
+    }
+    return Drawer(child: nav);
   }
 }
 
@@ -650,41 +871,50 @@ class BookCard extends ConsumerWidget {
   const BookCard({required this.document, required this.listView, super.key});
   final LibraryDocument document;
   final bool listView;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final metadata = document.metadata;
+    final theme = Theme.of(context);
     final details = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           metadata.title,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            height: 1.25,
+          ),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 4),
         Text(
           metadata.author,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: Theme.of(context).hintColor, fontSize: 11),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         if (document.readingState.progress > 0) ...[
-          const SizedBox(height: 11),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
-                child: LinearProgressIndicator(
-                  value: document.readingState.progress,
-                  minHeight: 2,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: LinearProgressIndicator(
+                    value: document.readingState.progress,
+                  ),
                 ),
               ),
-              const SizedBox(width: 7),
+              const SizedBox(width: 8),
               Text(
                 '${(document.readingState.progress * 100).round()}%',
-                style: TextStyle(
-                  color: Theme.of(context).hintColor,
-                  fontSize: 9,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -692,117 +922,151 @@ class BookCard extends ConsumerWidget {
         ],
       ],
     );
-    final content = InkWell(
-      onTap: () {
-        ref.read(libraryProvider).opened(metadata.id);
-        context.push('/reader/${metadata.id}');
-      },
-      child: listView
-          ? Row(
-              children: [
-                CoverArt(metadata: metadata, width: 60, height: 84),
-                const SizedBox(width: 16),
-                Expanded(child: details),
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CoverArt(metadata: metadata, height: 205),
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: details,
-                ),
-              ],
-            ),
-    );
-    return listView
-        ? Card(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: content,
-            ),
+    final content = listView
+        ? Row(
+            children: [
+              CoverArt(metadata: metadata, width: 56, height: 76),
+              const SizedBox(width: 14),
+              Expanded(child: details),
+            ],
           )
-        : content;
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              CoverArt(metadata: metadata),
+              const SizedBox(height: 10),
+              Expanded(child: details),
+            ],
+          );
+    return Material(
+      color: listView ? theme.cardTheme.color : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          ref.read(libraryProvider).opened(metadata.id);
+          context.push('/reader/${metadata.id}');
+        },
+        child: listView
+            ? Padding(padding: const EdgeInsets.all(12), child: content)
+            : content,
+      ),
+    );
   }
 }
 
 class CoverArt extends StatelessWidget {
-  const CoverArt({
-    required this.metadata,
-    this.width = 156,
-    this.height = 220,
-    super.key,
-  });
+  const CoverArt({required this.metadata, this.width, this.height, super.key});
   final DocumentMetadata metadata;
-  final double width;
-  final double height;
+  final double? width;
+  final double? height;
+
   @override
-  Widget build(BuildContext context) => Container(
-    width: width,
-    height: height,
-    padding: const EdgeInsets.all(14),
-    color: Color(metadata.coverColor),
-    child: Stack(
-      children: [
-        Positioned(
-          top: 0,
-          right: 0,
-          child: Text(
-            metadata.format.label,
-            style: const TextStyle(color: Colors.white70, fontSize: 8),
-          ),
-        ),
-        Align(
-          alignment: Alignment.topLeft,
-          child: Text(
-            metadata.title,
-            maxLines: 4,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontFamily: 'Georgia',
-              fontSize: 18,
-              height: 1.1,
+  Widget build(BuildContext context) {
+    final cover = Color(metadata.coverColor);
+    final light = cover.computeLuminance() > 0.48;
+    final fg = light ? const Color(0xFF1C2423) : Colors.white;
+    final muted = fg.withValues(alpha: 0.72);
+    final art = Container(
+      width: width,
+      height: height,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      color: cover,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Align(
+            alignment: Alignment.topRight,
+            child: Text(
+              metadata.format.label,
+              style: TextStyle(
+                color: muted,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.4,
+              ),
             ),
           ),
-        ),
-        Align(
-          alignment: Alignment.bottomLeft,
-          child: Text(
+          const SizedBox(height: 8),
+          Expanded(
+            child: Text(
+              metadata.title,
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: fg,
+                fontSize: width != null && width! < 80 ? 12 : 16,
+                height: 1.2,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Text(
             metadata.author,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white70, fontSize: 9),
+            style: TextStyle(color: muted, fontSize: 11),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+    final clipped = ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: art,
+    );
+    if (width != null && height != null) return clipped;
+    return AspectRatio(aspectRatio: _coverRatio, child: clipped);
+  }
 }
 
 class BrandMark extends StatelessWidget {
-  const BrandMark({super.key});
+  const BrandMark({this.compact = false, super.key});
+  final bool compact;
+
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      Container(
-        width: 32,
-        height: 32,
-        color: const Color(0xFF2F5B57),
-        alignment: Alignment.center,
-        child: const Text(
-          'UR',
-          style: TextStyle(color: Colors.white, fontSize: 10),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: Image.asset(
+          'assets/branding/app_icon.png',
+          width: 32,
+          height: 32,
+          filterQuality: FilterQuality.medium,
         ),
       ),
-      const SizedBox(width: 11),
-      const Text(
-        'Universal Reader',
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-      ),
+      if (!compact) ...[
+        const SizedBox(width: 10),
+        const Text(
+          'Universal Reader',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+        ),
+      ],
     ],
   );
+}
+
+class SearchField extends StatelessWidget {
+  const SearchField({
+    required this.controller,
+    required this.onChanged,
+    super.key,
+  });
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      textInputAction: TextInputAction.search,
+      decoration: const InputDecoration(
+        hintText: '搜索书名、作者或格式',
+        prefixIcon: Icon(Icons.search, size: 18),
+      ),
+    );
+  }
 }
 
 class Eyebrow extends StatelessWidget {
@@ -811,11 +1075,11 @@ class Eyebrow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     text,
-    style: const TextStyle(
-      color: Color(0xFF9AA2AA),
-      fontSize: 10,
-      fontWeight: FontWeight.bold,
-      letterSpacing: 1.5,
+    style: TextStyle(
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+      fontSize: 11,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.8,
     ),
   );
 }
@@ -823,28 +1087,38 @@ class Eyebrow extends StatelessWidget {
 class EmptyLibrary extends StatelessWidget {
   const EmptyLibrary({super.key});
   @override
-  Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(
-          Icons.menu_book_outlined,
-          size: 50,
-          color: Theme.of(context).colorScheme.primary.withValues(alpha: .35),
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.menu_book_outlined,
+              size: 48,
+              color: theme.colorScheme.primary.withValues(alpha: 0.35),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '没有找到匹配的书籍',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '尝试更换搜索词或筛选条件。',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 14),
-        const Text(
-          '没有找到匹配的书籍',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          '尝试更换搜索词或筛选条件。',
-          style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12),
-        ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 class ReaderPage extends ConsumerStatefulWidget {
@@ -857,30 +1131,83 @@ class ReaderPage extends ConsumerStatefulWidget {
 class _ReaderPageState extends ConsumerState<ReaderPage> {
   bool chrome = true;
   bool toc = false;
-  double progress = .37;
+  bool ask = false;
+  late double progress;
+
+  static const _chapters = [
+    '第 1 章 设计的轮廓',
+    '第 2 章 无印良品',
+    '第 3 章 白与空',
+    '第 4 章 白',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    progress =
+        ref
+            .read(libraryProvider)
+            .documentById(widget.id)
+            ?.readingState
+            .progress ??
+        0.37;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final document = seedDocuments.firstWhere(
-      (item) => item.metadata.id == widget.id,
-      orElse: () => seedDocuments.first,
-    );
+    final document =
+        ref.watch(libraryProvider).documentById(widget.id) ??
+        seedDocuments.firstWhere(
+          (item) => item.metadata.id == widget.id,
+          orElse: () => seedDocuments.first,
+        );
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final paper = dark ? const Color(0xFF1C1B18) : const Color(0xFFF5F0E8);
+    final ink = dark ? const Color(0xFFE8E2D6) : const Color(0xFF2A2620);
+    final muted = dark ? const Color(0xFFB7A894) : const Color(0xFF8A7358);
+    final tocBg = dark ? const Color(0xFF24231F) : const Color(0xFFF0EADF);
+    final wide = MediaQuery.sizeOf(context).width >= 900;
+    final readerDocument = SampleReaderDocument(metadata: document.metadata);
+    final aiSettings = ref.watch(aiSettingsProvider).settings;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F0E8),
+      backgroundColor: paper,
       appBar: chrome
           ? AppBar(
-              backgroundColor: const Color(0xFFF5F0E8),
+              backgroundColor: paper,
+              foregroundColor: ink,
               leading: IconButton(
+                tooltip: '返回书库',
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () => context.go('/'),
               ),
               title: Text(
                 document.metadata.title,
-                style: const TextStyle(fontSize: 14),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               actions: [
                 IconButton(
+                  tooltip: '问这一页',
+                  icon: Icon(
+                    ask ? Icons.chat_bubble : Icons.chat_bubble_outline,
+                    color: ask ? _pine : ink,
+                  ),
+                  onPressed: () => setState(() {
+                    ask = !ask;
+                    chrome = true;
+                  }),
+                ),
+                IconButton(
                   tooltip: '目录',
-                  icon: const Icon(Icons.menu_book_outlined),
+                  icon: Icon(
+                    toc ? Icons.menu_book : Icons.menu_book_outlined,
+                    color: toc ? _pine : ink,
+                  ),
                   onPressed: () => setState(() => toc = !toc),
                 ),
                 IconButton(
@@ -893,107 +1220,164 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           : null,
       body: GestureDetector(
         onTap: () => setState(() => chrome = !chrome),
-        child: Row(
+        child: Stack(
           children: [
-            if (toc)
-              const SizedBox(
-                width: 250,
-                child: Material(
-                  color: Color(0xFFF0EADF),
-                  child: Padding(
-                    padding: EdgeInsets.all(22),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Eyebrow('CONTENTS'),
-                        SizedBox(height: 20),
-                        Text('第 1 章 设计的轮廓'),
-                        SizedBox(height: 18),
-                        Text('第 2 章 无印良品'),
-                        SizedBox(height: 18),
-                        Text('第 3 章 白与空'),
-                        SizedBox(height: 18),
-                        Text(
-                          '第 4 章 白',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF2F5B57),
-                          ),
+            Row(
+              children: [
+                if (toc)
+                  Material(
+                    color: tocBg,
+                    child: SizedBox(
+                      width: 240,
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(20, 24, 16, 24),
+                        children: [
+                          const Eyebrow('目录'),
+                          const SizedBox(height: 12),
+                          for (var i = 0; i < _chapters.length; i++)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: Text(
+                                _chapters[i],
+                                style: TextStyle(
+                                  fontWeight: i == 3
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
+                                  color: i == 3 ? _pine : ink,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 680),
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.fromLTRB(
+                          28,
+                          chrome ? 32 : 48,
+                          28,
+                          chrome ? 112 : 48,
                         ),
-                      ],
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '第 4 章',
+                              style: TextStyle(
+                                color: muted,
+                                letterSpacing: 2,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              '白',
+                              style: TextStyle(
+                                color: ink,
+                                fontSize: 36,
+                                fontWeight: FontWeight.w600,
+                                height: 1.15,
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+                            Text(
+                              '白是一种包容所有颜色的颜色。它没有自己的主张，却能让其他事物显现出清晰的轮廓。在设计中，空白从来不是缺席，而是一种主动的表达。',
+                              style: TextStyle(
+                                color: ink,
+                                fontSize: 18,
+                                height: 1.85,
+                              ),
+                            ),
+                            const SizedBox(height: 22),
+                            Text(
+                              '我们习惯于把信息填满，把空间占据，把每一个空隙都看作需要解决的问题。但真正成熟的设计，知道什么时候应该停下来，让事物自己说话。',
+                              style: TextStyle(
+                                color: ink,
+                                fontSize: 18,
+                                height: 1.85,
+                              ),
+                            ),
+                            const SizedBox(height: 22),
+                            Text(
+                              '阅读是一种与留白相处的方式。文字之间的距离、章节之间的停顿，以及读者暂时离开页面的片刻，共同构成了完整的体验。',
+                              style: TextStyle(
+                                color: ink,
+                                fontSize: 18,
+                                height: 1.85,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            Expanded(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 720),
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(38),
-                    child: const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '第 4 章',
-                          style: TextStyle(
-                            color: Color(0xFFB79A7B),
-                            letterSpacing: 2,
-                            fontSize: 12,
-                          ),
-                        ),
-                        SizedBox(height: 20),
-                        Text(
-                          '白',
-                          style: TextStyle(fontFamily: 'Georgia', fontSize: 42),
-                        ),
-                        SizedBox(height: 36),
-                        Text(
-                          '白是一种包容所有颜色的颜色。它没有自己的主张，却能让其他事物显现出清晰的轮廓。在设计中，空白从来不是缺席，而是一种主动的表达。',
-                          style: TextStyle(
-                            fontFamily: 'Georgia',
-                            fontSize: 19,
-                            height: 1.85,
-                          ),
-                        ),
-                        SizedBox(height: 24),
-                        Text(
-                          '我们习惯于把信息填满，把空间占据，把每一个空隙都看作需要解决的问题。但真正成熟的设计，知道什么时候应该停下来，让事物自己说话。',
-                          style: TextStyle(
-                            fontFamily: 'Georgia',
-                            fontSize: 19,
-                            height: 1.85,
-                          ),
-                        ),
-                        SizedBox(height: 24),
-                        Text(
-                          '阅读是一种与留白相处的方式。文字之间的距离、章节之间的停顿，以及读者暂时离开页面的片刻，共同构成了完整的体验。',
-                          style: TextStyle(
-                            fontFamily: 'Georgia',
-                            fontSize: 19,
-                            height: 1.85,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              ],
             ),
+            if (ask)
+              Positioned(
+                top: wide ? 0 : null,
+                left: wide ? null : 0,
+                right: 0,
+                bottom: chrome ? 72 : 0,
+                width: wide ? 320 : null,
+                height: wide ? null : MediaQuery.sizeOf(context).height * 0.45,
+                child: ReaderAiPanel(
+                  document: readerDocument,
+                  settings: aiSettings,
+                ),
+              ),
             if (chrome)
-              Expanded(
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Slider(
-                      value: progress,
-                      onChanged: (value) {
-                        setState(() => progress = value);
-                        ref
-                            .read(libraryProvider)
-                            .updateProgress(widget.id, value);
-                      },
+              Positioned(
+                left: toc ? 240 : 0,
+                right: ask && wide ? 320 : 0,
+                bottom: 0,
+                child: Material(
+                  color: paper,
+                  child: SafeArea(
+                    top: false,
+                    child: GestureDetector(
+                      onTap: () {},
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Slider(
+                              value: progress,
+                              onChanged: (value) {
+                                setState(() => progress = value);
+                                ref
+                                    .read(libraryProvider)
+                                    .updateProgress(widget.id, value);
+                              },
+                            ),
+                            Row(
+                              children: [
+                                Text(
+                                  '第 4 章',
+                                  style: TextStyle(color: muted, fontSize: 12),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  '${(progress * 100).round()}%',
+                                  style: TextStyle(
+                                    color: ink,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -1010,63 +1394,213 @@ class SettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(themeProvider);
+    final theme = Theme.of(context);
+    final themeLabel = switch (mode) {
+      ThemeMode.dark => '深色',
+      ThemeMode.light => '浅色',
+      ThemeMode.system => '跟随系统',
+    };
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
-      body: ListView(
-        padding: const EdgeInsets.all(28),
-        children: [
-          const Eyebrow('PREFERENCES'),
-          const SizedBox(height: 14),
-          const Text(
-            '外观',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          Card(
-            child: ListTile(
-              title: const Text('主题'),
-              subtitle: Text(mode == ThemeMode.dark ? '深色' : '浅色'),
-              trailing: DropdownButton<ThemeMode>(
-                value: mode,
-                underline: const SizedBox(),
-                items: const [
-                  DropdownMenuItem(value: ThemeMode.light, child: Text('浅色')),
-                  DropdownMenuItem(value: ThemeMode.dark, child: Text('深色')),
-                  DropdownMenuItem(
-                    value: ThemeMode.system,
-                    child: Text('跟随系统'),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 48),
+            children: [
+              const Eyebrow('偏好'),
+              const SizedBox(height: 8),
+              Text(
+                '设置',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 28),
+              Text(
+                '外观',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.palette_outlined),
+                  title: const Text('主题'),
+                  subtitle: Text(themeLabel),
+                  trailing: DropdownButtonHideUnderline(
+                    child: DropdownButton<ThemeMode>(
+                      value: mode,
+                      borderRadius: BorderRadius.circular(8),
+                      items: const [
+                        DropdownMenuItem(
+                          value: ThemeMode.light,
+                          child: Text('浅色'),
+                        ),
+                        DropdownMenuItem(
+                          value: ThemeMode.dark,
+                          child: Text('深色'),
+                        ),
+                        DropdownMenuItem(
+                          value: ThemeMode.system,
+                          child: Text('跟随系统'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          ref.read(themeProvider.notifier).state = value;
+                        }
+                      },
+                    ),
                   ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    ref.read(themeProvider.notifier).state = value;
-                  }
-                },
+                ),
+              ),
+              const SizedBox(height: 28),
+              Text(
+                '阅读助手',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const _AiSettingsCard(),
+              const SizedBox(height: 28),
+              Text(
+                '资料库',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Card(
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: Icon(Icons.folder_outlined),
+                      title: Text('默认导入位置'),
+                      subtitle: Text('由系统文件选择器管理'),
+                    ),
+                    Divider(),
+                    ListTile(
+                      leading: Icon(Icons.storage_outlined),
+                      title: Text('本地优先存储'),
+                      subtitle: Text('阅读进度和标注保存在本设备'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AiSettingsCard extends ConsumerStatefulWidget {
+  const _AiSettingsCard();
+
+  @override
+  ConsumerState<_AiSettingsCard> createState() => _AiSettingsCardState();
+}
+
+class _AiSettingsCardState extends ConsumerState<_AiSettingsCard> {
+  late final TextEditingController endpoint;
+  late final TextEditingController model;
+  late final TextEditingController apiKey;
+  bool synced = false;
+
+  @override
+  void initState() {
+    super.initState();
+    endpoint = TextEditingController();
+    model = TextEditingController();
+    apiKey = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    endpoint.dispose();
+    model.dispose();
+    apiKey.dispose();
+    super.dispose();
+  }
+
+  void _sync(AiSettings settings) {
+    if (synced) return;
+    endpoint.text = settings.endpoint;
+    model.text = settings.model;
+    apiKey.text = settings.apiKey;
+    synced = true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = ref.watch(aiSettingsProvider);
+    final settings = controller.settings;
+    if (!controller.loading && !synced) {
+      _sync(settings);
+    }
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('启用阅读助手'),
+              subtitle: const Text('默认关闭。关闭时阅读页不会请求任何模型。'),
+              value: settings.enabled,
+              onChanged: (value) {
+                controller.update(settings.copyWith(enabled: value));
+              },
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: endpoint,
+              decoration: const InputDecoration(
+                labelText: '接口地址',
+                hintText: 'http://127.0.0.1:11434/v1',
+              ),
+              onChanged: (value) {
+                controller.update(settings.copyWith(endpoint: value));
+              },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: model,
+              decoration: const InputDecoration(
+                labelText: '模型名称',
+                hintText: 'llama3.1 或 gpt-4o-mini',
+              ),
+              onChanged: (value) {
+                controller.update(settings.copyWith(model: value));
+              },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: apiKey,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'API Key（可选）',
+                hintText: '仅保存在本机',
+              ),
+              onChanged: (value) {
+                controller.update(settings.copyWith(apiKey: value));
+              },
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '发送时会把当前摘录交给你配置的 OpenAI 兼容接口，例如本机 Ollama。不上整本书，也不上传书库。',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-          ),
-          const SizedBox(height: 28),
-          const Text(
-            '资料库',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: Icon(Icons.folder_outlined),
-                  title: Text('默认导入位置'),
-                  subtitle: Text('由系统文件选择器管理'),
-                ),
-                Divider(height: 1),
-                ListTile(
-                  leading: Icon(Icons.storage_outlined),
-                  title: Text('本地优先存储'),
-                  subtitle: Text('阅读进度和标注保存在本设备'),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

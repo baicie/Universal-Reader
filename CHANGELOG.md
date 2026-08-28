@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added an optional, off-by-default reading assistant that sends only the current excerpt to a user-configured OpenAI-compatible endpoint.
+
 ## 0.0.1-dev.6 - 2026-08-27
 
 - Configured the Intel macOS build to exclude arm64 before Universal app assembly.

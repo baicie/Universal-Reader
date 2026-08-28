@@ -1168,6 +1168,8 @@ Semantic search
 
 > **AI 是 enhancement，不是 dependency。**
 
+后续若引入阅读助手，只作为 `ToolProvider`，且必须先完成规格再实现。当前规格见 `docs/ai-agent.md`。第一年仍不做自主大模型 Agent。
+
 ---
 
 # 26. 推荐 Monorepo

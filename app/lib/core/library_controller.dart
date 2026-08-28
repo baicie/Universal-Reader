@@ -51,6 +51,27 @@ class PersistedLibraryController extends ChangeNotifier {
     return result;
   }
 
+  LibraryDocument? documentById(String id) {
+    for (final document in _documents) {
+      if (document.metadata.id == id) return document;
+    }
+    return null;
+  }
+
+  LibraryDocument? get continueReading {
+    final reading = _documents
+        .where(
+          (document) =>
+              document.readingState.progress > 0 &&
+              document.readingState.progress < 1,
+        )
+        .toList();
+    reading.sort(
+      (a, b) => b.readingState.lastOpened.compareTo(a.readingState.lastOpened),
+    );
+    return reading.isEmpty ? null : reading.first;
+  }
+
   Future<void> load() async {
     final stored = await repository.load();
     _documents = stored.isEmpty ? List.of(_initialDocuments) : stored;
