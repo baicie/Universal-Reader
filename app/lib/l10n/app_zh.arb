@@ -49,6 +49,7 @@
   "askThisPage": "问这一页",
   "tableOfContents": "目录",
   "readingSettings": "阅读设置",
+  "bodyFontSize": "正文字号",
   "preferences": "偏好",
   "appearance": "外观",
   "theme": "主题",
@@ -108,5 +109,22 @@
     "placeholders": {
       "offset": {"type": "int"}
     }
-  }
+  },
+  "readerLoading": "正在打开…",
+  "untitledSection": "正文",
+  "readerSection": "{current} / {total}",
+  "@readerSection": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "readerUnavailable": "{format} 阅读器尚未接入。当前可以阅读 TXT、Markdown 和 HTML。",
+  "@readerUnavailable": {
+    "placeholders": {
+      "format": {"type": "String"}
+    }
+  },
+  "readerMissingFile": "找不到这本书的原文件。",
+  "readerTruncated": "文件较大，仅显示开头部分。"
 }

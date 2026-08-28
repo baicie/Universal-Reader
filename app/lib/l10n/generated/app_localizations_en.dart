@@ -135,6 +135,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readingSettings => 'Reading settings';
 
   @override
+  String get bodyFontSize => 'Body text size';
+
+  @override
   String get preferences => 'Preferences';
 
   @override
@@ -268,4 +271,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String textOffset(int offset) {
     return 'Offset $offset';
   }
+
+  @override
+  String get readerLoading => 'Opening…';
+
+  @override
+  String get untitledSection => 'Text';
+
+  @override
+  String readerSection(int current, int total) {
+    return '$current / $total';
+  }
+
+  @override
+  String readerUnavailable(String format) {
+    return '$format is not readable yet. TXT, Markdown, and HTML work now.';
+  }
+
+  @override
+  String get readerMissingFile =>
+      'The original file for this book could not be found.';
+
+  @override
+  String get readerTruncated =>
+      'This file is large, so only the beginning is shown.';
 }

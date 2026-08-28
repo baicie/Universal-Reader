@@ -43,5 +43,6 @@ void main() {
     expect(document.metadata.title, 'notes');
     expect(document.metadata.format, DocumentFormat.txt);
     expect((await repository.load()).single.metadata.id, 'notes.txt');
+    expect(await repository.readFile('notes.txt'), [1, 2, 3]);
   });
 }

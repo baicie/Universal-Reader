@@ -332,6 +332,12 @@ abstract class AppLocalizations {
   /// **'阅读设置'**
   String get readingSettings;
 
+  /// No description provided for @bodyFontSize.
+  ///
+  /// In zh, this message translates to:
+  /// **'正文字号'**
+  String get bodyFontSize;
+
   /// No description provided for @preferences.
   ///
   /// In zh, this message translates to:
@@ -571,6 +577,42 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'偏移 {offset}'**
   String textOffset(int offset);
+
+  /// No description provided for @readerLoading.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在打开…'**
+  String get readerLoading;
+
+  /// No description provided for @untitledSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'正文'**
+  String get untitledSection;
+
+  /// No description provided for @readerSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'{current} / {total}'**
+  String readerSection(int current, int total);
+
+  /// No description provided for @readerUnavailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'{format} 阅读器尚未接入。当前可以阅读 TXT、Markdown 和 HTML。'**
+  String readerUnavailable(String format);
+
+  /// No description provided for @readerMissingFile.
+  ///
+  /// In zh, this message translates to:
+  /// **'找不到这本书的原文件。'**
+  String get readerMissingFile;
+
+  /// No description provided for @readerTruncated.
+  ///
+  /// In zh, this message translates to:
+  /// **'文件较大，仅显示开头部分。'**
+  String get readerTruncated;
 }
 
 class _AppLocalizationsDelegate

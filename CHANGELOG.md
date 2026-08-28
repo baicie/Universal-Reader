@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.0.1-dev.8 - 2026-08-29
+
+- The reader now opens imported TXT, Markdown, and HTML files instead of a placeholder chapter.
+- Reading settings adjust body font size and remember it on this device.
+
 ## 0.0.1-dev.7 - 2026-08-28
 
 - Added an optional, off-by-default reading assistant that sends only the current excerpt to a user-configured OpenAI-compatible endpoint.

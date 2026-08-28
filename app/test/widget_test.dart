@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:app/core/library_repository.dart';
 import 'package:app/core/locale_controller.dart';
 import 'package:app/features/tools/ai/ai_settings.dart';
@@ -71,5 +73,53 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Language'), findsOneWidget);
     expect(find.text('Reading assistant'), findsOneWidget);
+  });
+
+  testWidgets('opens imported plain text in the reader', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes(
+      'notes.txt',
+      utf8.encode('第一章\n\nhello from notes'),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('notes').first);
+    await tester.pumpAndSettle();
+    expect(find.text('hello from notes'), findsOneWidget);
+    expect(find.textContaining('白是一种包容'), findsNothing);
+  });
+
+  testWidgets('reading settings expose a body font size control', (
+    tester,
+  ) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', utf8.encode('hello from notes'));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('notes').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('阅读设置'));
+    await tester.pumpAndSettle();
+    expect(find.text('正文字号'), findsOneWidget);
   });
 }
