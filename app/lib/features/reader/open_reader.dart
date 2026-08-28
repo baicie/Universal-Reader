@@ -1,20 +1,8 @@
 import '../../core/models.dart';
 import '../../core/reader_runtime.dart';
+import '../../core/seed_documents.dart';
 import '../../core/text_document.dart';
 import '../tools/sample_reader_document.dart';
-
-const seedDocumentIds = {
-  'design',
-  'creative',
-  'data',
-  'prince',
-  'science',
-  'patterns',
-  'solitude',
-  'code',
-  'galaxy',
-  'rust',
-};
 
 ReaderDocument openReaderDocument({
   required DocumentMetadata metadata,

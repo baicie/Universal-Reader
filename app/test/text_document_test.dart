@@ -106,4 +106,20 @@ void main() {
     );
     expect(seed, isA<SampleReaderDocument>());
   });
+
+  test('chunks oversized sections even when other chapters exist', () {
+    final huge = 'x' * (textSectionCharLimit + 50);
+    final parsed = parseTextDocument(
+      bytes: utf8.encode('# A\n\n$huge\n\n# B\n\nshort'),
+      format: DocumentFormat.markdown,
+    );
+
+    expect(parsed.sections.length, greaterThan(2));
+    expect(
+      parsed.sections.every(
+        (section) => section.body.length <= textSectionCharLimit,
+      ),
+      isTrue,
+    );
+  });
 }

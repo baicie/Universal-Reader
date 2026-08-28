@@ -1,0 +1,14 @@
+---
+description: Code quality bar for Universal Reader
+alwaysApply: true
+---
+
+# Code quality
+
+- Prefer a small change that improves health over a large dump that only "works".
+- Put new behavior in `app/lib/features/` or `app/lib/core/`. Do not grow `main.dart`.
+- Prove behavior with a failing test before the fix. Untested branches do not ship.
+- Missing data stays missing. Never fall back to an unrelated seed or sample document.
+- No busy-wait loops. Wait on a ready future, listener, or provider.
+- UI copy goes through l10n. Book titles and file contents stay as-is.
+- Swallowing errors needs a reason. Empty `catch` is not a reason.
