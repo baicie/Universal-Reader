@@ -60,7 +60,13 @@ jobs:
 
       - name: Package Web
         shell: bash
-        run: zip -r ../universal-reader-${{ env.RELEASE_TAG }}-web.zip build/web
+        run: |
+          (cd build/web && zip -r "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-web.zip" .)
+
+      - name: Verify Web artifact
+        shell: bash
+        run: |
+          unzip -Z1 "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-web.zip" | grep -qx 'index.html'
 
       - name: Upload Web artifact
         uses: actions/upload-artifact@v7
@@ -491,9 +497,80 @@ jobs:
           path: universal-reader-${{ env.RELEASE_TAG }}-server-windows-x86_64.zip
           if-no-files-found: error
 
+  web-server-linux:
+    name: Bundle Web + Rust server (Linux)
+    needs: [web, server-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Web artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: universal-reader-${{ env.RELEASE_TAG }}-web
+          path: dist
+
+      - name: Download Rust server artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: universal-reader-${{ env.RELEASE_TAG }}-server-linux-x86_64
+          path: dist
+
+      - name: Bundle Web with Rust server
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p staging/web
+          tar -xzf "dist/universal-reader-${{ env.RELEASE_TAG }}-server-linux-x86_64.tar.gz" -C staging
+          unzip -q "dist/universal-reader-${{ env.RELEASE_TAG }}-web.zip" -d staging/web
+          test -f staging/universal-reader-server
+          test -f staging/web/index.html
+          chmod +x staging/universal-reader-server
+          tar -C staging -czf "universal-reader-${{ env.RELEASE_TAG }}-web-server-linux-x86_64.tar.gz" universal-reader-server web
+
+      - name: Upload Web + Rust server artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: universal-reader-${{ env.RELEASE_TAG }}-web-server-linux-x86_64
+          path: universal-reader-${{ env.RELEASE_TAG }}-web-server-linux-x86_64.tar.gz
+          if-no-files-found: error
+
+  web-server-windows:
+    name: Bundle Web + Rust server (Windows)
+    needs: [web, server-windows]
+    runs-on: windows-latest
+    steps:
+      - name: Download Web artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: universal-reader-${{ env.RELEASE_TAG }}-web
+          path: dist
+
+      - name: Download Rust server artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: universal-reader-${{ env.RELEASE_TAG }}-server-windows-x86_64
+          path: dist
+
+      - name: Bundle Web with Rust server
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Path staging/web | Out-Null
+          Expand-Archive -Path "dist/universal-reader-${{ env.RELEASE_TAG }}-server-windows-x86_64.zip" -DestinationPath staging
+          Expand-Archive -Path "dist/universal-reader-${{ env.RELEASE_TAG }}-web.zip" -DestinationPath staging/web
+          if (-not (Test-Path "staging/universal-reader-server.exe")) { throw "missing server binary" }
+          if (-not (Test-Path "staging/web/index.html")) { throw "missing web index.html" }
+          Compress-Archive -Path staging\universal-reader-server.exe, staging\web -DestinationPath "universal-reader-${{ env.RELEASE_TAG }}-web-server-windows-x86_64.zip"
+
+      - name: Upload Web + Rust server artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: universal-reader-${{ env.RELEASE_TAG }}-web-server-windows-x86_64
+          path: universal-reader-${{ env.RELEASE_TAG }}-web-server-windows-x86_64.zip
+          if-no-files-found: error
+
   publish:
     name: Publish GitHub Release
-    needs: [android, web, windows, linux, macos-native, macos-universal, server-linux, server-windows]
+    needs: [android, web, windows, linux, macos-native, macos-universal, server-linux, server-windows, web-server-linux, web-server-windows]
     runs-on: ubuntu-latest
     steps:
       - name: Download release artifacts
@@ -523,5 +600,6 @@ jobs:
               '- Flutter Library / Reader / Settings MVP' \
               '- Local-first library persistence' \
               '- Rust local backend service with health and document format detection APIs' \
+              '- Combined web + Rust server archives for Linux and Windows: extract, run the server, and open http://host:8787/ (set UNIVERSAL_READER_SERVER_BIND=0.0.0.0 to listen beyond localhost)' \
               '- Platform packages plus architecture packages for Android, Windows, Linux, and macOS; Windows includes x86_64 ZIP and EXE installer packages, while macOS includes Universal, arm64, and x86_64 DMG installers; Android also includes split ABI APKs (debug-signed for this development release)' \
               '- Reader Runtime adapter contracts for future Rust and native renderers')

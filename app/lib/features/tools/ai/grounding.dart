@@ -1,5 +1,6 @@
 import '../../../core/models.dart';
 import '../../../core/reader_runtime.dart';
+import '../../../l10n/l10n.dart';
 
 class GroundingContext {
   const GroundingContext({
@@ -31,6 +32,7 @@ class DocumentGrounding {
     ReaderDocument document, {
     DocumentRange? range,
     Locator? locator,
+    AppLocalizations? l10n,
   }) async {
     final extracted = await document.extractText(range ?? defaultRange) ?? '';
     final excerpt = extracted.length <= maxExcerptLength
@@ -42,17 +44,17 @@ class DocumentGrounding {
       title: document.metadata.title,
       author: document.metadata.author,
       excerpt: excerpt.trim(),
-      locatorLabel: locatorLabel(current),
+      locatorLabel: locatorLabel(current, l10n: l10n),
     );
   }
 
-  static String locatorLabel(Locator locator) {
+  static String locatorLabel(Locator locator, {AppLocalizations? l10n}) {
     return switch (locator) {
       EpubLocator(:final href, :final progression) =>
         progression == null ? href : '$href · ${(progression * 100).round()}%',
-      PdfLocator(:final page) => '第 $page 页',
-      TextLocator(:final offset) => '偏移 $offset',
-      ComicLocator(:final page) => '第 $page 页',
+      PdfLocator(:final page) => l10n?.pageNumber(page) ?? '第 $page 页',
+      TextLocator(:final offset) => l10n?.textOffset(offset) ?? '偏移 $offset',
+      ComicLocator(:final page) => l10n?.pageNumber(page) ?? '第 $page 页',
     };
   }
 }

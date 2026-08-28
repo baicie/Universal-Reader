@@ -30,11 +30,11 @@ flutter build web --release
 - Local file import through `file_picker`
 - Library search, type filters, sorting, grid/list view, reading progress
 - Reader screen with TOC, progress slider, content theme surface, and mobile chrome behavior
-- Settings screen with light/dark/system theme selection
+- Settings screen with light/dark/system theme and Chinese/English/system language (Chinese is the default and fallback)
 
 ## Rust backend integration
 
-The local Rust service is in `../rust/crates/reader-server`. It currently supplies health reporting and first-pass format detection over loopback HTTP. Flutter continues to use its existing repository during this development release; the service boundary lets SQLite/FTS5, library scanning, and richer document inspection move into Rust without coupling them to the UI.
+The local Rust service is in `../rust/crates/reader-server`. It currently supplies health reporting, first-pass format detection, and optional hosting of `flutter build web --release` over HTTP. Flutter continues to use its existing repository during this development release; the service boundary lets SQLite/FTS5, library scanning, and richer document inspection move into Rust without coupling them to the UI. See the repository README for the combined web + server release layout.
 
 ## Architecture follow-up
 

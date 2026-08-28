@@ -36,4 +36,12 @@ void main() {
     await repository.save([]);
     expect(await repository.load(), isEmpty);
   });
+
+  test('in-memory repository imports supported bytes', () async {
+    final repository = InMemoryLibraryRepository();
+    final document = await repository.importBytes('notes.txt', [1, 2, 3]);
+    expect(document.metadata.title, 'notes');
+    expect(document.metadata.format, DocumentFormat.txt);
+    expect((await repository.load()).single.metadata.id, 'notes.txt');
+  });
 }

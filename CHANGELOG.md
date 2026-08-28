@@ -2,7 +2,13 @@
 
 ## Unreleased
 
+## 0.0.1-dev.7 - 2026-08-28
+
 - Added an optional, off-by-default reading assistant that sends only the current excerpt to a user-configured OpenAI-compatible endpoint.
+- The Rust server can serve a Flutter web build from `web/` next to the binary (or `UNIVERSAL_READER_WEB_DIR`), with SPA fallback while keeping `/health` and `/v1/*` as APIs.
+- Release now ships combined web + server archives for Linux and Windows; `UNIVERSAL_READER_SERVER_BIND` selects the listen address (`127.0.0.1` by default).
+- The Rust service now stores books as a simple on-disk drive (`files/` + `catalog.json`) with list/upload/download/progress/delete APIs; the Flutter app uses that store when the service is reachable.
+- The Flutter app is localized with Chinese as the default and fallback; English and follow-system are available in Settings.
 
 ## 0.0.1-dev.6 - 2026-08-27
 

@@ -1,0 +1,112 @@
+{
+  "@@locale": "zh",
+  "appTitle": "Universal Reader",
+  "openMenu": "打开菜单",
+  "settings": "设置",
+  "importBooks": "导入书籍",
+  "allBooks": "全部书籍",
+  "currentlyReading": "正在阅读",
+  "favorites": "收藏",
+  "library": "资料库",
+  "libraryWithServer": "资料库 · 本机服务",
+  "bookCount": "{count} 本书籍",
+  "@bookCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "toggleView": "切换视图",
+  "all": "全部",
+  "reflow": "可重排",
+  "fixedLayout": "固定版式",
+  "comic": "漫画",
+  "sortRecent": "最近阅读",
+  "sortTitle": "标题",
+  "sortProgress": "阅读进度",
+  "continueReading": "继续阅读",
+  "browse": "浏览",
+  "collections": "收藏夹",
+  "collectionDesign": "设计与灵感",
+  "collectionTech": "技术阅读",
+  "importFolder": "导入文件夹",
+  "localFirstOffline": "Local-first · 离线可用",
+  "searchHint": "搜索书名、作者或格式",
+  "emptyLibraryTitle": "书库还是空的",
+  "emptyLibraryFilteredTitle": "没有找到匹配的书籍",
+  "emptyLibraryFilteredSubtitle": "尝试更换搜索词或筛选条件。",
+  "emptyLibraryRemoteSubtitle": "点击 + 把书上传到本机服务，刷新后也会还在。",
+  "emptyLibraryLocalSubtitle": "点击 + 导入本地书籍。",
+  "importedBooks": "已导入 {count} 本书籍",
+  "@importedBooks": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "importFailed": "导入失败，请确认本机服务可用",
+  "noSupportedFormat": "没有识别到支持的格式",
+  "localLibraryAuthor": "本地书库",
+  "backToLibrary": "返回书库",
+  "askThisPage": "问这一页",
+  "tableOfContents": "目录",
+  "readingSettings": "阅读设置",
+  "preferences": "偏好",
+  "appearance": "外观",
+  "theme": "主题",
+  "themeLight": "浅色",
+  "themeDark": "深色",
+  "themeSystem": "跟随系统",
+  "language": "语言",
+  "languageChinese": "中文",
+  "languageEnglish": "English",
+  "languageSystem": "跟随系统",
+  "readingAssistant": "阅读助手",
+  "enableAssistant": "启用阅读助手",
+  "enableAssistantSubtitle": "默认关闭。关闭时阅读页不会请求任何模型。",
+  "endpointLabel": "接口地址",
+  "modelLabel": "模型名称",
+  "modelHint": "llama3.1 或 gpt-4o-mini",
+  "apiKeyLabel": "API Key（可选）",
+  "apiKeyHint": "仅保存在本机",
+  "assistantPrivacyNote": "发送时会把当前摘录交给你配置的 OpenAI 兼容接口，例如本机 Ollama。不上整本书，也不上传书库。",
+  "defaultImportLocation": "默认导入位置",
+  "defaultImportLocationSubtitle": "由系统文件选择器管理",
+  "localFirstStorage": "本地优先存储",
+  "localFirstStorageSubtitle": "阅读进度和标注保存在本设备",
+  "sendExcerptHint": "将发送当前章节摘录，不上整本书。",
+  "sendExcerptHintLocated": "定位：{locator}。将发送当前摘录，不上整本书。",
+  "@sendExcerptHintLocated": {
+    "placeholders": {
+      "locator": {"type": "String"}
+    }
+  },
+  "summarize": "总结",
+  "explain": "解释",
+  "translate": "翻译",
+  "ask": "提问",
+  "askQuestionHint": "输入关于这一页的问题",
+  "readingExcerpt": "正在读取当前摘录…",
+  "sending": "发送中…",
+  "sendExcerpt": "发送摘录",
+  "enableAssistantInSettings": "到设置中启用阅读助手",
+  "requestFailed": "请求失败：{error}",
+  "@requestFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "assistantDisabled": "阅读助手未启用。可在设置中打开。",
+  "assistantNotConfigured": "请先在设置中填写接口地址和模型名称。",
+  "noExcerpt": "当前页没有可发送的摘录。",
+  "pageNumber": "第 {page} 页",
+  "@pageNumber": {
+    "placeholders": {
+      "page": {"type": "int"}
+    }
+  },
+  "textOffset": "偏移 {offset}",
+  "@textOffset": {
+    "placeholders": {
+      "offset": {"type": "int"}
+    }
+  }
+}
