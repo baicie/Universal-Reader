@@ -6,6 +6,7 @@ import 'package:app/features/tools/ai/ai_settings.dart';
 import 'package:app/main.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 void main() {
   testWidgets('renders the library shell from a repository', (tester) async {
@@ -97,6 +98,30 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('hello from notes'), findsOneWidget);
     expect(find.textContaining('白是一种包容'), findsNothing);
+  });
+
+  testWidgets('unknown reader ids do not fall back to another book', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(
+            InMemoryLibraryRepository(),
+          ),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    final context = tester.element(find.byType(LibraryPage));
+    GoRouter.of(context).go('/reader/missing-book');
+    await tester.pumpAndSettle();
+    expect(find.text('设计中的设计'), findsNothing);
+    expect(find.text('找不到这本书的原文件。'), findsOneWidget);
   });
 
   testWidgets('reading settings expose a body font size control', (

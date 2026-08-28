@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
@@ -19,6 +21,23 @@ class PersistedLibraryController extends ChangeNotifier {
   String sort = 'recent';
   bool listView = false;
   bool loading = true;
+
+  Future<void> waitUntilReady() {
+    if (!loading) return Future.value();
+    final ready = Completer<void>();
+    late final VoidCallback listener;
+    listener = () {
+      if (loading) return;
+      removeListener(listener);
+      if (!ready.isCompleted) ready.complete();
+    };
+    addListener(listener);
+    if (!loading) {
+      removeListener(listener);
+      return Future.value();
+    }
+    return ready.future;
+  }
 
   bool get usesRemoteStore => repository.usesRemoteStore;
   bool get hasStoredDocuments => _documents.isNotEmpty;

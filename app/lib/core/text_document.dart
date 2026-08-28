@@ -49,14 +49,15 @@ ParsedTextDocument parseTextDocument({
     text = stripHtml(text);
   }
   text = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n').trim();
-  final sections = format == DocumentFormat.markdown
+  final raw = format == DocumentFormat.markdown
       ? splitMarkdown(text)
       : splitPlainText(text);
+  final sections = raw.isEmpty
+      ? [TextSection(title: '', body: text, startOffset: 0)]
+      : raw;
   return ParsedTextDocument(
     fullText: text,
-    sections: sections.isEmpty
-        ? [TextSection(title: '', body: text, startOffset: 0)]
-        : sections,
+    sections: _packSections(sections),
     truncated: truncated,
   );
 }
@@ -181,14 +182,17 @@ List<TextSection> splitPlainText(String text) {
     cursor = offset + block.length;
     i += 1;
   }
-  return _packSections(sections);
+  return sections;
 }
 
 List<TextSection> _packSections(List<TextSection> sections) {
-  if (sections.length != 1) return sections;
-  final only = sections.single;
-  if (only.body.length <= textSectionCharLimit) return sections;
-  return _chunkBody(only);
+  return [
+    for (final section in sections)
+      if (section.body.length > textSectionCharLimit)
+        ..._chunkBody(section)
+      else
+        section,
+  ];
 }
 
 List<TextSection> _chunkBody(TextSection section) {
