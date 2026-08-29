@@ -77,6 +77,18 @@ class FoliateSession {
     return true;
   }
 
+  void goToPage(int index) {
+    if (pages.isEmpty) {
+      pageIndex = 0;
+      return;
+    }
+    pageIndex = index.clamp(0, pages.length - 1);
+  }
+
+  void goToLastPage() {
+    goToPage(pageCount - 1);
+  }
+
   FoliateSelection? selectionFromEvent(Object? raw) {
     if (raw is! Map) return null;
     if (raw['type'] != 'selection') return null;

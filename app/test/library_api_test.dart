@@ -83,11 +83,7 @@ void main() {
       progress: 0.5,
       lastOpened: DateTime.now(),
     );
-    await repository.writeIdentity(
-      id: '9-0',
-      title: '设计笔记',
-      author: '某作者',
-    );
+    await repository.writeIdentity(id: '9-0', title: '设计笔记', author: '某作者');
     expect(await repository.readFile('9-1'), utf8.encode('hello'));
 
     await repository.delete('9-0');

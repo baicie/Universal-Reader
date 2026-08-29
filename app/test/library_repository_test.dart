@@ -96,23 +96,26 @@ void main() {
     expect(await repository.readFile('notes.txt'), [1, 2, 3]);
   });
 
-  test('an empty title keeps the existing name and does not invent a book', () async {
-    final repository = InMemoryLibraryRepository();
-    await repository.importBytes('notes.txt', [1, 2, 3]);
+  test(
+    'an empty title keeps the existing name and does not invent a book',
+    () async {
+      final repository = InMemoryLibraryRepository();
+      await repository.importBytes('notes.txt', [1, 2, 3]);
 
-    await repository.writeIdentity(id: 'notes.txt', title: '   ', author: '');
-    await repository.writeIdentity(
-      id: 'missing',
-      title: '设计中的设计',
-      author: '原研哉',
-    );
+      await repository.writeIdentity(id: 'notes.txt', title: '   ', author: '');
+      await repository.writeIdentity(
+        id: 'missing',
+        title: '设计中的设计',
+        author: '原研哉',
+      );
 
-    final loaded = await repository.load();
-    expect(loaded, hasLength(1));
-    expect(loaded.single.metadata.title, 'notes');
-    expect(loaded.single.metadata.author, isEmpty);
-    expect(loaded.any((item) => item.metadata.title == '设计中的设计'), isFalse);
-  });
+      final loaded = await repository.load();
+      expect(loaded, hasLength(1));
+      expect(loaded.single.metadata.title, 'notes');
+      expect(loaded.single.metadata.author, isEmpty);
+      expect(loaded.any((item) => item.metadata.title == '设计中的设计'), isFalse);
+    },
+  );
 
   test('renamed title survives reimport of the same bytes', () async {
     final repository = InMemoryLibraryRepository();

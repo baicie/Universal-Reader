@@ -6,7 +6,14 @@ import '../../core/reader_prefs.dart';
 import '../../l10n/l10n.dart';
 
 class ReadingSettingsSheet extends ConsumerWidget {
-  const ReadingSettingsSheet({super.key});
+  const ReadingSettingsSheet({
+    this.showComicLayout = false,
+    this.showPdfZoom = false,
+    super.key,
+  });
+
+  final bool showComicLayout;
+  final bool showPdfZoom;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -94,6 +101,61 @@ class ReadingSettingsSheet extends ConsumerWidget {
                   ),
               ],
             ),
+            if (showPdfZoom) ...[
+              const SizedBox(height: 16),
+              Text(l10n.pdfZoom),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final zoom in ReaderPrefsController.pdfZoomStops)
+                    ChoiceChip(
+                      label: Text('${(zoom * 100).round()}%'),
+                      selected: prefs.pdfZoom == zoom,
+                      onSelected: (_) {
+                        ref.read(readerPrefsProvider).setPdfZoom(zoom);
+                      },
+                    ),
+                ],
+              ),
+            ],
+            if (showComicLayout) ...[
+              const SizedBox(height: 16),
+              Text(l10n.comicLayout),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final option in [
+                    (ComicLayout.single, l10n.comicLayoutSingle),
+                    (ComicLayout.double, l10n.comicLayoutDouble),
+                    (ComicLayout.vertical, l10n.comicLayoutVertical),
+                  ])
+                    ChoiceChip(
+                      label: Text(option.$2),
+                      selected: prefs.comicLayout == option.$1,
+                      onSelected: (_) {
+                        ref.read(readerPrefsProvider).setComicLayout(option.$1);
+                      },
+                    ),
+                  FilterChip(
+                    label: Text(l10n.comicReadRtl),
+                    selected: prefs.comicDirection == ComicReadDirection.rtl,
+                    onSelected: (selected) {
+                      ref
+                          .read(readerPrefsProvider)
+                          .setComicDirection(
+                            selected
+                                ? ComicReadDirection.rtl
+                                : ComicReadDirection.ltr,
+                          );
+                    },
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

@@ -656,6 +656,42 @@ abstract class AppLocalizations {
   /// **'跟随应用'**
   String get readingPaperFollow;
 
+  /// No description provided for @comicLayout.
+  ///
+  /// In zh, this message translates to:
+  /// **'漫画阅读'**
+  String get comicLayout;
+
+  /// No description provided for @comicLayoutSingle.
+  ///
+  /// In zh, this message translates to:
+  /// **'单页'**
+  String get comicLayoutSingle;
+
+  /// No description provided for @comicLayoutDouble.
+  ///
+  /// In zh, this message translates to:
+  /// **'双页'**
+  String get comicLayoutDouble;
+
+  /// No description provided for @comicLayoutVertical.
+  ///
+  /// In zh, this message translates to:
+  /// **'竖滑'**
+  String get comicLayoutVertical;
+
+  /// No description provided for @comicReadRtl.
+  ///
+  /// In zh, this message translates to:
+  /// **'从右到左'**
+  String get comicReadRtl;
+
+  /// No description provided for @pdfZoom.
+  ///
+  /// In zh, this message translates to:
+  /// **'页面缩放'**
+  String get pdfZoom;
+
   /// No description provided for @preferences.
   ///
   /// In zh, this message translates to:

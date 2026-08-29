@@ -33,7 +33,7 @@ Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK
 - 本地文件导入
 - 阅读器目录、进度、主题和移动端交互
 - 界面默认中文，可在设置中切换 English 或跟随系统
-- TXT / Markdown / HTML / EPUB / PDF / 漫画 / MOBI / AZW3 / FB2 可阅读原文件；TXT/MD 在 UTF-8 失败时按 GBK/GB18030 解码；重排走 Foliate 桥，正文跟阅读设置的字号、行距、字体和纸张
+- TXT / Markdown / HTML / EPUB / PDF / 漫画 / MOBI / AZW3 / FB2 可阅读原文件；TXT/MD 在 UTF-8 失败时按 GBK/GB18030 解码；漫画支持单页、双页、竖滑和从右到左；PDF 铺满阅读面，可在阅读设置里放大页面；EPUB 等重排书点右缘或按方向键翻页、进度落到当前页、章末进下一章；重排走 Foliate 桥，正文跟阅读设置的字号、行距、字体和纸张
 - 可选阅读助手，支持 DeepSeek 与 Ollama；可按书提问、提议跳转、把问答存成笔记
 
 ## 阅读助手（DeepSeek）

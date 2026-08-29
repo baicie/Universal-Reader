@@ -4,9 +4,9 @@
 
 把上一轮的章节/页文本阅读升成隔离后的 Renderer：
 
-- EPUB / MOBI / AZW3 / FB2 走可测的 Foliate 会话（分页、CFI、选区），WebView host 只执行会话命令；字号、行距、字体和纸色由打开命令带入
-- PDF 走视觉页（pdfrx，测得过的环境；测试里用隔离 backend）
-- CBZ（以及可当 ZIP 打开的 CBR）走漫画页
+- EPUB / MOBI / AZW3 / FB2 走可测的 Foliate 会话（分页、CFI、选区），WebView host 只执行会话命令；字号、行距、字体和纸色由打开命令带入。点右缘或方向键翻页，进度条落到当前页，章末进下一章，书末停住。
+- PDF 走视觉页（pdfrx，测得过的环境；测试里用隔离 backend）。阅读设置可把当前页放到 100%–300%。页面铺满阅读面，不进重排栏。
+- CBZ（以及可当 ZIP 打开的 CBR）走漫画页：单页、双页、竖滑，可选从右到左。末页单独成页，不拿另一本书的图补空。
 - 笔记的 quote 画进当前章节正文
 
 ## Assumptions
