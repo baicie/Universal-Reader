@@ -33,12 +33,12 @@ Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK
 - 本地文件导入
 - 阅读器目录、进度、主题和移动端交互
 - 界面默认中文，可在设置中切换 English 或跟随系统
-- TXT / Markdown / HTML 可阅读原文件（EPUB/PDF 等仍提示尚未接入）
-- 可选阅读助手，当前支持 DeepSeek；接口、模型和 API Key 可在设置或项目编译参数中配置
+- TXT / Markdown / HTML / EPUB / PDF / 漫画 / MOBI / AZW3 / FB2 可阅读原文件；重排走 Foliate 桥，PDF 走 pdfrx，漫画走原图
+- 可选阅读助手，支持 DeepSeek 与 Ollama；可按书提问、提议跳转、把问答存成笔记
 
 ## 阅读助手（DeepSeek）
 
-默认关闭。在设置中打开阅读助手、选择 `deepseek-chat` 或 `deepseek-reasoner`，并填写 API Key。接口默认是 `https://api.deepseek.com`。问答记录按书保存在本机；走本机 Rust 服务时写入 `conversations/{id}.json`。
+默认关闭。在设置中打开阅读助手，选择 DeepSeek 或 Ollama。DeepSeek 需要 API Key；Ollama 默认 `http://127.0.0.1:11434`，不需要 Key。问答记录按书保存在本机；走本机 Rust 服务时写入 `conversations/{id}.json`，笔记写入 SQLite。
 
 项目级默认值可用编译参数提供。不要把生产环境的 API Key 打进 Web 发布包，Web 产物里的 `--dart-define` 能被读出来；密钥请放在本机设置里，或只放在服务端环境变量中。
 
@@ -61,7 +61,7 @@ Rust 只转发请求并保存问答，不复制 Flutter 侧的 prompt / groundin
 
 ## Rust 后端服务
 
-`rust/crates/reader-server` 是随应用发布的本地 Rust HTTP 服务基座。它默认只监听 `127.0.0.1:8787`，不暴露公网接口，当前提供健康检查、文档格式检测、本机书库网盘，以及可选的 Flutter Web 静态资源托管。Flutter 在服务可达时通过 HTTP 读写该书库；SQLite、索引和文件扫描将在该服务边界内逐步加入。
+`rust/crates/reader-server` 是随应用发布的本地 Rust HTTP 服务基座。它默认只监听 `127.0.0.1:8787`，不暴露公网接口，当前提供健康检查、文档格式检测、本机书库网盘（含 FTS、扫描、监视、双向 WebDAV、哈希去重和封面），以及可选的 Flutter Web 静态资源托管。Flutter 在服务可达时通过 HTTP 读写该书库；服务不可达时桌面端用本机 SQLite 保存书和文件。
 
 ```powershell
 cd rust
@@ -102,4 +102,4 @@ cargo run --release --package universal-reader-server
 
 ## 后续工程化
 
-Flutter UI 保持在 `app/`，Rust 后端服务保持在 `rust/`。服务可达时，书架已通过本地 HTTP 接入现有 repository 接口。后续可将 EPUB/PDF 引擎、SQLite/FTS5 和文件扫描继续下沉到 Rust。
+Flutter UI 保持在 `app/`，Rust 后端服务保持在 `rust/`。阅读引擎通过隔离 Renderer 接入，业务代码不直接调用 FoliateView / PdfViewer。

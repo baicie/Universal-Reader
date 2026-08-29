@@ -533,6 +533,194 @@ async fn conversation_endpoint_persists_turns_for_an_existing_book() {
     fs::remove_dir_all(storage_dir).unwrap();
 }
 
+#[tokio::test]
+async fn search_indexes_uploaded_text_and_keeps_hits_on_that_book() {
+    let storage_dir = unique_temp_dir("fts-search");
+    let app = app_with_storage_dir(storage_dir.clone());
+    let uploaded = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/library/files")
+                .header(
+                    "content-type",
+                    "multipart/form-data; boundary=test-boundary",
+                )
+                .body(Body::from(multipart_body(
+                    "notes.txt",
+                    b"unique-needle-text",
+                )))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = to_bytes(uploaded.into_body(), usize::MAX).await.unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let id = json["id"].as_str().unwrap();
+
+    let searched = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/v1/library/documents/{id}/search?q=unique-needle-text"
+                ))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(searched.status(), StatusCode::OK);
+    let searched_body = to_bytes(searched.into_body(), usize::MAX).await.unwrap();
+    let searched_json: serde_json::Value = serde_json::from_slice(&searched_body).unwrap();
+    assert_eq!(searched_json["hits"][0]["excerpt"], "unique-needle-text");
+
+    let notes = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/v1/library/documents/{id}/annotations"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    r#"{"notes":[{"id":"n1","note":"saved","quote":"q","locator_label":"offset 0","source":"assistant","created_at_ms":1}]}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(notes.status(), StatusCode::OK);
+    let loaded = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/v1/library/documents/{id}/annotations"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let loaded_body = to_bytes(loaded.into_body(), usize::MAX).await.unwrap();
+    let loaded_json: serde_json::Value = serde_json::from_slice(&loaded_body).unwrap();
+    assert_eq!(loaded_json["notes"][0]["note"], "saved");
+    fs::remove_dir_all(storage_dir).unwrap();
+}
+
+#[tokio::test]
+async fn scan_imports_supported_files_and_skips_unknown_or_duplicate_names() {
+    let storage_dir = unique_temp_dir("scan-lib");
+    let folder = unique_temp_dir("scan-src");
+    fs::create_dir_all(&folder).unwrap();
+    fs::write(folder.join("notes.txt"), b"from folder").unwrap();
+    fs::write(folder.join("skip.bin"), b"nope").unwrap();
+    let folder = fs::canonicalize(&folder).unwrap();
+    let app = app_with_storage_dir(storage_dir.clone());
+    let first = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/library/scan")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "path": folder }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(first.status(), StatusCode::OK);
+    let first_body = to_bytes(first.into_body(), usize::MAX).await.unwrap();
+    let first_json: serde_json::Value = serde_json::from_slice(&first_body).unwrap();
+    assert_eq!(
+        first_json["imported"],
+        1,
+        "scan body: {}",
+        String::from_utf8_lossy(&first_body)
+    );
+    assert_eq!(first_json["skipped"], 0);
+
+    let second = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/library/scan")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "path": folder }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let second_body = to_bytes(second.into_body(), usize::MAX).await.unwrap();
+    let second_json: serde_json::Value = serde_json::from_slice(&second_body).unwrap();
+    assert_eq!(second_json["imported"], 0);
+    assert_eq!(second_json["skipped"], 1);
+    fs::remove_dir_all(storage_dir).unwrap();
+    fs::remove_dir_all(folder).unwrap();
+}
+
+#[tokio::test]
+async fn webdav_import_rejects_an_unconfigured_or_non_http_url() {
+    let storage_dir = unique_temp_dir("webdav-reject");
+    let response = app_with_storage_dir(storage_dir.clone())
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/library/webdav/import")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(r#"{"base_url":"file:///tmp/secret"}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let _ = fs::remove_dir_all(storage_dir);
+}
+
+#[tokio::test]
+async fn webdav_sync_rejects_a_non_http_url() {
+    let storage_dir = unique_temp_dir("webdav-sync-reject");
+    let response = app_with_storage_dir(storage_dir.clone())
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/library/webdav/sync")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(r#"{"base_url":"file:///tmp/secret"}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let _ = fs::remove_dir_all(storage_dir);
+}
+
+#[tokio::test]
+async fn watch_accepts_an_absolute_folder() {
+    let storage_dir = unique_temp_dir("watch-lib");
+    let folder = unique_temp_dir("watch-src");
+    fs::create_dir_all(&folder).unwrap();
+    let folder = fs::canonicalize(&folder).unwrap();
+    let response = app_with_storage_dir(storage_dir.clone())
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/library/watch")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "path": folder }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let _ = fs::remove_dir_all(storage_dir);
+    let _ = fs::remove_dir_all(folder);
+}
+
 fn multipart_body(file_name: &str, content: &[u8]) -> Vec<u8> {
     format!(
         "--test-boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{file_name}\"\r\nContent-Type: application/octet-stream\r\n\r\n"

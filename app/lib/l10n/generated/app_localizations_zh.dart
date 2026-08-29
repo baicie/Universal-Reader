@@ -125,6 +125,59 @@ class AppLocalizationsZh extends AppLocalizations {
   String get askThisPage => '问这一页';
 
   @override
+  String get askThisBook => '问这本书';
+
+  @override
+  String jumpToLocation(String locator) {
+    return '跳转到 $locator';
+  }
+
+  @override
+  String get saveAsNote => '保存为笔记';
+
+  @override
+  String get noteSaved => '已保存为笔记。';
+
+  @override
+  String get notesTitle => '笔记';
+
+  @override
+  String get notesUnavailable => '无法读取笔记。';
+
+  @override
+  String get scanFolder => '扫描文件夹';
+
+  @override
+  String get scanFolderHint => '本机服务上的文件夹路径';
+
+  @override
+  String get webdavUrl => 'WebDAV 地址';
+
+  @override
+  String get webdavUser => 'WebDAV 用户名';
+
+  @override
+  String get webdavPassword => 'WebDAV 密码';
+
+  @override
+  String get importFromWebdav => '从 WebDAV 导入';
+
+  @override
+  String get syncWebdav => '双向同步 WebDAV';
+
+  @override
+  String get watchFolder => '监视文件夹';
+
+  @override
+  String get librarySources => '书库来源';
+
+  @override
+  String get providerDeepSeek => 'DeepSeek';
+
+  @override
+  String get providerOllama => 'Ollama';
+
+  @override
   String get tableOfContents => '目录';
 
   @override
@@ -291,11 +344,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String readerUnavailable(String format) {
-    return '$format 阅读器尚未接入。当前可以阅读 TXT、Markdown 和 HTML。';
+    return '$format 阅读器尚未接入。当前可以阅读 TXT、Markdown、HTML、EPUB、PDF、漫画、MOBI/AZW3 和 FB2。';
   }
 
   @override
   String get readerMissingFile => '找不到这本书的原文件。';
+
+  @override
+  String get readerCorruptFile => '这本书的文件已损坏，无法打开。';
 
   @override
   String get readerTruncated => '文件较大，仅显示开头部分。';

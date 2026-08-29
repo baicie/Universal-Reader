@@ -1,0 +1,26 @@
+import 'package:app/core/epub_document.dart';
+import 'package:app/core/foliate_bridge.dart';
+import 'package:app/core/models.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'support/epub_fixture.dart';
+
+void main() {
+  test('opens a chapter through the foliate command protocol', () {
+    final document = EpubReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'epub-1',
+        title: 'Fixture',
+        author: 'A',
+        format: DocumentFormat.epub,
+        type: DocumentType.reflow,
+      ),
+      bytes: minimalEpubBytes(),
+    );
+    final command = FoliateBridge.openCurrent(document);
+    expect(command['type'], 'openChapter');
+    expect(command['href'], isNotEmpty);
+    expect(command['html'], contains('hello from epub'));
+    expect(command.containsKey('FoliateView'), isFalse);
+  });
+}

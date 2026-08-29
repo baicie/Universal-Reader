@@ -19,6 +19,20 @@ abstract interface class ReaderDocument {
   Stream<double> get progress;
 }
 
+abstract interface class ChapteredDocument implements ReaderDocument {
+  int get chapterIndex;
+  int get chapterCount;
+  String get currentChapterText;
+  bool get truncated;
+  Locator locatorForProgress(double progress);
+}
+
+abstract interface class HtmlChapteredDocument implements ChapteredDocument {
+  String get currentChapterHtml;
+  String get currentChapterHref;
+  String get currentChapterTitle;
+}
+
 abstract interface class DocumentRenderer {
   Widget build(BuildContext context);
   Future<void> open(ReaderDocument document);

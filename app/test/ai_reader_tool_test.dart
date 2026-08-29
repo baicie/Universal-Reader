@@ -122,6 +122,33 @@ void main() {
     expect(client.calls, 1);
   });
 
+  test('asking the book grounds on search hits and proposes a jump', () async {
+    final client = RecordingModelClient(reply: 'needle is in this book');
+    final tool = AiReaderTool(
+      settings: const AiSettings(
+        enabled: true,
+        endpoint: 'https://api.deepseek.com',
+        model: 'deepseek-chat',
+        apiKey: 'sk-test',
+      ),
+      clientFactory: (_) => client,
+    );
+
+    final result = await tool.run(
+      document: document,
+      request: const ReaderToolRequest(
+        kind: ReaderToolKind.ask,
+        question: '白是一种包容',
+        askDocument: true,
+      ),
+    );
+
+    expect(result.unavailable, isFalse);
+    expect(result.proposals, isNotEmpty);
+    expect(client.lastMessages!.last['content'], contains('白是一种包容'));
+    expect(client.lastMessages!.last['content'], contains('chapter-4'));
+  });
+
   test('enabled tool without a key does not call the model', () async {
     final client = RecordingModelClient();
     final tool = AiReaderTool(

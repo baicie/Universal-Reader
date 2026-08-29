@@ -47,6 +47,28 @@
   "localLibraryAuthor": "本地书库",
   "backToLibrary": "返回书库",
   "askThisPage": "问这一页",
+  "askThisBook": "问这本书",
+  "jumpToLocation": "跳转到 {locator}",
+  "@jumpToLocation": {
+    "placeholders": {
+      "locator": {"type": "String"}
+    }
+  },
+  "saveAsNote": "保存为笔记",
+  "noteSaved": "已保存为笔记。",
+  "notesTitle": "笔记",
+  "notesUnavailable": "无法读取笔记。",
+  "scanFolder": "扫描文件夹",
+  "scanFolderHint": "本机服务上的文件夹路径",
+  "webdavUrl": "WebDAV 地址",
+  "webdavUser": "WebDAV 用户名",
+  "webdavPassword": "WebDAV 密码",
+  "importFromWebdav": "从 WebDAV 导入",
+  "syncWebdav": "双向同步 WebDAV",
+  "watchFolder": "监视文件夹",
+  "librarySources": "书库来源",
+  "providerDeepSeek": "DeepSeek",
+  "providerOllama": "Ollama",
   "tableOfContents": "目录",
   "readingSettings": "阅读设置",
   "bodyFontSize": "正文字号",
@@ -124,12 +146,13 @@
       "total": {"type": "int"}
     }
   },
-  "readerUnavailable": "{format} 阅读器尚未接入。当前可以阅读 TXT、Markdown 和 HTML。",
+  "readerUnavailable": "{format} 阅读器尚未接入。当前可以阅读 TXT、Markdown、HTML、EPUB、PDF、漫画、MOBI/AZW3 和 FB2。",
   "@readerUnavailable": {
     "placeholders": {
       "format": {"type": "String"}
     }
   },
   "readerMissingFile": "找不到这本书的原文件。",
+  "readerCorruptFile": "这本书的文件已损坏，无法打开。",
   "readerTruncated": "文件较大，仅显示开头部分。"
 }

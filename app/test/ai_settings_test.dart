@@ -1,6 +1,7 @@
 import 'package:app/features/tools/ai/ai_settings.dart';
 import 'package:app/features/tools/ai/deepseek.dart';
 import 'package:app/features/tools/ai/model_client.dart';
+import 'package:app/features/tools/ai/ollama.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -67,6 +68,13 @@ void main() {
 
     expect(resolved.apiKey, 'sk-from-project');
     expect(resolved.ready, isTrue);
+  });
+
+  test('Ollama is ready without an API key', () {
+    expect(
+      const AiSettings(enabled: true, provider: AiProvider.ollama).ready,
+      isTrue,
+    );
   });
 
   test('DeepSeek chat completions URL uses the official v1 path', () {

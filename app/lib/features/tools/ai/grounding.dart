@@ -48,6 +48,37 @@ class DocumentGrounding {
     );
   }
 
+  Future<({GroundingContext context, List<SearchResult> hits})> fromSearch(
+    ReaderDocument document, {
+    required String query,
+    AppLocalizations? l10n,
+  }) async {
+    final hits = await document.search(query.trim());
+    if (hits.isEmpty) {
+      return (context: await fromDocument(document, l10n: l10n), hits: hits);
+    }
+    final buffer = StringBuffer();
+    for (final hit in hits.take(5)) {
+      buffer.writeln(
+        '[${locatorLabel(hit.locator, l10n: l10n)}] ${hit.excerpt}',
+      );
+    }
+    var excerpt = buffer.toString().trim();
+    if (excerpt.length > maxExcerptLength) {
+      excerpt = excerpt.substring(0, maxExcerptLength);
+    }
+    return (
+      context: GroundingContext(
+        documentId: document.metadata.id,
+        title: document.metadata.title,
+        author: document.metadata.author,
+        excerpt: excerpt,
+        locatorLabel: locatorLabel(hits.first.locator, l10n: l10n),
+      ),
+      hits: hits,
+    );
+  }
+
   static String locatorLabel(Locator locator, {AppLocalizations? l10n}) {
     return switch (locator) {
       EpubLocator(:final href, :final progression) =>

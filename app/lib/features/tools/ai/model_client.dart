@@ -70,12 +70,14 @@ class ReaderServerAiClient implements ModelClient {
     required this.baseUrl,
     required this.model,
     this.apiKey = '',
+    this.provider = 'deepseek',
     http.Client? httpClient,
   }) : _http = httpClient ?? http.Client();
 
   final String baseUrl;
   final String model;
   final String apiKey;
+  final String provider;
   final http.Client _http;
 
   @override
@@ -88,6 +90,7 @@ class ReaderServerAiClient implements ModelClient {
       headers: const {'Content-Type': 'application/json'},
       body: jsonEncode({
         'model': model,
+        'provider': provider,
         'messages': messages,
         if (apiKey.trim().isNotEmpty) 'api_key': apiKey.trim(),
       }),

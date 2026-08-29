@@ -2,16 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/annotated_text.dart';
+import '../../core/comic_document.dart';
 import '../../core/models.dart';
+import '../../core/pdf_document.dart';
 import '../../core/providers.dart';
 import '../../core/reader_prefs.dart';
 import '../../core/reader_runtime.dart';
 import '../../core/text_document.dart';
 import '../../l10n/l10n.dart';
 import '../../widgets/eyebrow.dart';
+import '../library/annotation_store.dart';
 import '../tools/reader_ai_panel.dart';
-import '../tools/sample_reader_document.dart';
 import 'open_reader.dart';
+import 'renderers/isolated_comic_view.dart';
+import 'renderers/isolated_foliate_view.dart';
+import 'renderers/isolated_pdf_view.dart';
 
 class ReaderPage extends ConsumerStatefulWidget {
   const ReaderPage({required this.id, super.key});
@@ -29,6 +35,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   ReaderDocument? opened;
   List<TocItem> tocItems = const [];
   String body = '';
+  List<int>? fileBytes;
+  List<ReaderAnnotation> notes = const [];
 
   @override
   void initState() {
@@ -64,15 +72,17 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       return;
     }
     final bytes = await library.readFile(widget.id);
+    final loadedNotes = await ref
+        .read(aiRuntimeProvider)
+        .annotations
+        .load(widget.id);
     if (!mounted) return;
     final reader = openReaderDocument(
       metadata: document.metadata,
       bytes: bytes,
     );
-    if (reader is TextReaderDocument && progress > 0) {
-      await reader.goTo(
-        TextLocator(offset: (progress * reader.parsed.fullText.length).round()),
-      );
+    if (reader is ChapteredDocument && progress > 0) {
+      await reader.goTo(reader.locatorForProgress(progress));
     }
     final items = await reader.getToc();
     if (!mounted) return;
@@ -80,13 +90,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       opened = reader;
       tocItems = items;
       body = _bodyFor(reader);
+      fileBytes = bytes;
+      notes = loadedNotes;
       loading = false;
     });
   }
 
   String _bodyFor(ReaderDocument reader) {
-    if (reader is TextReaderDocument) return reader.currentSection.body;
-    if (reader is SampleReaderDocument) return reader.body;
+    if (reader is ChapteredDocument) return reader.currentChapterText;
     return '';
   }
 
@@ -97,11 +108,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     if (!mounted) return;
     setState(() {
       body = _bodyFor(reader);
-      if (reader is TextReaderDocument) {
-        final length = reader.parsed.fullText.isEmpty
-            ? 1
-            : reader.parsed.fullText.length;
-        progress = reader.currentSection.startOffset / length;
+      if (reader is ChapteredDocument && reader.chapterCount > 0) {
+        progress = reader.chapterIndex / reader.chapterCount;
         ref.read(libraryProvider).updateProgress(widget.id, progress);
       }
     });
@@ -120,8 +128,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final muted = dark ? const Color(0xFFB7A894) : const Color(0xFF8A7358);
     final tocBg = dark ? const Color(0xFF24231F) : const Color(0xFFF0EADF);
     final wide = MediaQuery.sizeOf(context).width >= 900;
-    final currentIndex = opened is TextReaderDocument
-        ? (opened as TextReaderDocument).sectionIndex
+    final currentIndex = opened is ChapteredDocument
+        ? (opened as ChapteredDocument).chapterIndex
         : 0;
     final currentTitle = tocItems.isEmpty
         ? ''
@@ -274,6 +282,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                 child: ReaderAiPanel(
                   document: opened!,
                   settings: ref.watch(aiSettingsProvider).settings,
+                  onJump: (locator) async {
+                    final reader = opened;
+                    if (reader == null) return;
+                    await reader.goTo(locator);
+                    if (!mounted) return;
+                    setState(() => body = _bodyFor(reader));
+                  },
                 ),
               ),
             if (chrome)
@@ -300,15 +315,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                                     .read(libraryProvider)
                                     .updateProgress(widget.id, value);
                                 final reader = opened;
-                                if (reader is TextReaderDocument) {
-                                  final length = reader.parsed.fullText.isEmpty
-                                      ? 1
-                                      : reader.parsed.fullText.length;
-                                  reader.goTo(
-                                    TextLocator(
-                                      offset: (value * length).round(),
-                                    ),
-                                  );
+                                if (reader is ChapteredDocument) {
+                                  reader.goTo(reader.locatorForProgress(value));
                                   body = _bodyFor(reader);
                                 }
                               },
@@ -415,9 +423,19 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         ),
       );
     }
+    if (opened is CorruptReaderDocument) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 48),
+        child: Text(
+          l10n.readerCorruptFile,
+          style: TextStyle(color: ink, fontSize: fontSize, height: 1.7),
+        ),
+      );
+    }
     if (opened is UnavailableReaderDocument) {
+      final format = document?.metadata.format;
       final missingFile =
-          document == null || document.metadata.format.isPlainText;
+          document == null || (format?.isReaderEngineFormat ?? false);
       return Padding(
         padding: const EdgeInsets.only(top: 48),
         child: Text(
@@ -429,8 +447,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       );
     }
     final truncated =
-        opened is TextReaderDocument &&
-        (opened as TextReaderDocument).parsed.truncated;
+        opened is ChapteredDocument && (opened as ChapteredDocument).truncated;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -465,14 +482,63 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           ),
           const SizedBox(height: 22),
         ],
+        _visualSurface(ink: ink, fontSize: fontSize, paragraphs: paragraphs),
+      ],
+    );
+  }
+
+  Widget _visualSurface({
+    required Color ink,
+    required double fontSize,
+    required List<String> paragraphs,
+  }) {
+    final fallback = _annotatedBody(
+      ink: ink,
+      fontSize: fontSize,
+      paragraphs: paragraphs,
+    );
+    final reader = opened;
+    if (reader is ComicReaderDocument) {
+      return IsolatedComicView(document: reader);
+    }
+    if (reader is PdfReaderDocument) {
+      return IsolatedPdfView(
+        document: reader,
+        bytes: fileBytes,
+        fallback: fallback,
+      );
+    }
+    if (reader is HtmlChapteredDocument) {
+      return IsolatedFoliateView(document: reader, fallback: fallback);
+    }
+    return fallback;
+  }
+
+  Widget _annotatedBody({
+    required Color ink,
+    required double fontSize,
+    required List<String> paragraphs,
+  }) {
+    final style = TextStyle(color: ink, fontSize: fontSize, height: 1.85);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         for (var i = 0; i < paragraphs.length; i++) ...[
           if (i > 0) const SizedBox(height: 22),
-          Text(
-            paragraphs[i],
-            style: TextStyle(color: ink, fontSize: fontSize, height: 1.85),
-          ),
+          _annotatedParagraph(paragraphs[i], style),
         ],
       ],
     );
+  }
+
+  Widget _annotatedParagraph(String text, TextStyle style) {
+    final spans = annotatePlainText(text, notes, style: style);
+    final highlighted = spans.any(
+      (span) => span is TextSpan && span.style?.backgroundColor != null,
+    );
+    if (!highlighted) {
+      return Text(text, style: style);
+    }
+    return Text.rich(TextSpan(children: spans), key: annotatedQuoteKey);
   }
 }

@@ -93,7 +93,7 @@ void main() {
       ),
       bytes: [1, 2, 3],
     );
-    expect(pdf, isA<UnavailableReaderDocument>());
+    expect(pdf, isA<CorruptReaderDocument>());
 
     final seed = openReaderDocument(
       metadata: const DocumentMetadata(

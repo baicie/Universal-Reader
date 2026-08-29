@@ -1,12 +1,20 @@
 import 'dart:convert';
 
+import 'package:app/core/annotated_text.dart';
 import 'package:app/core/library_repository.dart';
 import 'package:app/core/locale_controller.dart';
+import 'package:app/features/library/annotation_store.dart';
+import 'package:app/features/tools/ai/ai_runtime.dart';
 import 'package:app/features/tools/ai/ai_settings.dart';
+import 'package:app/features/tools/ai/conversation_store.dart';
 import 'package:app/main.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+
+import 'support/epub_fixture.dart';
+import 'support/image_fixture.dart';
 
 void main() {
   testWidgets('renders the library shell from a repository', (tester) async {
@@ -75,6 +83,27 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Language'), findsOneWidget);
     expect(find.text('Reading assistant'), findsOneWidget);
+  });
+
+  testWidgets('opens imported epub chapters in the reader', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('story.epub', minimalEpubBytes());
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('story').first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('hello from epub'), findsOneWidget);
+    expect(find.textContaining('阅读器尚未接入'), findsNothing);
   });
 
   testWidgets('opens imported plain text in the reader', (tester) async {
@@ -147,5 +176,64 @@ void main() {
     await tester.tap(find.byTooltip('阅读设置'));
     await tester.pumpAndSettle();
     expect(find.text('正文字号'), findsOneWidget);
+  });
+
+  testWidgets('paints a saved quote in the chapter body', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', utf8.encode('hello from notes'));
+    final notes = InMemoryAnnotationRepository();
+    await notes.save('notes.txt', [
+      ReaderAnnotation(
+        id: 'n1',
+        note: 'keep',
+        quote: 'hello from notes',
+        createdAt: DateTime.utc(2026, 1, 1),
+      ),
+    ]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+          aiRuntimeProvider.overrideWithValue(
+            AiRuntime.local(
+              InMemoryConversationRepository(),
+              annotations: notes,
+            ),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('notes').first);
+    await tester.pumpAndSettle();
+    expect(find.byKey(annotatedQuoteKey), findsOneWidget);
+  });
+
+  testWidgets('opens an imported comic page', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes(
+      'pages.cbz',
+      zipNamedFiles({'page-01.png': tinyPngBytes()}),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('pages').first);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('comic-page')), findsOneWidget);
+    expect(find.textContaining('阅读器尚未接入'), findsNothing);
   });
 }

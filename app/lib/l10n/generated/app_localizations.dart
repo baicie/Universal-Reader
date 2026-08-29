@@ -320,6 +320,108 @@ abstract class AppLocalizations {
   /// **'问这一页'**
   String get askThisPage;
 
+  /// No description provided for @askThisBook.
+  ///
+  /// In zh, this message translates to:
+  /// **'问这本书'**
+  String get askThisBook;
+
+  /// No description provided for @jumpToLocation.
+  ///
+  /// In zh, this message translates to:
+  /// **'跳转到 {locator}'**
+  String jumpToLocation(String locator);
+
+  /// No description provided for @saveAsNote.
+  ///
+  /// In zh, this message translates to:
+  /// **'保存为笔记'**
+  String get saveAsNote;
+
+  /// No description provided for @noteSaved.
+  ///
+  /// In zh, this message translates to:
+  /// **'已保存为笔记。'**
+  String get noteSaved;
+
+  /// No description provided for @notesTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'笔记'**
+  String get notesTitle;
+
+  /// No description provided for @notesUnavailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法读取笔记。'**
+  String get notesUnavailable;
+
+  /// No description provided for @scanFolder.
+  ///
+  /// In zh, this message translates to:
+  /// **'扫描文件夹'**
+  String get scanFolder;
+
+  /// No description provided for @scanFolderHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'本机服务上的文件夹路径'**
+  String get scanFolderHint;
+
+  /// No description provided for @webdavUrl.
+  ///
+  /// In zh, this message translates to:
+  /// **'WebDAV 地址'**
+  String get webdavUrl;
+
+  /// No description provided for @webdavUser.
+  ///
+  /// In zh, this message translates to:
+  /// **'WebDAV 用户名'**
+  String get webdavUser;
+
+  /// No description provided for @webdavPassword.
+  ///
+  /// In zh, this message translates to:
+  /// **'WebDAV 密码'**
+  String get webdavPassword;
+
+  /// No description provided for @importFromWebdav.
+  ///
+  /// In zh, this message translates to:
+  /// **'从 WebDAV 导入'**
+  String get importFromWebdav;
+
+  /// No description provided for @syncWebdav.
+  ///
+  /// In zh, this message translates to:
+  /// **'双向同步 WebDAV'**
+  String get syncWebdav;
+
+  /// No description provided for @watchFolder.
+  ///
+  /// In zh, this message translates to:
+  /// **'监视文件夹'**
+  String get watchFolder;
+
+  /// No description provided for @librarySources.
+  ///
+  /// In zh, this message translates to:
+  /// **'书库来源'**
+  String get librarySources;
+
+  /// No description provided for @providerDeepSeek.
+  ///
+  /// In zh, this message translates to:
+  /// **'DeepSeek'**
+  String get providerDeepSeek;
+
+  /// No description provided for @providerOllama.
+  ///
+  /// In zh, this message translates to:
+  /// **'Ollama'**
+  String get providerOllama;
+
   /// No description provided for @tableOfContents.
   ///
   /// In zh, this message translates to:
@@ -629,7 +731,7 @@ abstract class AppLocalizations {
   /// No description provided for @readerUnavailable.
   ///
   /// In zh, this message translates to:
-  /// **'{format} 阅读器尚未接入。当前可以阅读 TXT、Markdown 和 HTML。'**
+  /// **'{format} 阅读器尚未接入。当前可以阅读 TXT、Markdown、HTML、EPUB、PDF、漫画、MOBI/AZW3 和 FB2。'**
   String readerUnavailable(String format);
 
   /// No description provided for @readerMissingFile.
@@ -637,6 +739,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'找不到这本书的原文件。'**
   String get readerMissingFile;
+
+  /// No description provided for @readerCorruptFile.
+  ///
+  /// In zh, this message translates to:
+  /// **'这本书的文件已损坏，无法打开。'**
+  String get readerCorruptFile;
 
   /// No description provided for @readerTruncated.
   ///
