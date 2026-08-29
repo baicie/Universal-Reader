@@ -1,5 +1,6 @@
 import 'foliate_session.dart';
 import 'reader_runtime.dart';
+import 'reading_surface.dart';
 
 class FoliateBridge {
   const FoliateBridge._();
@@ -17,13 +18,19 @@ class FoliateBridge {
   static Map<String, Object?> openCurrent(
     HtmlChapteredDocument document, {
     double fontSize = 18,
+    Map<String, Object?> typography = const {},
   }) {
-    return openSession(FoliateSession.open(document), fontSize: fontSize);
+    return openSession(
+      FoliateSession.open(document),
+      fontSize: fontSize,
+      typography: typography,
+    );
   }
 
   static Map<String, Object?> openSession(
     FoliateSession session, {
     double fontSize = 18,
+    Map<String, Object?> typography = const {},
   }) {
     return {
       'type': 'open',
@@ -34,7 +41,9 @@ class FoliateBridge {
       'progression': session.progression,
       'pageIndex': session.pageIndex,
       'pageCount': session.pageCount,
+      ...ReadingSurface.lightDefaults.toFoliateCommand(),
       'fontSize': fontSize,
+      ...typography,
     };
   }
 }

@@ -35,6 +35,10 @@ void main() {
     expect(command['cfi'], session.currentCfi);
     expect(command['pageCount'], session.pageCount);
     expect(command['fontSize'], 18);
+    expect(command['lineHeight'], 1.7);
+    expect(command['fontFamily'], contains('serif'));
+    expect(command['background'], '#F5F0E8');
+    expect(command['color'], '#2A2620');
     expect(FoliateBridge.openSession(session, fontSize: 22)['fontSize'], 22);
     expect(command.containsKey('FoliateView'), isFalse);
   });

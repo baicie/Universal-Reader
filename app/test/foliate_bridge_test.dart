@@ -31,6 +31,10 @@ void main() {
     expect(html, contains("data.type === 'open'"));
     expect(html, contains('selectionchange'));
     expect(html, contains('fontSize'));
+    expect(html, contains('command.lineHeight'));
+    expect(html, contains('command.fontFamily'));
+    expect(html, contains('command.background'));
+    expect(html, contains('command.color'));
     expect(html.toLowerCase(), isNot(contains('cdn.jsdelivr')));
     expect(html, isNot(contains('unpkg.com')));
   });
