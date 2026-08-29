@@ -1,3 +1,4 @@
+import 'foliate_session.dart';
 import 'reader_runtime.dart';
 
 class FoliateBridge {
@@ -14,10 +15,19 @@ class FoliateBridge {
   }
 
   static Map<String, Object?> openCurrent(HtmlChapteredDocument document) {
-    return openChapter(
-      href: document.currentChapterHref,
-      html: document.currentChapterHtml,
-      title: document.currentChapterTitle,
-    );
+    return openSession(FoliateSession.open(document));
+  }
+
+  static Map<String, Object?> openSession(FoliateSession session) {
+    return {
+      'type': 'open',
+      'href': session.href,
+      'html': session.currentPageHtml,
+      'title': session.title,
+      'cfi': session.currentCfi,
+      'progression': session.progression,
+      'pageIndex': session.pageIndex,
+      'pageCount': session.pageCount,
+    };
   }
 }

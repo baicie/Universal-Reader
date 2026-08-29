@@ -13,7 +13,8 @@ List<InlineSpan> annotatePlainText(
 }) {
   final quotes = [
     for (final note in notes)
-      if (note.quote.trim().isNotEmpty) note.quote.trim(),
+      if (note.source != bookmarkSource && note.quote.trim().isNotEmpty)
+        note.quote.trim(),
   ]..sort((a, b) => b.length.compareTo(a.length));
   if (quotes.isEmpty || text.isEmpty) {
     return [TextSpan(text: text, style: style)];

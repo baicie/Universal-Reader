@@ -12,28 +12,42 @@
 <body>
   <article id="chapter"></article>
   <script>
+    var currentCfi = '';
     function post(payload) {
       if (window.FoliateHost && window.FoliateHost.postMessage) {
         window.FoliateHost.postMessage(JSON.stringify(payload));
       }
     }
-    function openChapter(command) {
-      const article = document.getElementById('chapter');
+    function open(command) {
+      var article = document.getElementById('chapter');
       article.innerHTML = command.html || '';
-      post({ type: 'relocated', href: command.href || '' });
+      currentCfi = command.cfi || '';
+      post({
+        type: 'relocated',
+        href: command.href || '',
+        cfi: currentCfi,
+        pageIndex: command.pageIndex || 0,
+        pageCount: command.pageCount || 1
+      });
     }
     window.FoliateView = {
-      openChapter: openChapter,
+      open: open,
+      openChapter: open,
       goTo: function (locator) { post({ type: 'goTo', locator: locator }); },
       next: function () { post({ type: 'next' }); },
       prev: function () { post({ type: 'prev' }); }
     };
+    document.addEventListener('selectionchange', function () {
+      var text = (window.getSelection && window.getSelection().toString()) || '';
+      post({ type: 'selection', text: text, cfi: currentCfi });
+    });
     window.addEventListener('message', function (event) {
       var data = event.data;
       if (typeof data === 'string') {
         try { data = JSON.parse(data); } catch (error) { return; }
       }
-      if (data && data.type === 'openChapter') openChapter(data);
+      if (!data || !data.type) return;
+      if (data.type === 'open' || data.type === 'openChapter') open(data);
     });
   </script>
 </body>

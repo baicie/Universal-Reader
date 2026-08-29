@@ -15,7 +15,8 @@
 
 1. 笔记的 quote 画进当前章节正文（高亮），不是墨迹层。
 2. 服务端进 SQLite `annotations` 表；本机无服务时优先进 Flutter SQLite，否则 SharedPreferences，前缀 `universal_reader.annotations.v1.`。
-3. `source` 为 `user` 或 `assistant`。
+3. `source` 为 `user`、`assistant` 或 `bookmark`。用户划线是 `user`；书签是 `bookmark`，走独立 API，存同一张表。
+4. 空选区不写笔记。
 
 ## Commands
 

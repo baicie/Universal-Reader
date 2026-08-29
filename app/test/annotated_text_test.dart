@@ -18,6 +18,20 @@ void main() {
     expect((spans[1] as TextSpan).style?.backgroundColor, isNotNull);
   });
 
+  test('does not paint bookmark records as highlights', () {
+    final spans = annotatePlainText('hello from notes', [
+      ReaderAnnotation(
+        id: 'bm1',
+        note: '',
+        quote: 'hello from notes',
+        source: bookmarkSource,
+        createdAt: DateTime.utc(2026, 1, 1),
+      ),
+    ]);
+    expect(spans, hasLength(1));
+    expect((spans.single as TextSpan).style?.backgroundColor, isNull);
+  });
+
   test('leaves the chapter alone when the quote is missing', () {
     final spans = annotatePlainText('no match here', [
       ReaderAnnotation(

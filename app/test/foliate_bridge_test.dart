@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:app/core/epub_document.dart';
 import 'package:app/core/foliate_bridge.dart';
 import 'package:app/core/models.dart';
@@ -18,9 +20,17 @@ void main() {
       bytes: minimalEpubBytes(),
     );
     final command = FoliateBridge.openCurrent(document);
-    expect(command['type'], 'openChapter');
+    expect(command['type'], 'open');
     expect(command['href'], isNotEmpty);
     expect(command['html'], contains('hello from epub'));
     expect(command.containsKey('FoliateView'), isFalse);
+  });
+
+  test('host executes open commands and posts selection without a CDN', () {
+    final html = File('assets/reader/foliate/host.html').readAsStringSync();
+    expect(html, contains("data.type === 'open'"));
+    expect(html, contains('selectionchange'));
+    expect(html.toLowerCase(), isNot(contains('cdn.jsdelivr')));
+    expect(html, isNot(contains('unpkg.com')));
   });
 }
