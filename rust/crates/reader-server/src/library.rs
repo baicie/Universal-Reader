@@ -306,6 +306,16 @@ impl LibraryStore {
         id: &str,
         progress: f64,
     ) -> Result<LibraryDocumentRecord, LibraryError> {
+        self.update_document(id, Some(progress), None, None).await
+    }
+
+    pub async fn update_document(
+        &self,
+        id: &str,
+        progress: Option<f64>,
+        title: Option<String>,
+        author: Option<String>,
+    ) -> Result<LibraryDocumentRecord, LibraryError> {
         if !valid_id(id) {
             return Err(LibraryError::InvalidName);
         }
@@ -318,8 +328,16 @@ impl LibraryStore {
         else {
             return Err(LibraryError::NotFound);
         };
-        document.progress = progress.clamp(0.0, 1.0);
-        document.last_opened_ms = unix_ms();
+        if let Some(progress) = progress {
+            document.progress = progress.clamp(0.0, 1.0);
+            document.last_opened_ms = unix_ms();
+        }
+        if let Some(title) = title {
+            document.title = title_for_write(&title, &document.title);
+        }
+        if let Some(author) = author {
+            document.author = author_for_write(&author);
+        }
         let updated = document.clone();
         self.save_catalog(&catalog).await?;
         Ok(updated)
@@ -711,6 +729,25 @@ fn title_from_file_name(file_name: &str) -> String {
         .to_string()
 }
 
+const MAX_IDENTITY_LEN: usize = 200;
+
+fn clip_identity(value: &str) -> String {
+    value.chars().take(MAX_IDENTITY_LEN).collect()
+}
+
+fn title_for_write(requested: &str, current: &str) -> String {
+    let trimmed = requested.trim();
+    if trimmed.is_empty() {
+        current.to_string()
+    } else {
+        clip_identity(trimmed)
+    }
+}
+
+fn author_for_write(requested: &str) -> String {
+    clip_identity(requested.trim())
+}
+
 fn cover_color_for(path: &Path) -> u32 {
     const PALETTE: [u32; 6] = [
         0xFF2F5B57, 0xFFC4A574, 0xFF4F7C8A, 0xFF8B5A4A, 0xFF6F8179, 0xFF3D4A4C,
@@ -974,6 +1011,46 @@ mod tests {
         let listed = LibraryStore::new(dir.clone()).list().await.unwrap();
         assert_eq!(listed[0].title, "notes");
         assert!((listed[0].progress - 0.37).abs() < 1e-9);
+        let _ = tokio::fs::remove_dir_all(dir).await;
+    }
+
+    #[tokio::test]
+    async fn update_document_renames_without_inventing_a_book() {
+        let dir = unique_temp("rename-title");
+        let store = LibraryStore::new(dir.clone());
+        let record = store
+            .ingest("notes.txt".to_string(), b"hello")
+            .await
+            .unwrap();
+        store
+            .update_document(
+                &record.id,
+                None,
+                Some("  设计笔记  ".into()),
+                Some("  某作者  ".into()),
+            )
+            .await
+            .unwrap();
+        let listed = store.list().await.unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].title, "设计笔记");
+        assert_eq!(listed[0].author, "某作者");
+
+        store
+            .update_document(&record.id, None, Some("   ".into()), Some("".into()))
+            .await
+            .unwrap();
+        let listed = store.list().await.unwrap();
+        assert_eq!(listed[0].title, "设计笔记");
+        assert_eq!(listed[0].author, "");
+
+        let missing = store
+            .update_document("9-999", None, Some("设计中的设计".into()), None)
+            .await;
+        assert!(matches!(missing, Err(LibraryError::NotFound)));
+        let listed = store.list().await.unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].title, "设计笔记");
         let _ = tokio::fs::remove_dir_all(dir).await;
     }
 

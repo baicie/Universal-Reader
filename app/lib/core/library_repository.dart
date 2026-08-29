@@ -20,6 +20,11 @@ abstract interface class LibraryRepository {
     required double progress,
     required DateTime lastOpened,
   });
+  Future<void> writeIdentity({
+    required String id,
+    required String title,
+    required String author,
+  });
   Future<void> delete(String id);
 }
 
@@ -63,6 +68,36 @@ LibraryDocument? documentWithHash(
     if (document.metadata.contentHash == hash) return document;
   }
   return null;
+}
+
+const maxBookIdentityLength = 200;
+
+String clipBookIdentity(String value) {
+  if (value.length <= maxBookIdentityLength) return value;
+  return value.substring(0, maxBookIdentityLength);
+}
+
+String bookTitleForWrite(String requested, String current) {
+  final trimmed = requested.trim();
+  if (trimmed.isEmpty) return current;
+  return clipBookIdentity(trimmed);
+}
+
+String bookAuthorForWrite(String requested) {
+  return clipBookIdentity(requested.trim());
+}
+
+LibraryDocument documentWithWrittenIdentity(
+  LibraryDocument document, {
+  required String title,
+  required String author,
+}) {
+  return document.copyWith(
+    metadata: document.metadata.copyWith(
+      title: bookTitleForWrite(title, document.metadata.title),
+      author: bookAuthorForWrite(author),
+    ),
+  );
 }
 
 class SharedPreferencesLibraryRepository implements LibraryRepository {
@@ -132,6 +167,23 @@ class SharedPreferencesLibraryRepository implements LibraryRepository {
   }
 
   @override
+  Future<void> writeIdentity({
+    required String id,
+    required String title,
+    required String author,
+  }) async {
+    final documents = await load();
+    final index = documents.indexWhere((item) => item.metadata.id == id);
+    if (index < 0) return;
+    documents[index] = documentWithWrittenIdentity(
+      documents[index],
+      title: title,
+      author: author,
+    );
+    await save(documents);
+  }
+
+  @override
   Future<void> delete(String id) async {
     final documents = await load();
     documents.removeWhere((item) => item.metadata.id == id);
@@ -193,6 +245,21 @@ class InMemoryLibraryRepository implements LibraryRepository {
     if (index < 0) return;
     _documents[index] = _documents[index].copyWith(
       readingState: ReadingState(progress: progress, lastOpened: lastOpened),
+    );
+  }
+
+  @override
+  Future<void> writeIdentity({
+    required String id,
+    required String title,
+    required String author,
+  }) async {
+    final index = _documents.indexWhere((item) => item.metadata.id == id);
+    if (index < 0) return;
+    _documents[index] = documentWithWrittenIdentity(
+      _documents[index],
+      title: title,
+      author: author,
     );
   }
 

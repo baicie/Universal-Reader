@@ -44,6 +44,10 @@
   },
   "confirmDelete": "删除",
   "bookActions": "书籍操作",
+  "editBookIdentity": "编辑书名",
+  "bookTitleLabel": "书名",
+  "bookAuthorLabel": "作者",
+  "saveAction": "保存",
   "noCollections": "还没有收藏夹",
   "addToNamedCollection": "添加到「{name}」",
   "@addToNamedCollection": {

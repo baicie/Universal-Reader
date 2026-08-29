@@ -101,6 +101,41 @@ void main() {
       2,
     ]);
   });
+
+  test('renaming a book updates the shelf without inventing another', () async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', [1]);
+    final controller = PersistedLibraryController(repository: repository);
+    await controller.load();
+
+    await controller.writeIdentity(
+      id: 'notes.txt',
+      title: '设计笔记',
+      author: '某作者',
+    );
+
+    expect(controller.documents.single.metadata.title, '设计笔记');
+    expect(controller.documents.single.metadata.author, '某作者');
+    expect(controller.documentById('design'), isNull);
+    expect((await repository.load()).single.metadata.title, '设计笔记');
+  });
+
+  test('renaming a missing book does not invent a seed title', () async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', [1]);
+    final controller = PersistedLibraryController(repository: repository);
+    await controller.load();
+
+    await controller.writeIdentity(
+      id: 'missing',
+      title: '设计中的设计',
+      author: '原研哉',
+    );
+
+    expect(controller.documents.single.metadata.title, 'notes');
+    expect(controller.documentById('missing'), isNull);
+    expect(controller.documents, hasLength(1));
+  });
 }
 
 class _FailingLoadRepository extends InMemoryLibraryRepository {

@@ -43,7 +43,7 @@ $UNIVERSAL_READER_STORAGE_DIR/     # 默认 data/library
 | `GET` | `/v1/library/documents/{id}` | 单本元数据 |
 | `GET` | `/v1/library/documents/{id}/file` | 下载原文件 |
 | `POST` | `/v1/library/files` | multipart 字段 `file`，写入 `files/` 并登记 |
-| `PATCH` | `/v1/library/documents/{id}` | `{ "progress": 0.37 }`，同时更新最近打开时间 |
+| `PATCH` | `/v1/library/documents/{id}` | `{ "progress" }` 更新进度和最近打开时间；`{ "title", "author" }` 改书架书名/作者，不必带 progress。空书名保留原名。 |
 | `DELETE` | `/v1/library/documents/{id}` | 删文件、目录项和问答记录 |
 | `GET` | `/v1/library/documents/{id}/conversations` | 该书问答记录 |
 | `PUT` | `/v1/library/documents/{id}/conversations` | 覆盖该书问答记录 |
@@ -66,7 +66,7 @@ $UNIVERSAL_READER_STORAGE_DIR/     # 默认 data/library
 
 启动时请求 `{origin}/health`（Web 与服务同域时即当前页 origin，否则 `http://127.0.0.1:8787`）。命中 `universal-reader-server` 则走 HTTP 书库。空的本机书库保持为空，不灌演示书。删除走 `DELETE /v1/library/documents/{id}`。
 
-导入使用 `PlatformFile.readAsBytes()` 后 `POST /v1/library/files`。进度走 `PATCH`。
+导入使用 `PlatformFile.readAsBytes()` 后 `POST /v1/library/files`。进度和书名走 `PATCH`。
 
 ## Commands
 

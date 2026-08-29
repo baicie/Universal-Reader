@@ -196,6 +196,28 @@ CREATE TABLE IF NOT EXISTS conversations (
   }
 
   @override
+  Future<void> writeIdentity({
+    required String id,
+    required String title,
+    required String author,
+  }) async {
+    final rows = await _db.query('documents', where: 'id = ?', whereArgs: [id]);
+    if (rows.isEmpty) return;
+    final current = _documentFromRow(rows.first);
+    final next = documentWithWrittenIdentity(
+      current,
+      title: title,
+      author: author,
+    );
+    await _db.update(
+      'documents',
+      {'title': next.metadata.title, 'author': next.metadata.author},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  @override
   Future<void> delete(String id) async {
     await _db.delete('documents', where: 'id = ?', whereArgs: [id]);
     await _db.delete('annotations', where: 'document_id = ?', whereArgs: [id]);

@@ -154,6 +154,35 @@ void main() {
     expect(find.textContaining('白是一种包容'), findsNothing);
   });
 
+  testWidgets('opens imported gb18030 text in the reader', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('chapter.txt', const [
+      181,
+      218,
+      210,
+      187,
+      213,
+      194,
+    ]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('chapter').first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('第一章'), findsOneWidget);
+    expect(find.textContaining('阅读器尚未接入'), findsNothing);
+    expect(find.textContaining('设计中的设计'), findsNothing);
+  });
+
   testWidgets('unknown reader ids do not fall back to another book', (
     tester,
   ) async {
@@ -600,5 +629,49 @@ void main() {
     expect(find.text('notes'), findsNothing);
     expect(find.text('other'), findsWidgets);
     expect(find.text('设计中的设计'), findsNothing);
+  });
+
+  testWidgets('editing a book title updates the shelf card', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', utf8.encode('hello from notes'));
+    await repository.importBytes('other.txt', utf8.encode('another book'));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(
+      find.descendant(
+        of: find.ancestor(
+          of: find.text('notes'),
+          matching: find.byType(BookCard),
+        ),
+        matching: find.byTooltip('书籍操作'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('编辑书名'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('edit-book-title')), '设计笔记');
+    await tester.enterText(find.byKey(const Key('edit-book-author')), '某作者');
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+    expect(find.text('设计笔记'), findsWidgets);
+    expect(find.text('某作者'), findsWidgets);
+    expect(find.text('notes'), findsNothing);
+    expect(find.text('other'), findsWidgets);
+    expect(find.text('设计中的设计'), findsNothing);
+    final renamed = (await repository.load()).singleWhere(
+      (item) => item.metadata.id == 'notes.txt',
+    );
+    expect(renamed.metadata.title, '设计笔记');
+    expect(renamed.metadata.author, '某作者');
   });
 }

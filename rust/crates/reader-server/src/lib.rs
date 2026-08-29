@@ -244,16 +244,20 @@ async fn update_document(
     PathParam(id): PathParam<String>,
     Json(body): Json<UpdateDocumentRequest>,
 ) -> impl IntoResponse {
-    let Some(progress) = body.progress else {
+    if body.progress.is_none() && body.title.is_none() && body.author.is_none() {
         return (
             StatusCode::BAD_REQUEST,
             Json(ApiError {
-                error: "progress is required",
+                error: "progress, title, or author is required",
             }),
         )
             .into_response();
-    };
-    match state.store.update_progress(&id, progress).await {
+    }
+    match state
+        .store
+        .update_document(&id, body.progress, body.title, body.author)
+        .await
+    {
         Ok(document) => (StatusCode::OK, Json(document)).into_response(),
         Err(error) => library_error(error).into_response(),
     }
@@ -666,6 +670,8 @@ struct ListResponse {
 #[derive(Deserialize)]
 struct UpdateDocumentRequest {
     progress: Option<f64>,
+    title: Option<String>,
+    author: Option<String>,
 }
 
 #[derive(Deserialize)]

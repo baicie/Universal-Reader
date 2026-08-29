@@ -49,6 +49,7 @@ dependencies:
   sqflite_common_ffi: ^2.3.6
   webview_flutter: ^4.13.0
   pdfrx: ^2.2.16
+  charset: ^2.0.1
 
 dev_dependencies:
   flutter_test:
