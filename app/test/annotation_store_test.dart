@@ -1,4 +1,6 @@
 import 'package:app/features/library/annotation_store.dart';
+import 'package:app/features/tools/ai/conversation_store.dart';
+import 'package:app/features/tools/reader_tool.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -32,4 +34,47 @@ void main() {
 
     expect(store.load('design'), throwsA(isA<FormatException>()));
   });
+
+  test(
+    'removing a note does not touch the conversation or another book',
+    () async {
+      final notes = InMemoryAnnotationRepository();
+      final talks = InMemoryConversationRepository();
+      await notes.append(
+        'notes.txt',
+        ReaderAnnotation(
+          id: 'n1',
+          note: 'keep',
+          quote: 'hello from notes',
+          source: userNoteSource,
+          createdAt: DateTime.utc(2026, 1, 1),
+        ),
+      );
+      await notes.append(
+        'other.txt',
+        ReaderAnnotation(
+          id: 'n2',
+          note: 'other',
+          quote: 'elsewhere',
+          source: userNoteSource,
+          createdAt: DateTime.utc(2026, 1, 1),
+        ),
+      );
+      await talks.append(
+        'notes.txt',
+        ConversationTurn(
+          kind: ReaderToolKind.ask,
+          question: '这句话什么意思？',
+          reply: '它在讲留白。',
+          createdAt: DateTime.utc(2026, 1, 1),
+        ),
+      );
+
+      await notes.remove('notes.txt', 'n1');
+
+      expect(await notes.load('notes.txt'), isEmpty);
+      expect((await notes.load('other.txt')).single.id, 'n2');
+      expect(await talks.load('notes.txt'), hasLength(1));
+    },
+  );
 }

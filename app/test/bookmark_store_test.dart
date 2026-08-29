@@ -61,4 +61,30 @@ void main() {
       3,
     );
   });
+
+  test('removing a bookmark leaves the notes on that book', () async {
+    final store = InMemoryAnnotationRepository();
+    await store.append(
+      'notes.txt',
+      ReaderAnnotation(
+        id: 'n1',
+        note: 'keep',
+        quote: 'hello',
+        source: userNoteSource,
+        createdAt: DateTime.utc(2026, 1, 1),
+      ),
+    );
+    final mark = bookmarkAt(
+      locator: const TextLocator(offset: 12),
+      now: DateTime.utc(2026, 1, 2),
+    );
+    await store.append('notes.txt', mark);
+
+    await store.remove('notes.txt', mark.id);
+
+    final all = await store.load('notes.txt');
+    expect(bookmarksOf(all), isEmpty);
+    expect(notesOf(all).single.id, 'n1');
+    expect(await store.load('other.txt'), isEmpty);
+  });
 }

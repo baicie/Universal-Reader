@@ -86,6 +86,18 @@ extension AnnotationRepositoryWrite on AnnotationRepository {
     await save(documentId, next);
     return next;
   }
+
+  Future<List<ReaderAnnotation>> remove(
+    String documentId,
+    String noteId,
+  ) async {
+    final next = [
+      for (final note in await load(documentId))
+        if (note.id != noteId) note,
+    ];
+    await save(documentId, next);
+    return next;
+  }
 }
 
 class SharedPreferencesAnnotationRepository implements AnnotationRepository {

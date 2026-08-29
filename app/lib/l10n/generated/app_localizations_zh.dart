@@ -160,6 +160,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noBookmarks => '这本书还没有书签。';
 
   @override
+  String get noNotes => '这本书还没有笔记。';
+
+  @override
+  String get deleteNote => '删除笔记';
+
+  @override
+  String get deleteBookmark => '删除书签';
+
+  @override
+  String get searchInBook => '在这本书里搜索';
+
+  @override
+  String get searchInBookHint => '搜索这本书';
+
+  @override
+  String get noSearchResults => '没有找到匹配的内容。';
+
+  @override
   String get scanFolder => '扫描文件夹';
 
   @override

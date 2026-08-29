@@ -164,6 +164,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noBookmarks => 'This book has no bookmarks yet.';
 
   @override
+  String get noNotes => 'This book has no notes yet.';
+
+  @override
+  String get deleteNote => 'Delete note';
+
+  @override
+  String get deleteBookmark => 'Delete bookmark';
+
+  @override
+  String get searchInBook => 'Search this book';
+
+  @override
+  String get searchInBookHint => 'Search this book';
+
+  @override
+  String get noSearchResults => 'No matching text in this book.';
+
+  @override
   String get scanFolder => 'Scan folder';
 
   @override
