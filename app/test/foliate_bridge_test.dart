@@ -30,6 +30,7 @@ void main() {
     final html = File('assets/reader/foliate/host.html').readAsStringSync();
     expect(html, contains("data.type === 'open'"));
     expect(html, contains('selectionchange'));
+    expect(html, contains('fontSize'));
     expect(html.toLowerCase(), isNot(contains('cdn.jsdelivr')));
     expect(html, isNot(contains('unpkg.com')));
   });

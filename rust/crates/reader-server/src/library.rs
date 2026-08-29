@@ -237,13 +237,14 @@ impl LibraryStore {
         if let Some(bytes) = &cover {
             self.write_cover_locked(&id, bytes).await?;
         }
+        let identity = extract::document_identity(&file_name, content);
 
         let record = LibraryDocumentRecord {
             id,
-            title: title_from_file_name(&file_name),
+            title: identity.title,
             file_name,
             stored_name,
-            author: String::new(),
+            author: identity.author,
             format: detected.format.to_string(),
             document_type: detected.document_type.to_string(),
             size: content.len(),
@@ -346,6 +347,7 @@ impl LibraryStore {
         if let Ok(conn) = sqlite::open(&self.root) {
             let _ = conn.execute("DELETE FROM document_fts WHERE document_id = ?1", [id]);
             let _ = conn.execute("DELETE FROM annotations WHERE document_id = ?1", [id]);
+            let _ = sqlite::delete_conversation(&conn, id);
             let known: HashSet<String> = catalog.documents.iter().map(|d| d.id.clone()).collect();
             if let Ok(Some(raw)) = sqlite::get_setting(&conn, "shelves")
                 && let Ok(shelves) = serde_json::from_str::<Shelves>(&raw)
@@ -517,8 +519,18 @@ impl LibraryStore {
         if !catalog.documents.iter().any(|document| document.id == id) {
             return Err(LibraryError::NotFound);
         }
+        let conn = sqlite::open(&self.root)?;
+        if let Some(raw) = sqlite::load_conversation_json(&conn, id)? {
+            return serde_json::from_str(&raw).map_err(|_| LibraryError::Io);
+        }
         match tokio::fs::read(self.conversation_path(id)).await {
-            Ok(bytes) => serde_json::from_slice(&bytes).map_err(|_| LibraryError::Io),
+            Ok(bytes) => {
+                let conversation: Conversation =
+                    serde_json::from_slice(&bytes).map_err(|_| LibraryError::Io)?;
+                let encoded = serde_json::to_string(&conversation).map_err(|_| LibraryError::Io)?;
+                sqlite::save_conversation_json(&conn, id, &encoded)?;
+                Ok(conversation)
+            }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 Ok(Conversation::default())
             }
@@ -542,13 +554,9 @@ impl LibraryStore {
         if !catalog.documents.iter().any(|document| document.id == id) {
             return Err(LibraryError::NotFound);
         }
-        tokio::fs::create_dir_all(self.conversations_dir())
-            .await
-            .map_err(|_| LibraryError::Io)?;
-        let payload = serde_json::to_vec_pretty(&conversation).map_err(|_| LibraryError::Io)?;
-        tokio::fs::write(self.conversation_path(id), payload)
-            .await
-            .map_err(|_| LibraryError::Io)?;
+        let encoded = serde_json::to_string(&conversation).map_err(|_| LibraryError::Io)?;
+        let conn = sqlite::open(&self.root)?;
+        sqlite::save_conversation_json(&conn, id, &encoded)?;
         Ok(conversation)
     }
 
@@ -777,6 +785,22 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn ingest_uses_epub_opf_title_instead_of_the_file_name() {
+        let dir = unique_temp("epub-identity");
+        let store = LibraryStore::new(dir.clone());
+        let record = store
+            .ingest(
+                "story.epub".to_string(),
+                &crate::extract::test_minimal_epub("设计中的设计", "原研哉"),
+            )
+            .await
+            .unwrap();
+        assert_eq!(record.title, "设计中的设计");
+        assert_eq!(record.author, "原研哉");
+        let _ = tokio::fs::remove_dir_all(dir).await;
+    }
+
+    #[tokio::test]
     async fn conversation_store_keeps_the_latest_fifty_turns_for_one_book() {
         let dir = std::env::temp_dir().join(format!(
             "universal-reader-conv-{}",
@@ -812,6 +836,27 @@ mod tests {
             .save_conversation("missing-id", Conversation::default())
             .await;
         assert!(matches!(missing, Err(LibraryError::NotFound)));
+        assert!(
+            !dir.join("conversations")
+                .join(format!("{}.json", record.id))
+                .is_file()
+        );
+        tokio::fs::create_dir_all(dir.join("conversations"))
+            .await
+            .unwrap();
+        tokio::fs::write(
+            dir.join("conversations")
+                .join(format!("{}.json", record.id)),
+            br#"{"turns":[{"kind":"ask","question":"","reply":"poison","locator_label":"","created_at_ms":1}]}"#,
+        )
+        .await
+        .unwrap();
+        let loaded = LibraryStore::new(dir.clone())
+            .load_conversation(&record.id)
+            .await
+            .unwrap();
+        assert_eq!(loaded.turns.len(), 50);
+        assert_eq!(loaded.turns.last().unwrap().reply, "r50");
         let _ = tokio::fs::remove_dir_all(dir).await;
     }
 

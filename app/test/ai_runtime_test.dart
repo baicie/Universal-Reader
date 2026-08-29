@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:app/core/http_library_repository.dart';
 import 'package:app/core/library_repository.dart';
+import 'package:app/core/sqlite_library_repository.dart';
 import 'package:app/features/tools/ai/ai_runtime.dart';
 import 'package:app/features/tools/ai/ai_settings.dart';
 import 'package:app/features/tools/ai/conversation_store.dart';
@@ -26,6 +27,15 @@ void main() {
       runtime.conversations,
       isA<SharedPreferencesConversationRepository>(),
     );
+  });
+
+  test('sqlite library keeps conversations in sqlite', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final library = await SqliteLibraryRepository.memory();
+    addTearDown(library.close);
+    final runtime = await resolveAiRuntime(library, preferences);
+    expect(runtime.conversations, isA<SqliteConversationRepository>());
   });
 
   test('remote library uses the rust gateway and conversation API', () async {

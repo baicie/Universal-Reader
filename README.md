@@ -38,7 +38,7 @@ Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK
 
 ## 阅读助手（DeepSeek）
 
-默认关闭。在设置中打开阅读助手，选择 DeepSeek 或 Ollama。DeepSeek 需要 API Key；Ollama 默认 `http://127.0.0.1:11434`，不需要 Key。问答记录按书保存在本机；走本机 Rust 服务时写入 `conversations/{id}.json`，笔记写入 SQLite。
+默认关闭。在设置中打开阅读助手，选择 DeepSeek 或 Ollama。DeepSeek 需要 API Key；Ollama 默认 `http://127.0.0.1:11434`，不需要 Key。问答记录按书保存在本机 SQLite；走本机 Rust 服务时同样写入 `library.sqlite`（旧的 `conversations/{id}.json` 只导入一次），笔记写入 SQLite。
 
 项目级默认值可用编译参数提供。不要把生产环境的 API Key 打进 Web 发布包，Web 产物里的 `--dart-define` 能被读出来；密钥请放在本机设置里，或只放在服务端环境变量中。
 

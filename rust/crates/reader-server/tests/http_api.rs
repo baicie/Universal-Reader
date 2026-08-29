@@ -513,8 +513,9 @@ async fn conversation_endpoint_persists_turns_for_an_existing_book() {
     let loaded_body = to_bytes(loaded.into_body(), usize::MAX).await.unwrap();
     let loaded_json: serde_json::Value = serde_json::from_slice(&loaded_body).unwrap();
     assert_eq!(loaded_json["turns"][0]["reply"], "它在讲留白。");
+    assert!(storage_dir.join("library.sqlite").is_file());
     assert!(
-        storage_dir
+        !storage_dir
             .join("conversations")
             .join(format!("{id}.json"))
             .is_file()

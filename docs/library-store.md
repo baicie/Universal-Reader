@@ -15,7 +15,7 @@ Rust 服务把书库做成**简单对象存储**（网盘），Flutter 只负责
 
 1. 这是个人部署的 local-first 服务，第一版不加账号、不加配额、不加分享链接。
 2. 文件在 `files/`；书目和进度在 SQLite `documents`。无 Rust 时 Flutter 自己持有 SQLite。
-3. 标题仍来自文件名；有封面时显示封面，没有就用颜色块。
+3. EPUB / FB2 标题和作者来自文件元数据；没有元数据时用文件名、作者留空。有封面时显示封面，没有就用颜色块。
 4. 哈希去重、封面、监视、双向 WebDAV 见 `docs/library-sync.md`。
 
 ## 存储布局
@@ -26,7 +26,7 @@ $UNIVERSAL_READER_STORAGE_DIR/     # 默认 data/library
   covers/{id}                      # 可选封面
   catalog.json                     # 旧书目；仅在 SQLite 尚未迁移时导入一次
   library.sqlite                   # documents 书目 + FTS + annotations + settings
-  conversations/{id}.json          # 该书问答记录（可选，最多 50 条）
+  conversations/{id}.json          # 旧问答；仅在 SQLite 尚无该书记录时导入一次
 ```
 
 选择这个模型而不是「按原文件名堆目录」的原因：

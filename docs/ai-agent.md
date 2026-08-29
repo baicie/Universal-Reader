@@ -33,7 +33,7 @@
 | 插件槽位 | `index.md` §23 的 `ToolProvider` |
 | 本地能力 | Rust 服务负责文件、书库，以及可选的 DeepSeek 转发与按书问答落盘；**不**复制 prompt / grounding |
 | 模型 | 用户配置的 DeepSeek；走本机服务时由服务转发，默认关闭 |
-| 持久化 | 工具设置进 Settings；问答记录按书保存（本机 SharedPreferences，或服务端 `conversations/{id}.json`），不进 annotations |
+| 持久化 | 工具设置进 Settings；问答按书存在 SQLite（无服务时 Flutter SQLite 或 SharedPreferences；有服务时 `library.sqlite`，旧 `conversations/{id}.json` 只导入一次），不进 annotations |
 
 ## Commands
 

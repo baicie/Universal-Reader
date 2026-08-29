@@ -43,6 +43,34 @@ pub fn extract_cover(file_name: &str, bytes: &[u8]) -> Option<Vec<u8>> {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DocumentIdentity {
+    pub title: String,
+    pub author: String,
+}
+
+pub fn document_identity(file_name: &str, bytes: &[u8]) -> DocumentIdentity {
+    let fallback = title_from_name(file_name);
+    let ext = file_name
+        .rsplit_once('.')
+        .map(|(_, value)| value.to_ascii_lowercase())
+        .unwrap_or_default();
+    match ext.as_str() {
+        "epub" | "azw3" | "mobi" => identity_from_epub(bytes).unwrap_or(DocumentIdentity {
+            title: fallback,
+            author: String::new(),
+        }),
+        "fb2" => identity_from_fb2(bytes).unwrap_or(DocumentIdentity {
+            title: fallback,
+            author: String::new(),
+        }),
+        _ => DocumentIdentity {
+            title: fallback,
+            author: String::new(),
+        },
+    }
+}
+
 fn extract_plain_xml(bytes: &[u8], file_name: &str) -> Option<Vec<TextUnit>> {
     let text = strip_html(&decode_text(bytes));
     let text = text.trim().to_string();
@@ -90,6 +118,59 @@ fn title_from_name(file_name: &str) -> String {
         .map(|(stem, _)| stem)
         .unwrap_or(file_name)
         .to_string()
+}
+
+fn identity_from_epub(bytes: &[u8]) -> Option<DocumentIdentity> {
+    let mut archive = ZipArchive::new(Cursor::new(bytes)).ok()?;
+    let container = read_zip(&mut archive, "meta-inf/container.xml")?;
+    let root = attr_value(&container, "full-path")?;
+    let opf = read_zip(&mut archive, &root)?;
+    let title = xml_local_text(&opf, "title")?;
+    let author = xml_local_text(&opf, "creator").unwrap_or_default();
+    Some(DocumentIdentity { title, author })
+}
+
+fn identity_from_fb2(bytes: &[u8]) -> Option<DocumentIdentity> {
+    let xml = decode_text(bytes);
+    let title = xml_local_text(&xml, "book-title")?;
+    let first = xml_local_text(&xml, "first-name").unwrap_or_default();
+    let last = xml_local_text(&xml, "last-name").unwrap_or_default();
+    let author = [first.as_str(), last.as_str()]
+        .into_iter()
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    Some(DocumentIdentity { title, author })
+}
+
+fn xml_local_text(xml: &str, local: &str) -> Option<String> {
+    let needle = format!("{local}>");
+    let mut from = 0;
+    while let Some(at) = xml[from..].find(&needle) {
+        let start = from + at;
+        let tag_open = xml[..start].rfind('<')?;
+        let tag = &xml[tag_open..start];
+        from = start + needle.len();
+        if tag.contains('/') {
+            continue;
+        }
+        let rest = &xml[from..];
+        let end = rest.find('<')?;
+        let text = unescape_xml(rest[..end].trim());
+        if !text.is_empty() {
+            return Some(text);
+        }
+    }
+    None
+}
+
+fn unescape_xml(value: &str) -> String {
+    value
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
 }
 
 fn decode_text(bytes: &[u8]) -> String {
@@ -297,6 +378,60 @@ fn first_line(body: &str) -> String {
 }
 
 #[cfg(test)]
+pub(crate) fn test_minimal_epub(title: &str, author: &str) -> Vec<u8> {
+    use std::io::{Cursor, Write};
+
+    use zip::write::SimpleFileOptions;
+    use zip::{CompressionMethod, ZipWriter};
+
+    let mut cursor = Cursor::new(Vec::new());
+    {
+        let mut zip = ZipWriter::new(&mut cursor);
+        let stored = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
+        zip.start_file("mimetype", stored).unwrap();
+        zip.write_all(b"application/epub+zip").unwrap();
+        let deflated = SimpleFileOptions::default();
+        zip.start_file("META-INF/container.xml", deflated).unwrap();
+        zip.write_all(
+            br#"<?xml version="1.0"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>"#,
+        )
+        .unwrap();
+        zip.start_file("OEBPS/content.opf", deflated).unwrap();
+        zip.write_all(
+            format!(
+                r#"<?xml version="1.0"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>{title}</dc:title>
+    <dc:creator>{author}</dc:creator>
+  </metadata>
+  <manifest>
+    <item id="ch1" href="ch1.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine>
+    <itemref idref="ch1"/>
+  </spine>
+</package>"#
+            )
+            .as_bytes(),
+        )
+        .unwrap();
+        zip.start_file("OEBPS/ch1.xhtml", deflated).unwrap();
+        zip.write_all(
+            br#"<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><body><p>hi</p></body></html>"#,
+        )
+        .unwrap();
+        zip.finish().unwrap();
+    }
+    cursor.into_inner()
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -316,5 +451,27 @@ mod tests {
     #[test]
     fn extracts_a_named_epub_cover() {
         assert!(extract_cover("notes.txt", b"hi").is_none());
+    }
+
+    #[test]
+    fn epub_identity_uses_opf_title_not_the_file_name() {
+        let bytes = test_minimal_epub("设计中的设计", "原研哉");
+        let identity = document_identity("story.epub", &bytes);
+        assert_eq!(identity.title, "设计中的设计");
+        assert_eq!(identity.author, "原研哉");
+        let plain = document_identity("notes.txt", b"hello");
+        assert_eq!(plain.title, "notes");
+        assert!(plain.author.is_empty());
+    }
+
+    #[test]
+    fn fb2_identity_uses_book_title() {
+        let xml = br#"<?xml version="1.0"?><FictionBook><description><title-info>
+            <book-title>FB2 Book</book-title>
+            <author><first-name>Ann</first-name><last-name>Author</last-name></author>
+        </title-info></description></FictionBook>"#;
+        let identity = document_identity("book.fb2", xml);
+        assert_eq!(identity.title, "FB2 Book");
+        assert_eq!(identity.author, "Ann Author");
     }
 }

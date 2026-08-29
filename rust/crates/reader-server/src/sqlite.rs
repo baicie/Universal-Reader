@@ -36,6 +36,10 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS conversations (
+  document_id TEXT PRIMARY KEY,
+  turns_json TEXT NOT NULL
+);
 CREATE VIRTUAL TABLE IF NOT EXISTS document_fts USING fts5(
   document_id UNINDEXED,
   locator,
@@ -158,4 +162,42 @@ fn documents_empty(conn: &Connection) -> Result<bool, LibraryError> {
         .query_row("SELECT COUNT(*) FROM documents", [], |row| row.get(0))
         .map_err(|_| LibraryError::Io)?;
     Ok(count == 0)
+}
+
+pub fn load_conversation_json(
+    conn: &Connection,
+    document_id: &str,
+) -> Result<Option<String>, LibraryError> {
+    let mut stmt = conn
+        .prepare("SELECT turns_json FROM conversations WHERE document_id = ?1")
+        .map_err(|_| LibraryError::Io)?;
+    let mut rows = stmt
+        .query(rusqlite::params![document_id])
+        .map_err(|_| LibraryError::Io)?;
+    match rows.next().map_err(|_| LibraryError::Io)? {
+        Some(row) => Ok(Some(row.get(0).map_err(|_| LibraryError::Io)?)),
+        None => Ok(None),
+    }
+}
+
+pub fn save_conversation_json(
+    conn: &Connection,
+    document_id: &str,
+    turns_json: &str,
+) -> Result<(), LibraryError> {
+    conn.execute(
+        "INSERT INTO conversations (document_id, turns_json) VALUES (?1, ?2) ON CONFLICT(document_id) DO UPDATE SET turns_json = excluded.turns_json",
+        rusqlite::params![document_id, turns_json],
+    )
+    .map_err(|_| LibraryError::Io)?;
+    Ok(())
+}
+
+pub fn delete_conversation(conn: &Connection, document_id: &str) -> Result<(), LibraryError> {
+    conn.execute(
+        "DELETE FROM conversations WHERE document_id = ?1",
+        [document_id],
+    )
+    .map_err(|_| LibraryError::Io)?;
+    Ok(())
 }

@@ -723,6 +723,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       return IsolatedFoliateView(
         document: reader,
         session: foliateSession,
+        fontSize: fontSize,
         fallback: fallback,
         onSelection: _onFoliateSelection,
         onHostEvent: _onFoliateHostEvent,
