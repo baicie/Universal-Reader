@@ -272,6 +272,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bodyFontSize => 'Body text size';
 
   @override
+  String get bodyLineHeight => 'Line height';
+
+  @override
+  String get bodyFontFamily => 'Body font';
+
+  @override
+  String get fontSerif => 'Serif';
+
+  @override
+  String get fontSans => 'Sans';
+
+  @override
+  String get fontMono => 'Mono';
+
+  @override
+  String get readingPaper => 'Paper';
+
+  @override
+  String get readingPaperFollow => 'Match app';
+
+  @override
   String get preferences => 'Preferences';
 
   @override

@@ -20,8 +20,16 @@
     }
     function open(command) {
       var article = document.getElementById('chapter');
+      var background = command.background || '#F5F0E8';
+      var color = command.color || '#2A2620';
       article.innerHTML = command.html || '';
       article.style.fontSize = (command.fontSize || 18) + 'px';
+      article.style.lineHeight = command.lineHeight || 1.7;
+      article.style.fontFamily = command.fontFamily || 'Georgia, "Noto Serif", serif';
+      article.style.color = color;
+      document.documentElement.style.background = background;
+      document.body.style.background = background;
+      document.body.style.color = color;
       currentCfi = command.cfi || '';
       post({
         type: 'relocated',

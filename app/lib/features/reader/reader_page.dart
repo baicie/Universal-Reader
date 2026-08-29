@@ -9,8 +9,8 @@ import '../../core/locator_codec.dart';
 import '../../core/models.dart';
 import '../../core/pdf_document.dart';
 import '../../core/providers.dart';
-import '../../core/reader_prefs.dart';
 import '../../core/reader_runtime.dart';
+import '../../core/reading_surface.dart';
 import '../../core/text_document.dart';
 import '../../l10n/l10n.dart';
 import '../../widgets/eyebrow.dart';
@@ -23,6 +23,7 @@ import 'reader_notes_pane.dart';
 import 'reader_search.dart';
 import 'reader_search_pane.dart';
 import 'reader_selection.dart';
+import 'reading_settings_sheet.dart';
 import 'renderers/isolated_comic_view.dart';
 import 'renderers/isolated_foliate_view.dart';
 import 'renderers/isolated_pdf_view.dart';
@@ -234,12 +235,19 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final accent = theme.colorScheme.primary;
-    final fontSize = ref.watch(readerPrefsProvider).fontSize;
+    final prefs = ref.watch(readerPrefsProvider);
+    final surface = ReadingSurface.resolve(
+      fontSize: prefs.fontSize,
+      lineHeight: prefs.lineHeight,
+      fontFamily: prefs.fontFamily,
+      paper: prefs.paper,
+      brightness: theme.brightness,
+    );
     final document = ref.watch(libraryProvider).documentById(widget.id);
-    final dark = theme.brightness == Brightness.dark;
-    final paper = dark ? const Color(0xFF1C1B18) : const Color(0xFFF5F0E8);
-    final ink = dark ? const Color(0xFFE8E2D6) : const Color(0xFF2A2620);
-    final muted = dark ? const Color(0xFFB7A894) : const Color(0xFF8A7358);
+    final dark = surface.isDark;
+    final paper = surface.background;
+    final ink = surface.color;
+    final muted = surface.muted;
     final tocBg = dark ? const Color(0xFF24231F) : const Color(0xFFF0EADF);
     final wide = MediaQuery.sizeOf(context).width >= 900;
     final sideOpen = toc || bookmarks || showNotes || showSearch;
@@ -453,13 +461,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         child: _readerBody(
                           l10n: l10n,
                           document: document,
-                          ink: ink,
                           muted: muted,
                           heading: heading,
                           showHeading: currentTitle.trim().isNotEmpty,
                           paragraphs: paragraphs,
                           currentIndex: currentIndex,
-                          fontSize: fontSize,
+                          surface: surface,
                           formatLabel: formatLabel,
                         ),
                       ),
@@ -568,60 +575,33 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   Future<void> _openReadingSettings() async {
-    final l10n = AppLocalizations.of(context);
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (context) {
-        return Consumer(
-          builder: (context, ref, _) {
-            final prefs = ref.watch(readerPrefsProvider);
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    l10n.readingSettings,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(l10n.bodyFontSize),
-                  Slider(
-                    min: ReaderPrefsController.minFontSize,
-                    max: ReaderPrefsController.maxFontSize,
-                    divisions:
-                        (ReaderPrefsController.maxFontSize -
-                                ReaderPrefsController.minFontSize)
-                            .round(),
-                    value: prefs.fontSize,
-                    label: prefs.fontSize.round().toString(),
-                    onChanged: (value) {
-                      ref.read(readerPrefsProvider).setFontSize(value);
-                    },
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+      isScrollControlled: true,
+      builder: (context) => const ReadingSettingsSheet(),
     );
   }
 
   Widget _readerBody({
     required AppLocalizations l10n,
     required LibraryDocument? document,
-    required Color ink,
     required Color muted,
     required String heading,
     required bool showHeading,
     required List<String> paragraphs,
     required int currentIndex,
-    required double fontSize,
+    required ReadingSurface surface,
     required String formatLabel,
   }) {
+    final fontSize = surface.fontSize;
+    final ink = surface.color;
+    final bodyStyle = TextStyle(
+      color: ink,
+      fontSize: fontSize,
+      height: surface.lineHeight,
+      fontFamily: surface.flutterFontFamily,
+    );
     if (loading) {
       return Padding(
         padding: const EdgeInsets.only(top: 80),
@@ -637,10 +617,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     if (opened is CorruptReaderDocument) {
       return Padding(
         padding: const EdgeInsets.only(top: 48),
-        child: Text(
-          l10n.readerCorruptFile,
-          style: TextStyle(color: ink, fontSize: fontSize, height: 1.7),
-        ),
+        child: Text(l10n.readerCorruptFile, style: bodyStyle),
       );
     }
     if (opened is UnavailableReaderDocument) {
@@ -653,7 +630,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           missingFile
               ? l10n.readerMissingFile
               : l10n.readerUnavailable(document.metadata.format.label),
-          style: TextStyle(color: ink, fontSize: fontSize, height: 1.7),
+          style: bodyStyle,
         ),
       );
     }
@@ -682,6 +659,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               fontSize: fontSize * 2,
               fontWeight: FontWeight.w600,
               height: 1.15,
+              fontFamily: surface.flutterFontFamily,
             ),
           ),
           const SizedBox(height: 28),
@@ -693,21 +671,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           ),
           const SizedBox(height: 22),
         ],
-        _visualSurface(ink: ink, fontSize: fontSize, paragraphs: paragraphs),
+        _visualSurface(surface: surface, paragraphs: paragraphs),
       ],
     );
   }
 
   Widget _visualSurface({
-    required Color ink,
-    required double fontSize,
+    required ReadingSurface surface,
     required List<String> paragraphs,
   }) {
-    final fallback = _annotatedBody(
-      ink: ink,
-      fontSize: fontSize,
-      paragraphs: paragraphs,
-    );
+    final fallback = _annotatedBody(surface: surface, paragraphs: paragraphs);
     final reader = opened;
     if (reader is ComicReaderDocument) {
       return IsolatedComicView(document: reader);
@@ -723,7 +696,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       return IsolatedFoliateView(
         document: reader,
         session: foliateSession,
-        fontSize: fontSize,
+        surface: surface,
         fallback: fallback,
         onSelection: _onFoliateSelection,
         onHostEvent: _onFoliateHostEvent,
@@ -733,11 +706,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   Widget _annotatedBody({
-    required Color ink,
-    required double fontSize,
+    required ReadingSurface surface,
     required List<String> paragraphs,
   }) {
-    final style = TextStyle(color: ink, fontSize: fontSize, height: 1.85);
+    final style = TextStyle(
+      color: surface.color,
+      fontSize: surface.fontSize,
+      height: surface.lineHeight,
+      fontFamily: surface.flutterFontFamily,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

@@ -13,7 +13,7 @@
 
 ## Assumptions
 
-1. 文本 Adapter 仍解 spine；视觉层走隔离的 Foliate 桥（测试环境回退到章节文本）。
+1. 文本 Adapter 仍解 spine；视觉层走隔离的 Foliate 桥（测试环境回退到章节文本）。打开命令带字号、行距、字体和纸色。
 2. 单书抽取上限 2 MiB 文本；超长章按现有文本阅读块大小切开。
 3. MOBI / AZW3 / FB2 见 `docs/reader-engines.md`。
 

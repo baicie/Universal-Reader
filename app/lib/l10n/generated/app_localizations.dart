@@ -590,6 +590,48 @@ abstract class AppLocalizations {
   /// **'正文字号'**
   String get bodyFontSize;
 
+  /// No description provided for @bodyLineHeight.
+  ///
+  /// In zh, this message translates to:
+  /// **'行距'**
+  String get bodyLineHeight;
+
+  /// No description provided for @bodyFontFamily.
+  ///
+  /// In zh, this message translates to:
+  /// **'正文字体'**
+  String get bodyFontFamily;
+
+  /// No description provided for @fontSerif.
+  ///
+  /// In zh, this message translates to:
+  /// **'衬线'**
+  String get fontSerif;
+
+  /// No description provided for @fontSans.
+  ///
+  /// In zh, this message translates to:
+  /// **'无衬线'**
+  String get fontSans;
+
+  /// No description provided for @fontMono.
+  ///
+  /// In zh, this message translates to:
+  /// **'等宽'**
+  String get fontMono;
+
+  /// No description provided for @readingPaper.
+  ///
+  /// In zh, this message translates to:
+  /// **'纸张'**
+  String get readingPaper;
+
+  /// No description provided for @readingPaperFollow.
+  ///
+  /// In zh, this message translates to:
+  /// **'跟随应用'**
+  String get readingPaperFollow;
+
   /// No description provided for @preferences.
   ///
   /// In zh, this message translates to:

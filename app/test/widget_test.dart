@@ -178,7 +178,7 @@ void main() {
     expect(find.text('找不到这本书的原文件。'), findsOneWidget);
   });
 
-  testWidgets('reading settings expose a body font size control', (
+  testWidgets('reading settings expose body type and paper controls', (
     tester,
   ) async {
     final repository = InMemoryLibraryRepository();
@@ -200,6 +200,9 @@ void main() {
     await tester.tap(find.byTooltip('阅读设置'));
     await tester.pumpAndSettle();
     expect(find.text('正文字号'), findsOneWidget);
+    expect(find.text('行距'), findsOneWidget);
+    expect(find.text('衬线'), findsOneWidget);
+    expect(find.text('跟随应用'), findsOneWidget);
   });
 
   testWidgets('paints a saved quote in the chapter body', (tester) async {

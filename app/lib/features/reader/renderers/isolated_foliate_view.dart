@@ -6,6 +6,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../../../core/foliate_bridge.dart';
 import '../../../core/foliate_session.dart';
 import '../../../core/reader_runtime.dart';
+import '../../../core/reading_surface.dart';
 import 'renderer_binding.dart';
 
 class IsolatedFoliateView extends StatefulWidget {
@@ -13,7 +14,7 @@ class IsolatedFoliateView extends StatefulWidget {
     required this.document,
     required this.fallback,
     this.session,
-    this.fontSize = 18,
+    this.surface = ReadingSurface.light,
     this.onSelection,
     this.onHostEvent,
     super.key,
@@ -22,7 +23,7 @@ class IsolatedFoliateView extends StatefulWidget {
   final HtmlChapteredDocument document;
   final Widget fallback;
   final FoliateSession? session;
-  final double fontSize;
+  final ReadingSurface surface;
   final ValueChanged<FoliateSelection>? onSelection;
   final ValueChanged<Map<String, Object?>>? onHostEvent;
 
@@ -56,8 +57,7 @@ class _IsolatedFoliateViewState extends State<IsolatedFoliateView> {
     final pageChanged =
         oldWidget.session?.pageIndex != widget.session?.pageIndex ||
         oldWidget.session?.currentCfi != widget.session?.currentCfi;
-    final fontChanged = oldWidget.fontSize != widget.fontSize;
-    if (chapterChanged || pageChanged || fontChanged) {
+    if (chapterChanged || pageChanged || oldWidget.surface != widget.surface) {
       _pushSession();
     }
   }
@@ -79,15 +79,18 @@ class _IsolatedFoliateViewState extends State<IsolatedFoliateView> {
   Future<void> _pushSession() async {
     final controller = _controller;
     if (controller == null) return;
+    final typography = widget.surface.toFoliateCommand();
     final command = jsonEncode(
       widget.session != null
           ? FoliateBridge.openSession(
               widget.session!,
-              fontSize: widget.fontSize,
+              fontSize: widget.surface.fontSize,
+              typography: typography,
             )
           : FoliateBridge.openCurrent(
               widget.document,
-              fontSize: widget.fontSize,
+              fontSize: widget.surface.fontSize,
+              typography: typography,
             ),
     );
     await controller.runJavaScript(

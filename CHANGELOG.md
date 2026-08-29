@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reading settings for line height, body font, and paper (match app / light / dark) reach the Foliate host and the text fallback.
+
 ## 0.0.1-dev.11 - 2026-08-29
 
 - Favorites and collections persist per library: starring a book, creating a collection, and opening a collection only show those books. Seed titles are not used as fake favorites.

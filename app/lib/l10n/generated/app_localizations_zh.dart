@@ -268,6 +268,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bodyFontSize => '正文字号';
 
   @override
+  String get bodyLineHeight => '行距';
+
+  @override
+  String get bodyFontFamily => '正文字体';
+
+  @override
+  String get fontSerif => '衬线';
+
+  @override
+  String get fontSans => '无衬线';
+
+  @override
+  String get fontMono => '等宽';
+
+  @override
+  String get readingPaper => '纸张';
+
+  @override
+  String get readingPaperFollow => '跟随应用';
+
+  @override
   String get preferences => '偏好';
 
   @override
