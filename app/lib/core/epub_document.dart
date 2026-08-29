@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
@@ -101,7 +103,7 @@ ParsedEpub parseEpub(List<int> bytes) {
         href: href,
         title: titleForChapter,
         text: body,
-        html: raw,
+        html: _inlineChapterHtml(raw, href, files),
         startOffset: start,
       ),
     );
@@ -421,4 +423,94 @@ String _excerptAround(String text, int start, int queryLength) {
   final from = start < 24 ? 0 : start - 24;
   final to = (start + queryLength + 24).clamp(0, text.length);
   return text.substring(from, to).trim();
+}
+
+final _imgSrc = RegExp(
+  r'''<img\b([^>]*?)\bsrc\s*=\s*(["'])([^"']+)\2([^>]*)>''',
+  caseSensitive: false,
+);
+
+final _linkHref = RegExp(
+  r'''<link\b([^>]*?)\bhref\s*=\s*(["'])([^"']+)\2([^>]*)>''',
+  caseSensitive: false,
+);
+
+String _inlineChapterHtml(
+  String html,
+  String chapterHref,
+  Map<String, ArchiveFile> files,
+) {
+  var result = html.replaceAllMapped(_imgSrc, (match) {
+    final src = match.group(3) ?? '';
+    if (src.startsWith('data:') || _isExternalHref(src)) {
+      return match.group(0)!;
+    }
+    final dataUri = _dataUriFor(files, _resolveHref(chapterHref, src));
+    if (dataUri == null) {
+      return match.group(0)!;
+    }
+    return '<img${match.group(1)}src="${match.group(2)}$dataUri${match.group(2)}${match.group(4)}>';
+  });
+  return result.replaceAllMapped(_linkHref, (match) {
+    final tag = match.group(0)!;
+    if (!tag.toLowerCase().contains('stylesheet')) {
+      return tag;
+    }
+    final href = match.group(3) ?? '';
+    if (href.startsWith('data:') || _isExternalHref(href)) {
+      return tag;
+    }
+    final css = _tryRead(files, _resolveHref(chapterHref, href));
+    if (css == null) {
+      return tag;
+    }
+    return '<style>$css</style>';
+  });
+}
+
+bool _isExternalHref(String href) {
+  final lower = href.toLowerCase();
+  return lower.startsWith('http://') ||
+      lower.startsWith('https://') ||
+      lower.startsWith('//');
+}
+
+String? _dataUriFor(Map<String, ArchiveFile> files, String path) {
+  final mime = _mimeFor(path);
+  if (mime == null) {
+    return null;
+  }
+  final bytes = _tryBytes(files, path);
+  if (bytes == null || bytes.isEmpty) {
+    return null;
+  }
+  return 'data:$mime;base64,${base64Encode(bytes)}';
+}
+
+List<int>? _tryBytes(Map<String, ArchiveFile> files, String path) {
+  final file = files[_normalizePath(path)];
+  if (file == null) {
+    return null;
+  }
+  return file.content;
+}
+
+String? _mimeFor(String path) {
+  final lower = path.toLowerCase();
+  if (lower.endsWith('.png')) {
+    return 'image/png';
+  }
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
+    return 'image/jpeg';
+  }
+  if (lower.endsWith('.gif')) {
+    return 'image/gif';
+  }
+  if (lower.endsWith('.webp')) {
+    return 'image/webp';
+  }
+  if (lower.endsWith('.svg')) {
+    return 'image/svg+xml';
+  }
+  return null;
 }

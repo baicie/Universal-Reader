@@ -72,4 +72,28 @@ void main() {
     );
     expect(opened, isA<EpubReaderDocument>());
   });
+
+  test('chapter html inlines images and keeps class names', () {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: illustratedEpubBytes(),
+    );
+    expect(document.currentChapterHtml, contains('class="caption"'));
+    expect(document.currentChapterHtml, contains('data:image/png'));
+    expect(document.currentChapterHtml, contains('font-style: italic'));
+    expect(
+      document.currentChapterHtml,
+      isNot(contains('src="images/spot.png"')),
+    );
+    expect(document.currentChapterHtml, isNot(contains('href="styles.css"')));
+  });
+
+  test('a missing chapter image stays missing', () {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: illustratedEpubBytes(includeImage: false),
+    );
+    expect(document.currentChapterHtml, contains('src="images/spot.png"'));
+    expect(document.currentChapterHtml, isNot(contains('data:image')));
+  });
 }

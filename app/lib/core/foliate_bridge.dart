@@ -35,7 +35,7 @@ class FoliateBridge {
     return {
       'type': 'open',
       'href': session.href,
-      'html': session.currentPageHtml,
+      'html': session.visualHtml,
       'title': session.title,
       'cfi': session.currentCfi,
       'progression': session.progression,

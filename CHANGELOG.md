@@ -7,6 +7,7 @@
 - Shelf titles and authors can be renamed in the catalog. An empty title keeps the previous name; a missing book is not invented.
 - Comic reading supports single page, double page, vertical scroll, and right-to-left. An odd last page stands alone; a missing neighbor is not filled from another book.
 - EPUB / MOBI / AZW3 / FB2 paginate in the reader: tap the right edge or press the right arrow for the next page, then the next chapter. The progress slider lands on a page. The last page does not wrap to another book.
+- EPUB chapter HTML keeps images and chapter CSS. The Foliate host lays the chapter out with a local `paginator.js`, not a CDN. Missing images stay missing.
 - PDF pages can be zoomed from reading settings (100%–300%). The page fills the reading surface instead of the reflow column. Tests still show page text, not a sample chapter.
 
 ## 0.0.1-dev.11 - 2026-08-29

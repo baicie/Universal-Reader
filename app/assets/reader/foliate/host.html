@@ -5,24 +5,47 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Foliate host</title>
   <style>
-    html, body { margin: 0; padding: 0; background: transparent; }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; }
     #chapter { padding: 8px 4px; line-height: 1.7; font-family: Georgia, "Noto Serif", serif; }
+    foliate-paginator { display: block; width: 100%; height: 100%; }
   </style>
 </head>
 <body>
   <article id="chapter"></article>
   <script>
+    window.__foliateQueue = [];
+    window.FoliateView = {
+      open: function (command) { window.__foliateQueue.push(command); },
+      openChapter: function (command) { window.__foliateQueue.push(command); },
+      goTo: function (locator) { window.__foliateQueue.push({ type: 'goTo', locator: locator }); },
+      next: function () { window.__foliateQueue.push({ type: 'next' }); },
+      prev: function () { window.__foliateQueue.push({ type: 'prev' }); }
+    };
+  </script>
+  <script type="module">
     var currentCfi = '';
+    var lastHtml = '';
+    var paginator = null;
+    var blobUrl = null;
+    var paginatorReady = false;
+
     function post(payload) {
       if (window.FoliateHost && window.FoliateHost.postMessage) {
         window.FoliateHost.postMessage(JSON.stringify(payload));
       }
     }
-    function open(command) {
-      var article = document.getElementById('chapter');
+
+    try {
+      await import('./paginator.js');
+      paginatorReady = !!customElements.get('foliate-paginator');
+    } catch (error) {
+      paginatorReady = false;
+    }
+
+    function applyTheme(command) {
       var background = command.background || '#F5F0E8';
       var color = command.color || '#2A2620';
-      article.innerHTML = command.html || '';
+      var article = document.getElementById('chapter');
       article.style.fontSize = (command.fontSize || 18) + 'px';
       article.style.lineHeight = command.lineHeight || 1.7;
       article.style.fontFamily = command.fontFamily || 'Georgia, "Noto Serif", serif';
@@ -30,6 +53,64 @@
       document.documentElement.style.background = background;
       document.body.style.background = background;
       document.body.style.color = color;
+      if (paginator && paginator.setStyles) {
+        paginator.setStyles(
+          'html,body{font-size:' + (command.fontSize || 18) + 'px;line-height:' +
+          (command.lineHeight || 1.7) + ';font-family:' +
+          JSON.stringify(command.fontFamily || 'Georgia, "Noto Serif", serif') +
+          ';color:' + color + ';background:' + background + ';}'
+        );
+      }
+    }
+
+    function asDocument(html) {
+      if (/<html[\s>]/i.test(html)) return html;
+      return '<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="utf-8"/></head><body>' +
+        html + '</body></html>';
+    }
+
+    async function openWithPaginator(command, html) {
+      var article = document.getElementById('chapter');
+      article.style.display = 'none';
+      if (!paginator) {
+        paginator = document.createElement('foliate-paginator');
+        document.body.appendChild(paginator);
+      }
+      if (html !== lastHtml) {
+        lastHtml = html;
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
+        blobUrl = URL.createObjectURL(
+          new Blob([asDocument(html)], { type: 'application/xhtml+xml' })
+        );
+        paginator.open({
+          sections: [{ load: function () { return blobUrl; } }]
+        });
+      }
+      var pageIndex = command.pageIndex || 0;
+      var pageCount = command.pageCount || 1;
+      var fraction = pageCount <= 1 ? 0 : pageIndex / pageCount;
+      await paginator.goTo({ index: 0, anchor: fraction });
+      applyTheme(command);
+    }
+
+    function openWithArticle(command, html) {
+      var article = document.getElementById('chapter');
+      article.style.display = '';
+      article.innerHTML = html;
+      applyTheme(command);
+    }
+
+    async function open(command) {
+      var html = command.html || '';
+      if (paginatorReady) {
+        try {
+          await openWithPaginator(command, html);
+        } catch (error) {
+          openWithArticle(command, html);
+        }
+      } else {
+        openWithArticle(command, html);
+      }
       currentCfi = command.cfi || '';
       post({
         type: 'relocated',
@@ -39,6 +120,7 @@
         pageCount: command.pageCount || 1
       });
     }
+
     window.FoliateView = {
       open: open,
       openChapter: open,
@@ -46,6 +128,7 @@
       next: function () { post({ type: 'next' }); },
       prev: function () { post({ type: 'prev' }); }
     };
+
     document.addEventListener('selectionchange', function () {
       var text = (window.getSelection && window.getSelection().toString()) || '';
       post({ type: 'selection', text: text, cfi: currentCfi });
@@ -58,6 +141,14 @@
       if (!data || !data.type) return;
       if (data.type === 'open' || data.type === 'openChapter') open(data);
     });
+
+    var queued = window.__foliateQueue.splice(0);
+    for (var i = 0; i < queued.length; i++) {
+      var item = queued[i];
+      if (item && (item.type === 'open' || item.type === 'openChapter' || item.html)) {
+        open(item);
+      }
+    }
   </script>
 </body>
 </html>

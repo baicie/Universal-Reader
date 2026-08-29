@@ -26,6 +26,30 @@ void main() {
     expect(command.containsKey('FoliateView'), isFalse);
   });
 
+  test('open command keeps chapter images instead of a sliced paragraph', () {
+    final document = EpubReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'epub-1',
+        title: 'Fixture',
+        author: 'A',
+        format: DocumentFormat.epub,
+        type: DocumentType.reflow,
+      ),
+      bytes: illustratedEpubBytes(
+        firstBody: List.filled(
+          80,
+          'hello from epub paginated chapter text. ',
+        ).join(),
+      ),
+    );
+    final command = FoliateBridge.openCurrent(document);
+    expect(command['html'], contains('<img'));
+    expect(command['html'], contains('class="caption"'));
+    expect(command['html'], contains('data:image/png'));
+    expect(command['html'], isNot(contains('&lt;img')));
+    expect(command.containsKey('FoliateView'), isFalse);
+  });
+
   test('host executes open commands and posts selection without a CDN', () {
     final html = File('assets/reader/foliate/host.html').readAsStringSync();
     expect(html, contains("data.type === 'open'"));
@@ -37,5 +61,8 @@ void main() {
     expect(html, contains('command.color'));
     expect(html.toLowerCase(), isNot(contains('cdn.jsdelivr')));
     expect(html, isNot(contains('unpkg.com')));
+    expect(html, contains("import('./paginator.js')"));
+    expect(html, contains('foliate-paginator'));
+    expect(File('assets/reader/foliate/paginator.js').existsSync(), isTrue);
   });
 }
