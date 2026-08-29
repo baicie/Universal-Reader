@@ -3,6 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:app/core/library_repository.dart';
 import 'package:app/core/models.dart';
 
+import 'support/epub_fixture.dart';
+import 'support/fb2_fixture.dart';
+
 void main() {
   final document = LibraryDocument(
     metadata: const DocumentMetadata(
@@ -41,8 +44,39 @@ void main() {
     final repository = InMemoryLibraryRepository();
     final document = await repository.importBytes('notes.txt', [1, 2, 3]);
     expect(document.metadata.title, 'notes');
+    expect(document.metadata.author, isEmpty);
     expect(document.metadata.format, DocumentFormat.txt);
     expect((await repository.load()).single.metadata.id, 'notes.txt');
     expect(await repository.readFile('notes.txt'), [1, 2, 3]);
   });
+
+  test('import uses opf title and author instead of the file name', () async {
+    final repository = InMemoryLibraryRepository();
+    final document = await repository.importBytes(
+      'story.epub',
+      minimalEpubBytes(),
+    );
+    expect(document.metadata.title, 'Fixture Book');
+    expect(document.metadata.author, 'Fixture Author');
+  });
+
+  test('import uses fictionbook title when the file has one', () async {
+    final repository = InMemoryLibraryRepository();
+    final document = await repository.importBytes(
+      'book.fb2',
+      minimalFb2Bytes(),
+    );
+    expect(document.metadata.title, 'FB2 Book');
+    expect(document.metadata.author, 'Ann Author');
+  });
+
+  test(
+    'a file without metadata keeps the file name and no invented author',
+    () async {
+      final repository = InMemoryLibraryRepository();
+      final document = await repository.importBytes('notes.txt', [1, 2, 3]);
+      expect(document.metadata.title, 'notes');
+      expect(document.metadata.author, isEmpty);
+    },
+  );
 }

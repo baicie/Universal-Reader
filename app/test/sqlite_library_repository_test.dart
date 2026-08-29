@@ -5,6 +5,8 @@ import 'package:app/core/library_repository.dart';
 import 'package:app/core/sqlite_library_repository.dart';
 import 'package:app/features/library/annotation_store.dart';
 import 'package:app/features/library/shelf_store.dart';
+import 'package:app/features/tools/ai/conversation_store.dart';
+import 'package:app/features/tools/reader_tool.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -128,5 +130,31 @@ void main() {
     );
     expect((await repository.load()).single.metadata.id, other.metadata.id);
     expect(await repository.loadAnnotations(notes.metadata.id), isEmpty);
+    expect(await repository.loadConversations(notes.metadata.id), isNull);
   });
+
+  test(
+    'sqlite conversations stay on one book and survive without prefs',
+    () async {
+      final repository = await SqliteLibraryRepository.memory();
+      addTearDown(repository.close);
+      final notes = await repository.importBytes(
+        'notes.txt',
+        Uint8List.fromList('hello notes'.codeUnits),
+      );
+      final store = SqliteConversationRepository(repository);
+      await store.save(notes.metadata.id, [
+        ConversationTurn(
+          kind: ReaderToolKind.ask,
+          reply: '它在讲留白。',
+          createdAt: DateTime.utc(2026, 8, 29),
+        ),
+      ]);
+      expect((await store.load(notes.metadata.id)).single.reply, '它在讲留白。');
+      expect(await store.load('other'), isEmpty);
+
+      await repository.delete(notes.metadata.id);
+      expect(await store.load(notes.metadata.id), isEmpty);
+    },
+  );
 }

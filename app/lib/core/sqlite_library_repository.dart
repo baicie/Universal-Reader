@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +7,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'content_hash.dart';
 import 'cover_extract.dart';
 import '../features/library/annotation_store.dart';
+import '../features/tools/ai/conversation_store.dart';
 import 'library_repository.dart';
 import 'models.dart';
 
@@ -70,6 +72,12 @@ CREATE TABLE IF NOT EXISTS annotations (
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
+)
+''');
+    await db.execute('''
+CREATE TABLE IF NOT EXISTS conversations (
+  document_id TEXT PRIMARY KEY,
+  turns_json TEXT NOT NULL
 )
 ''');
   }
@@ -191,6 +199,11 @@ CREATE TABLE IF NOT EXISTS settings (
   Future<void> delete(String id) async {
     await _db.delete('documents', where: 'id = ?', whereArgs: [id]);
     await _db.delete('annotations', where: 'document_id = ?', whereArgs: [id]);
+    await _db.delete(
+      'conversations',
+      where: 'document_id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<void> migrateFromPreferences(SharedPreferences preferences) async {
@@ -303,6 +316,31 @@ CREATE TABLE IF NOT EXISTS settings (
     if (value is List<int>) return List<int>.from(value);
     return null;
   }
+
+  Future<List<ConversationTurn>?> loadConversations(String documentId) async {
+    final rows = await _db.query(
+      'conversations',
+      where: 'document_id = ?',
+      whereArgs: [documentId],
+    );
+    if (rows.isEmpty) return null;
+    return parseConversationTurns(
+      jsonDecode(rows.first['turns_json'] as String),
+    );
+  }
+
+  Future<void> saveConversations(
+    String documentId,
+    List<ConversationTurn> turns,
+  ) async {
+    final payload = jsonEncode(
+      trimConversation(turns).map((turn) => turn.toServiceJson()).toList(),
+    );
+    await _db.insert('conversations', {
+      'document_id': documentId,
+      'turns_json': payload,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
 }
 
 class SqliteAnnotationRepository implements AnnotationRepository {
@@ -317,4 +355,26 @@ class SqliteAnnotationRepository implements AnnotationRepository {
   @override
   Future<void> save(String documentId, List<ReaderAnnotation> notes) =>
       library.saveAnnotations(documentId, notes);
+}
+
+class SqliteConversationRepository implements ConversationRepository {
+  SqliteConversationRepository(this.library, {this.fallback});
+
+  final SqliteLibraryRepository library;
+  final ConversationRepository? fallback;
+
+  @override
+  Future<List<ConversationTurn>> load(String documentId) async {
+    final stored = await library.loadConversations(documentId);
+    if (stored != null) return stored;
+    final fromFallback = await fallback?.load(documentId) ?? const [];
+    if (fromFallback.isEmpty) return const [];
+    await library.saveConversations(documentId, fromFallback);
+    return fromFallback;
+  }
+
+  @override
+  Future<void> save(String documentId, List<ConversationTurn> turns) {
+    return library.saveConversations(documentId, turns);
+  }
 }

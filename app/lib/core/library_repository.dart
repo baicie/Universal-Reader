@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'content_hash.dart';
 import 'cover_extract.dart';
+import 'document_identity.dart';
 import 'format_detector.dart';
 import 'models.dart';
 
@@ -33,11 +34,16 @@ LibraryDocument importedLibraryDocument(
   if (format == DocumentFormat.unknown) {
     throw const FormatException('unsupported document format');
   }
+  final identity = documentIdentity(
+    fileName: fileName,
+    bytes: bytes,
+    format: format,
+  );
   return LibraryDocument(
     metadata: DocumentMetadata(
       id: fileName,
-      title: fileName.replaceFirst(RegExp(r'\.[^.]+$'), ''),
-      author: '本地文件',
+      title: identity.title,
+      author: identity.author,
       format: format,
       type: format.type,
       coverColor: 0xFF6F8179,

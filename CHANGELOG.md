@@ -2,9 +2,14 @@
 
 ## Unreleased
 
+## 0.0.1-dev.11 - 2026-08-29
+
 - Favorites and collections persist per library: starring a book, creating a collection, and opening a collection only show those books. Seed titles are not used as fake favorites.
 - An empty local library stays empty instead of writing seed books. A book can be removed from the shelf without inventing another title.
 - The local server keeps the document list in SQLite. An existing `catalog.json` is imported once and is not the catalog after that.
+- Imported EPUB and FB2 books use the title and author from the file. TXT and files without metadata keep the file name and an empty author.
+- Questions and answers live in SQLite. Existing `conversations/{id}.json` files are imported once and are not the store after that.
+- The Foliate host uses the reading font size from settings.
 
 ## 0.0.1-dev.10 - 2026-08-29
 

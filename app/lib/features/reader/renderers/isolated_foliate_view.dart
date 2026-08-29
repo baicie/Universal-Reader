@@ -13,6 +13,7 @@ class IsolatedFoliateView extends StatefulWidget {
     required this.document,
     required this.fallback,
     this.session,
+    this.fontSize = 18,
     this.onSelection,
     this.onHostEvent,
     super.key,
@@ -21,6 +22,7 @@ class IsolatedFoliateView extends StatefulWidget {
   final HtmlChapteredDocument document;
   final Widget fallback;
   final FoliateSession? session;
+  final double fontSize;
   final ValueChanged<FoliateSelection>? onSelection;
   final ValueChanged<Map<String, Object?>>? onHostEvent;
 
@@ -54,7 +56,8 @@ class _IsolatedFoliateViewState extends State<IsolatedFoliateView> {
     final pageChanged =
         oldWidget.session?.pageIndex != widget.session?.pageIndex ||
         oldWidget.session?.currentCfi != widget.session?.currentCfi;
-    if (chapterChanged || pageChanged) {
+    final fontChanged = oldWidget.fontSize != widget.fontSize;
+    if (chapterChanged || pageChanged || fontChanged) {
       _pushSession();
     }
   }
@@ -78,8 +81,14 @@ class _IsolatedFoliateViewState extends State<IsolatedFoliateView> {
     if (controller == null) return;
     final command = jsonEncode(
       widget.session != null
-          ? FoliateBridge.openSession(widget.session!)
-          : FoliateBridge.openCurrent(widget.document),
+          ? FoliateBridge.openSession(
+              widget.session!,
+              fontSize: widget.fontSize,
+            )
+          : FoliateBridge.openCurrent(
+              widget.document,
+              fontSize: widget.fontSize,
+            ),
     );
     await controller.runJavaScript(
       'window.FoliateView && window.FoliateView.open($command)',

@@ -65,8 +65,14 @@ Future<AiRuntime> resolveAiRuntime(
   http.Client? httpClient,
 }) async {
   if (library is! HttpLibraryRepository) {
+    final conversations = library is SqliteLibraryRepository
+        ? SqliteConversationRepository(
+            library,
+            fallback: SharedPreferencesConversationRepository(preferences),
+          )
+        : SharedPreferencesConversationRepository(preferences);
     return AiRuntime.local(
-      SharedPreferencesConversationRepository(preferences),
+      conversations,
       annotations: library is SqliteLibraryRepository
           ? SqliteAnnotationRepository(library)
           : SharedPreferencesAnnotationRepository(preferences),

@@ -14,11 +14,17 @@ class FoliateBridge {
     return {'type': 'openChapter', 'href': href, 'html': html, 'title': title};
   }
 
-  static Map<String, Object?> openCurrent(HtmlChapteredDocument document) {
-    return openSession(FoliateSession.open(document));
+  static Map<String, Object?> openCurrent(
+    HtmlChapteredDocument document, {
+    double fontSize = 18,
+  }) {
+    return openSession(FoliateSession.open(document), fontSize: fontSize);
   }
 
-  static Map<String, Object?> openSession(FoliateSession session) {
+  static Map<String, Object?> openSession(
+    FoliateSession session, {
+    double fontSize = 18,
+  }) {
     return {
       'type': 'open',
       'href': session.href,
@@ -28,6 +34,7 @@ class FoliateBridge {
       'progression': session.progression,
       'pageIndex': session.pageIndex,
       'pageCount': session.pageCount,
+      'fontSize': fontSize,
     };
   }
 }

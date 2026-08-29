@@ -1,32 +1,37 @@
-# Spec: 服务端书目真相在 SQLite
+# Spec: 书是书，问答进库，字号进阅读页
 
 ## Objective
 
-本机服务的书目以 `library.sqlite` 的 `documents` 表为准，不再把 `catalog.json` 当真相：
+导入后书架显示文件里的书名和作者；问答进 SQLite；阅读设置的字号到达 Foliate host。然后发 **v0.0.1-dev.11**。
 
-- 导入、列表、进度、删除都读写 SQLite。HTTP JSON 形状不变。
-- 已有 `catalog.json`：仅在尚未迁移时导入一次。迁完之后改 JSON 不能改书名、进度或复活已删的书。
-- 文件仍在 `files/`；缺文件的条目仍从列表去掉。不发明种子书。
+成功标准：
+
+- 导入带 `dc:title` / `dc:creator` 的 EPUB，书架上是 OPF 里的书名和作者，不是 `story` / 「本地文件」。
+- 没有元数据（TXT，或坏 EPUB）继续用文件名，作者留空，不编种子书。
+- 本机服务把问答存在 `library.sqlite`；已有 `conversations/{id}.json` 只导入一次。改 JSON 不能改已保存的问答。
+- 无 Rust 时 Flutter SQLite 同样保存问答；删书时该书问答一起去掉。
+- Foliate 打开命令带上阅读字号，host 用它排正文。不引入完整 foliate-js npm。
 
 ## Assumptions
 
-1. 不引入 `flutter_rust_bridge`。Flutter 继续走现有 HTTP。
-2. 不做账号、回收站、双写 JSON。
-3. SQLite 损坏按错误处理，不当空库。坏掉的 `catalog.json` 不当书目真相。
-4. 迁成功后不删除用户的 `catalog.json`，只是不再读、不再写。
+1. 不引入 `flutter_rust_bridge`。不换完整上游 foliate-js。
+2. PDF / 纯文本没有可靠元数据时用文件名。
+3. 空作者仍由 l10n 显示为「本地书库」，那是标签不是假作者。
+4. 发版：`app/pubspec.yaml` `0.0.1-dev.11+12`，`rust` workspace `0.0.1-dev.11`，tag `v0.0.1-dev.11`。
 
 ## Commands
 
 ```powershell
-cd rust
-cargo test -p universal-reader-server --lib
+cd app
+flutter test test/library_repository_test.dart test/conversation_store_test.dart test/foliate_bridge_test.dart test/widget_test.dart
+flutter analyze
+cd ..\rust
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
-cargo fmt --all -- --check
 ```
 
 ## Boundaries
 
-- Always: 文件写在 `files/`；按 `documentId` 隔离；API 字段保持现有列表。
-- Ask first: 账号、把问答也迁进 SQLite。
-- Never: 用种子书或另一本顶上；把坏 SQLite 当成空库再灌 JSON。
+- Always: 缺元数据就缺；按 `documentId` 隔离问答。
+- Ask first: 完整 foliate-js npm 主题、账号。
+- Never: 用种子书名顶上；把坏问答当成空历史。

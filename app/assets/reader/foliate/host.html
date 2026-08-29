@@ -21,6 +21,7 @@
     function open(command) {
       var article = document.getElementById('chapter');
       article.innerHTML = command.html || '';
+      article.style.fontSize = (command.fontSize || 18) + 'px';
       currentCfi = command.cfi || '';
       post({
         type: 'relocated',

@@ -124,7 +124,7 @@ void main() {
       ),
     );
     await tester.pump(const Duration(milliseconds: 250));
-    await tester.tap(find.text('story').first);
+    await tester.tap(find.text('Fixture Book').first);
     await tester.pumpAndSettle();
     expect(find.textContaining('hello from epub'), findsOneWidget);
     expect(find.textContaining('阅读器尚未接入'), findsNothing);
