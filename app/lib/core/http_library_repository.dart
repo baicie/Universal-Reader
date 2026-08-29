@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'library_repository.dart';
+import 'local_library_factory.dart';
 import 'models.dart';
 
 String libraryBaseUrl() {
@@ -34,7 +35,7 @@ Future<LibraryRepository> resolveLibraryRepository(
   } catch (_) {
     // 服务不可达时回退到本机书库，探测失败不是应用错误。
   }
-  return SharedPreferencesLibraryRepository(preferences);
+  return openLocalLibrary(preferences);
 }
 
 class HttpLibraryRepository implements LibraryRepository {
@@ -105,6 +106,18 @@ class HttpLibraryRepository implements LibraryRepository {
     if (response.statusCode == 404) return null;
     if (response.statusCode != 200) {
       throw FormatException('无法读取文件 (${response.statusCode})');
+    }
+    return response.bodyBytes;
+  }
+
+  @override
+  Future<List<int>?> readCover(String id) async {
+    final response = await httpClient.get(
+      uri('/v1/library/documents/$id/cover'),
+    );
+    if (response.statusCode == 404) return null;
+    if (response.statusCode != 200) {
+      throw FormatException('无法读取封面 (${response.statusCode})');
     }
     return response.bodyBytes;
   }

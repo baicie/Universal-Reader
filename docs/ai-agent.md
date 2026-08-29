@@ -131,13 +131,14 @@ class ReaderToolRequest {
   - 用户主动点「发送」后才调用模型。
   - 移动端仍是点中心区域显隐 Reader Chrome。
   - 问答记录按书保存；Rust 只做轻量转发和落盘。
-  - 服务端 DeepSeek endpoint 只来自环境变量，不接受客户端传入的 URL。
+  - 服务端 DeepSeek / Ollama endpoint 只来自环境变量或本机设置，不接受客户端传入的 URL。
 - Ask first
-  - 增加 Ollama 或其他 Provider。
+  - 再增加第三个 Provider。
   - 默认把选区送出设备。
-  - 把对话存进 annotations / 笔记。
+  - 把笔记画进正文或做成第二种对话历史。
   - 给资料库首页加 AI 入口或推荐。
   - 在 Rust 里复制一套 prompt / grounding Agent。
+  - 默认启用 Ollama 或把本机模型当成必选。
 - Never
   - 无 AI 就无法打开书。
   - 导入时自动摘要整库。
@@ -197,7 +198,7 @@ goTo(locator)          只建议跳转，必须用户确认
 3. **Ask document**：FTS + `extractText` 做有限上下文问答，回答必须带 locator。
 4. **Limited loop**：模型可提议 `search` / `goTo`，跳转需确认。仍不是自主 Agent。
 
-当前已完成第 1、2 步，以及按书问答记录和 Rust 轻量网关。第 3、4 步仍未开始。
+当前已完成第 1、2 步，以及按书问答记录和 Rust 轻量网关。第 3 步（问整书：FTS / `search` + locator）与第 4 步（提议 `search` / `goTo`，跳转需确认）在本轮落地。Ollama 为第二 Provider。对话可「保存为笔记」，笔记不并进 annotations 渲染。
 
 ## Success Criteria
 

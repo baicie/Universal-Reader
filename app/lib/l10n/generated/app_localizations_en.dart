@@ -129,6 +129,59 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askThisPage => 'Ask this page';
 
   @override
+  String get askThisBook => 'Ask this book';
+
+  @override
+  String jumpToLocation(String locator) {
+    return 'Go to $locator';
+  }
+
+  @override
+  String get saveAsNote => 'Save as a note';
+
+  @override
+  String get noteSaved => 'Saved as a note.';
+
+  @override
+  String get notesTitle => 'Notes';
+
+  @override
+  String get notesUnavailable => 'Could not load notes.';
+
+  @override
+  String get scanFolder => 'Scan folder';
+
+  @override
+  String get scanFolderHint => 'Folder path on the local server';
+
+  @override
+  String get webdavUrl => 'WebDAV URL';
+
+  @override
+  String get webdavUser => 'WebDAV username';
+
+  @override
+  String get webdavPassword => 'WebDAV password';
+
+  @override
+  String get importFromWebdav => 'Import from WebDAV';
+
+  @override
+  String get syncWebdav => 'Sync WebDAV both ways';
+
+  @override
+  String get watchFolder => 'Watch folder';
+
+  @override
+  String get librarySources => 'Library sources';
+
+  @override
+  String get providerDeepSeek => 'DeepSeek';
+
+  @override
+  String get providerOllama => 'Ollama';
+
+  @override
   String get tableOfContents => 'Contents';
 
   @override
@@ -303,12 +356,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String readerUnavailable(String format) {
-    return '$format is not readable yet. TXT, Markdown, and HTML work now.';
+    return '$format is not readable yet. TXT, Markdown, HTML, EPUB, PDF, comics, MOBI/AZW3, and FB2 work now.';
   }
 
   @override
   String get readerMissingFile =>
       'The original file for this book could not be found.';
+
+  @override
+  String get readerCorruptFile =>
+      'This book file is damaged and cannot be opened.';
 
   @override
   String get readerTruncated =>

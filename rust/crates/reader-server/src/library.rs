@@ -10,7 +10,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
-use crate::detect_format;
+use crate::{detect_format, extract, sources, sqlite};
 
 static FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
@@ -27,12 +27,44 @@ pub struct LibraryDocumentRecord {
     pub cover_color: u32,
     pub progress: f64,
     pub last_opened_ms: u64,
+    #[serde(default)]
+    pub content_hash: String,
+    #[serde(default)]
+    pub has_cover: bool,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Conversation {
     #[serde(default)]
     pub turns: Vec<ConversationTurn>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SearchHit {
+    pub locator: String,
+    pub title: String,
+    pub excerpt: String,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Annotations {
+    #[serde(default)]
+    pub notes: Vec<AnnotationRecord>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AnnotationRecord {
+    pub id: String,
+    #[serde(default)]
+    pub note: String,
+    #[serde(default)]
+    pub quote: String,
+    #[serde(default, alias = "locatorLabel")]
+    pub locator_label: String,
+    #[serde(default)]
+    pub source: String,
+    #[serde(default, alias = "createdAtMs")]
+    pub created_at_ms: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -78,6 +110,49 @@ impl LibraryStore {
         self.root.join("files")
     }
 
+    pub fn covers_dir(&self) -> PathBuf {
+        self.root.join("covers")
+    }
+
+    async fn write_cover_locked(&self, id: &str, bytes: &[u8]) -> Result<(), LibraryError> {
+        tokio::fs::create_dir_all(self.covers_dir())
+            .await
+            .map_err(|_| LibraryError::Io)?;
+        tokio::fs::write(self.covers_dir().join(id), bytes)
+            .await
+            .map_err(|_| LibraryError::Io)
+    }
+
+    pub async fn read_cover(&self, id: &str) -> Result<Vec<u8>, LibraryError> {
+        if !valid_id(id) {
+            return Err(LibraryError::InvalidName);
+        }
+        let record = self.get(id).await?;
+        if !record.has_cover {
+            return Err(LibraryError::NotFound);
+        }
+        tokio::fs::read(self.covers_dir().join(id))
+            .await
+            .map_err(|_| LibraryError::NotFound)
+    }
+
+    pub async fn ingest_path(
+        &self,
+        path: &Path,
+    ) -> Result<Option<LibraryDocumentRecord>, LibraryError> {
+        let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
+            return Ok(None);
+        };
+        if detect_format(name).is_none() {
+            return Ok(None);
+        }
+        let bytes = match tokio::fs::read(path).await {
+            Ok(bytes) if bytes.len() <= 64 * 1024 * 1024 => bytes,
+            _ => return Ok(None),
+        };
+        self.ingest_if_new(name.to_string(), &bytes).await
+    }
+
     fn catalog_path(&self) -> PathBuf {
         self.root.join("catalog.json")
     }
@@ -113,7 +188,16 @@ impl LibraryStore {
             return Err(LibraryError::Unsupported);
         };
 
+        let hash = content_hash(content);
         let _guard = self.lock.lock().await;
+        let catalog = self.load_catalog().await?;
+        if let Some(existing) = catalog
+            .documents
+            .iter()
+            .find(|document| !document.content_hash.is_empty() && document.content_hash == hash)
+        {
+            return Ok(existing.clone());
+        }
         tokio::fs::create_dir_all(self.files_dir())
             .await
             .map_err(|_| LibraryError::Io)?;
@@ -127,6 +211,10 @@ impl LibraryStore {
         tokio::fs::write(&stored_path, content)
             .await
             .map_err(|_| LibraryError::Io)?;
+        let cover = extract::extract_cover(&file_name, content);
+        if let Some(bytes) = &cover {
+            self.write_cover_locked(&id, bytes).await?;
+        }
 
         let record = LibraryDocumentRecord {
             id,
@@ -140,12 +228,42 @@ impl LibraryStore {
             cover_color: cover_color_for(&stored_path),
             progress: 0.0,
             last_opened_ms: now_ms,
+            content_hash: hash,
+            has_cover: cover.is_some(),
         };
 
         let mut catalog = self.load_catalog().await?;
         catalog.documents.insert(0, record.clone());
         self.save_catalog(&catalog).await?;
+        self.reindex_locked(&record.id, &record.file_name, content)?;
         Ok(record)
+    }
+
+    pub async fn ingest_if_new(
+        &self,
+        file_name: String,
+        content: &[u8],
+    ) -> Result<Option<LibraryDocumentRecord>, LibraryError> {
+        {
+            let documents = self.list().await?;
+            let hash = content_hash(content);
+            if documents
+                .iter()
+                .any(|document| !document.content_hash.is_empty() && document.content_hash == hash)
+            {
+                return Ok(None);
+            }
+            if sources::should_skip(
+                &documents
+                    .iter()
+                    .map(|document| document.file_name.clone())
+                    .collect::<Vec<_>>(),
+                &file_name,
+            ) {
+                return Ok(None);
+            }
+        }
+        Ok(Some(self.ingest(file_name, content).await?))
     }
 
     pub async fn read_file(
@@ -200,9 +318,136 @@ impl LibraryStore {
         let record = catalog.documents.remove(index);
         let path = self.files_dir().join(&record.stored_name);
         let _ = tokio::fs::remove_file(path).await;
+        let _ = tokio::fs::remove_file(self.covers_dir().join(id)).await;
         self.save_catalog(&catalog).await?;
         let _ = tokio::fs::remove_file(self.conversation_path(id)).await;
+        if let Ok(conn) = sqlite::open(&self.root) {
+            let _ = conn.execute("DELETE FROM document_fts WHERE document_id = ?1", [id]);
+            let _ = conn.execute("DELETE FROM annotations WHERE document_id = ?1", [id]);
+        }
         Ok(record)
+    }
+
+    pub async fn search_document(
+        &self,
+        id: &str,
+        query: &str,
+    ) -> Result<Vec<SearchHit>, LibraryError> {
+        if !valid_id(id) {
+            return Err(LibraryError::InvalidName);
+        }
+        let _ = self.get(id).await?;
+        let needle = query.replace('"', " ");
+        let needle = needle.trim();
+        if needle.is_empty() {
+            return Ok(Vec::new());
+        }
+        let _guard = self.lock.lock().await;
+        let conn = sqlite::open(&self.root)?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT locator, title, body FROM document_fts WHERE document_fts MATCH ?1 AND document_id = ?2 LIMIT 10",
+            )
+            .map_err(|_| LibraryError::Io)?;
+        let match_query = format!("\"{needle}\"");
+        let rows = stmt
+            .query_map(rusqlite::params![match_query, id], |row| {
+                Ok(SearchHit {
+                    locator: row.get(0)?,
+                    title: row.get(1)?,
+                    excerpt: row.get::<_, String>(2)?.chars().take(180).collect(),
+                })
+            })
+            .map_err(|_| LibraryError::Io)?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|_| LibraryError::Io)
+    }
+
+    pub async fn load_annotations(&self, id: &str) -> Result<Annotations, LibraryError> {
+        if !valid_id(id) {
+            return Err(LibraryError::InvalidName);
+        }
+        let _ = self.get(id).await?;
+        let _guard = self.lock.lock().await;
+        let conn = sqlite::open(&self.root)?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, note, quote, locator_label, source, created_at_ms FROM annotations WHERE document_id = ?1 ORDER BY created_at_ms",
+            )
+            .map_err(|_| LibraryError::Io)?;
+        let rows = stmt
+            .query_map([id], |row| {
+                Ok(AnnotationRecord {
+                    id: row.get(0)?,
+                    note: row.get(1)?,
+                    quote: row.get(2)?,
+                    locator_label: row.get(3)?,
+                    source: row.get(4)?,
+                    created_at_ms: row.get(5)?,
+                })
+            })
+            .map_err(|_| LibraryError::Io)?;
+        Ok(Annotations {
+            notes: rows
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|_| LibraryError::Io)?,
+        })
+    }
+
+    pub async fn save_annotations(
+        &self,
+        id: &str,
+        mut annotations: Annotations,
+    ) -> Result<Annotations, LibraryError> {
+        if !valid_id(id) {
+            return Err(LibraryError::InvalidName);
+        }
+        if annotations.notes.len() > 100 {
+            annotations.notes.drain(0..annotations.notes.len() - 100);
+        }
+        let _ = self.get(id).await?;
+        let _guard = self.lock.lock().await;
+        let conn = sqlite::open(&self.root)?;
+        conn.execute("DELETE FROM annotations WHERE document_id = ?1", [id])
+            .map_err(|_| LibraryError::Io)?;
+        for note in &annotations.notes {
+            conn.execute(
+                "INSERT INTO annotations (document_id, id, note, quote, locator_label, source, created_at_ms) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                rusqlite::params![
+                    id,
+                    note.id,
+                    note.note,
+                    note.quote,
+                    note.locator_label,
+                    note.source,
+                    note.created_at_ms as i64
+                ],
+            )
+            .map_err(|_| LibraryError::Io)?;
+        }
+        Ok(annotations)
+    }
+
+    fn reindex_locked(
+        &self,
+        id: &str,
+        file_name: &str,
+        content: &[u8],
+    ) -> Result<(), LibraryError> {
+        let conn = sqlite::open(&self.root)?;
+        conn.execute("DELETE FROM document_fts WHERE document_id = ?1", [id])
+            .map_err(|_| LibraryError::Io)?;
+        let Some(units) = extract::extract_units(file_name, content) else {
+            return Ok(());
+        };
+        for unit in units {
+            conn.execute(
+                "INSERT INTO document_fts (document_id, locator, title, body) VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![id, unit.locator, unit.title, unit.body],
+            )
+            .map_err(|_| LibraryError::Io)?;
+        }
+        Ok(())
     }
 
     pub async fn load_conversation(&self, id: &str) -> Result<Conversation, LibraryError> {
@@ -314,6 +559,8 @@ impl LibraryStore {
                 cover_color: cover_color_for(Path::new(name)),
                 progress: 0.0,
                 last_opened_ms: unix_ms(),
+                content_hash: String::new(),
+                has_cover: false,
             });
             let _ = ext;
         }
@@ -364,6 +611,14 @@ fn cover_color_for(path: &Path) -> u32 {
     PALETTE[hash as usize % PALETTE.len()]
 }
 
+pub fn content_hash(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(bytes)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
 fn unix_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -384,6 +639,35 @@ mod tests {
     #[test]
     fn titles_drop_the_extension() {
         assert_eq!(title_from_file_name("Design.epub"), "Design");
+    }
+
+    #[tokio::test]
+    async fn ingest_skips_the_same_bytes_under_a_new_name() {
+        let dir = std::env::temp_dir().join(format!(
+            "universal-reader-hash-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let store = LibraryStore::new(dir.clone());
+        let first = store
+            .ingest("one.txt".to_string(), b"same-bytes")
+            .await
+            .unwrap();
+        let second = store
+            .ingest("two.txt".to_string(), b"same-bytes")
+            .await
+            .unwrap();
+        assert_eq!(first.id, second.id);
+        let skipped = store
+            .ingest_if_new("three.txt".to_string(), b"same-bytes")
+            .await
+            .unwrap();
+        assert!(skipped.is_none());
+        let files: Vec<_> = std::fs::read_dir(store.files_dir()).unwrap().collect();
+        assert_eq!(files.len(), 1);
+        let _ = tokio::fs::remove_dir_all(dir).await;
     }
 
     #[tokio::test]

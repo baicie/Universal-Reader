@@ -1,7 +1,7 @@
 import '../../core/models.dart';
 import '../../core/reader_runtime.dart';
 
-class SampleReaderDocument implements ReaderDocument {
+class SampleReaderDocument implements ChapteredDocument {
   SampleReaderDocument({
     required this.metadata,
     this.body = defaultBody,
@@ -19,6 +19,23 @@ class SampleReaderDocument implements ReaderDocument {
   final String body;
   final String chapterHref;
   final double chapterProgress;
+
+  @override
+  int get chapterIndex => 0;
+
+  @override
+  int get chapterCount => 1;
+
+  @override
+  String get currentChapterText => body;
+
+  @override
+  bool get truncated => false;
+
+  @override
+  Locator locatorForProgress(double progress) {
+    return EpubLocator(href: chapterHref, progression: progress);
+  }
 
   @override
   Future<Locator> currentLocator() async {

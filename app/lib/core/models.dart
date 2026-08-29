@@ -52,6 +52,8 @@ class DocumentMetadata {
     required this.format,
     required this.type,
     this.coverColor = 0xFF527882,
+    this.contentHash = '',
+    this.hasCover = false,
   });
 
   final String id;
@@ -60,6 +62,30 @@ class DocumentMetadata {
   final DocumentFormat format;
   final DocumentType type;
   final int coverColor;
+  final String contentHash;
+  final bool hasCover;
+
+  DocumentMetadata copyWith({
+    String? id,
+    String? title,
+    String? author,
+    DocumentFormat? format,
+    DocumentType? type,
+    int? coverColor,
+    String? contentHash,
+    bool? hasCover,
+  }) {
+    return DocumentMetadata(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      author: author ?? this.author,
+      format: format ?? this.format,
+      type: type ?? this.type,
+      coverColor: coverColor ?? this.coverColor,
+      contentHash: contentHash ?? this.contentHash,
+      hasCover: hasCover ?? this.hasCover,
+    );
+  }
 }
 
 class ReadingState {
@@ -75,8 +101,11 @@ class LibraryDocument {
   final DocumentMetadata metadata;
   final ReadingState readingState;
 
-  LibraryDocument copyWith({ReadingState? readingState}) => LibraryDocument(
-    metadata: metadata,
+  LibraryDocument copyWith({
+    DocumentMetadata? metadata,
+    ReadingState? readingState,
+  }) => LibraryDocument(
+    metadata: metadata ?? this.metadata,
     readingState: readingState ?? this.readingState,
   );
 }

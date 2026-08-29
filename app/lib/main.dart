@@ -11,6 +11,8 @@ import 'core/locale_controller.dart';
 import 'core/models.dart';
 import 'core/providers.dart';
 import 'core/reader_prefs.dart';
+import 'features/library/library_cover.dart';
+import 'features/library/library_sources_card.dart';
 import 'features/reader/reader_page.dart';
 import 'features/tools/ai/ai_runtime.dart';
 import 'features/tools/ai/ai_settings.dart';
@@ -209,6 +211,21 @@ Future<void> importBooksWithFeedback(
   WidgetRef ref,
 ) async {
   final outcome = await ref.read(libraryProvider).importFiles();
+  if (!context.mounted || outcome.cancelled) return;
+  final l10n = AppLocalizations.of(context);
+  final message = outcome.count > 0
+      ? l10n.importedBooks(outcome.count)
+      : outcome.failed
+      ? l10n.importFailed
+      : l10n.noSupportedFormat;
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+}
+
+Future<void> importFolderWithFeedback(
+  BuildContext context,
+  WidgetRef ref,
+) async {
+  final outcome = await ref.read(libraryProvider).importFolder();
   if (!context.mounted || outcome.cancelled) return;
   final l10n = AppLocalizations.of(context);
   final message = outcome.count > 0
@@ -597,7 +614,16 @@ class ContinueCard extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 20),
-              CoverArt(metadata: document.metadata, width: 84, height: 112),
+              LibraryCover(
+                metadata: document.metadata,
+                width: 84,
+                height: 112,
+                fallback: CoverArt(
+                  metadata: document.metadata,
+                  width: 84,
+                  height: 112,
+                ),
+              ),
             ],
           ),
         ),
@@ -676,7 +702,7 @@ class LibraryDrawer extends ConsumerWidget {
               ),
             const Spacer(),
             OutlinedButton.icon(
-              onPressed: () => importBooksWithFeedback(context, ref),
+              onPressed: () => importFolderWithFeedback(context, ref),
               icon: const Icon(Icons.create_new_folder_outlined, size: 18),
               label: Text(l10n.importFolder),
             ),
@@ -760,7 +786,12 @@ class BookCard extends ConsumerWidget {
     final content = listView
         ? Row(
             children: [
-              CoverArt(metadata: metadata, width: 56, height: 76),
+              LibraryCover(
+                metadata: metadata,
+                width: 56,
+                height: 76,
+                fallback: CoverArt(metadata: metadata, width: 56, height: 76),
+              ),
               const SizedBox(width: 14),
               Expanded(child: details),
             ],
@@ -768,7 +799,10 @@ class BookCard extends ConsumerWidget {
         : Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              CoverArt(metadata: metadata),
+              LibraryCover(
+                metadata: metadata,
+                fallback: CoverArt(metadata: metadata),
+              ),
               const SizedBox(height: 10),
               Expanded(child: details),
             ],
@@ -1069,6 +1103,8 @@ class SettingsPage extends ConsumerWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              const SizedBox(height: 12),
+              const LibrarySourcesCard(),
               const SizedBox(height: 12),
               Card(
                 child: Column(

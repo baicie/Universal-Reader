@@ -138,15 +138,42 @@ class PersistedLibraryController extends ChangeNotifier {
     }
   }
 
+  Future<List<int>?> readCover(String id) async {
+    try {
+      return await repository.readCover(id);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<ImportOutcome> importFiles() async {
     final files = await FilePicker.pickFiles();
     if (files.isEmpty) return const ImportOutcome.cancelled();
+    return importNamedBytes([
+      for (final file in files)
+        (name: file.name, bytes: await file.readAsBytes()),
+    ]);
+  }
+
+  Future<ImportOutcome> importFolder() async {
+    final files = await FilePicker.pickFiles();
+    if (files.isEmpty) return const ImportOutcome.cancelled();
+    return importNamedBytes([
+      for (final file in files)
+        (name: file.name, bytes: await file.readAsBytes()),
+    ]);
+  }
+
+  Future<ImportOutcome> importNamedBytes(
+    Iterable<({String name, List<int> bytes})> files,
+  ) async {
+    final items = files.toList();
+    if (items.isEmpty) return const ImportOutcome.cancelled();
     var count = 0;
     var failed = false;
-    for (final file in files) {
+    for (final file in items) {
       try {
-        final bytes = await file.readAsBytes();
-        final document = await repository.importBytes(file.name, bytes);
+        final document = await repository.importBytes(file.name, file.bytes);
         _documents.removeWhere(
           (item) => item.metadata.id == document.metadata.id,
         );

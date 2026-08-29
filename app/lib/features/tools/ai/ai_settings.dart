@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'deepseek.dart';
+import 'ollama.dart';
 
 class AiSettings {
   const AiSettings({
@@ -10,32 +11,54 @@ class AiSettings {
     this.endpoint = '',
     this.apiKey = '',
     this.model = '',
+    this.provider = AiProvider.deepseek,
   });
 
   final bool enabled;
   final String endpoint;
   final String apiKey;
   final String model;
+  final AiProvider provider;
 
   bool get ready => isReady();
 
   bool isReady({bool serverHasKey = false}) {
     final resolved = withProjectDefaults();
-    return resolved.enabled &&
-        resolved.endpoint.trim().isNotEmpty &&
-        resolved.model.trim().isNotEmpty &&
-        (resolved.apiKey.trim().isNotEmpty || serverHasKey);
+    if (!resolved.enabled ||
+        resolved.endpoint.trim().isEmpty ||
+        resolved.model.trim().isEmpty) {
+      return false;
+    }
+    if (resolved.provider == AiProvider.ollama) return true;
+    return resolved.apiKey.trim().isNotEmpty || serverHasKey;
   }
 
   AiSettings withProjectDefaults({
-    String endpoint = DeepSeek.endpoint,
-    String model = DeepSeek.defaultModel,
-    String apiKey = DeepSeek.projectApiKey,
+    String? endpoint,
+    String? model,
+    String? apiKey,
   }) {
+    if (provider == AiProvider.ollama) {
+      return copyWith(
+        endpoint: this.endpoint.trim().isEmpty
+            ? (endpoint ?? Ollama.endpoint)
+            : this.endpoint,
+        model: this.model.trim().isEmpty
+            ? (model ?? Ollama.defaultModel)
+            : this.model,
+        apiKey: this.apiKey.trim().isEmpty ? (apiKey ?? '') : this.apiKey,
+      );
+    }
     return copyWith(
-      endpoint: this.endpoint.trim().isEmpty ? endpoint : this.endpoint,
-      model: this.model.trim().isEmpty ? model : this.model,
-      apiKey: this.apiKey.trim().isEmpty ? apiKey : this.apiKey,
+      endpoint: this.endpoint.trim().isEmpty
+          ? (endpoint ?? DeepSeek.endpoint)
+          : this.endpoint,
+      model: this.model.trim().isEmpty
+          ? (model ?? DeepSeek.defaultModel)
+          : this.model,
+      apiKey: this.apiKey.trim().isEmpty
+          ? (apiKey ?? DeepSeek.projectApiKey)
+          : this.apiKey,
     );
   }
 
@@ -44,12 +67,14 @@ class AiSettings {
     String? endpoint,
     String? apiKey,
     String? model,
+    AiProvider? provider,
   }) {
     return AiSettings(
       enabled: enabled ?? this.enabled,
       endpoint: endpoint ?? this.endpoint,
       apiKey: apiKey ?? this.apiKey,
       model: model ?? this.model,
+      provider: provider ?? this.provider,
     );
   }
 
@@ -58,14 +83,20 @@ class AiSettings {
     'endpoint': endpoint,
     'apiKey': apiKey,
     'model': model,
+    'provider': provider.name,
   };
 
   factory AiSettings.fromJson(Map<String, dynamic> json) {
+    final providerName = json['provider'] as String? ?? 'deepseek';
     return AiSettings(
       enabled: json['enabled'] == true,
       endpoint: json['endpoint'] as String? ?? '',
       apiKey: json['apiKey'] as String? ?? '',
       model: json['model'] as String? ?? '',
+      provider: AiProvider.values.firstWhere(
+        (value) => value.name == providerName,
+        orElse: () => AiProvider.deepseek,
+      ),
     );
   }
 }

@@ -42,19 +42,27 @@ class AiReaderTool implements ReaderTool {
         l10n?.assistantDisabled ?? '阅读助手未启用。可在设置中打开。',
       );
     }
-    if (resolved.endpoint.trim().isEmpty ||
-        resolved.model.trim().isEmpty ||
-        (resolved.apiKey.trim().isEmpty && !allowMissingApiKey)) {
+    if (!resolved.isReady(serverHasKey: allowMissingApiKey)) {
       return ReaderToolResult.unavailable(
-        l10n?.assistantNotConfigured ?? '请先在设置中填写 DeepSeek API Key。',
+        l10n?.assistantNotConfigured ?? '请先在设置中填写模型服务。',
       );
     }
-    final context = await grounding.fromDocument(
-      document,
-      range: request.range,
-      locator: request.locator,
-      l10n: l10n,
-    );
+    final searched =
+        request.askDocument && (request.question?.trim().isNotEmpty ?? false)
+        ? await grounding.fromSearch(
+            document,
+            query: request.question!.trim(),
+            l10n: l10n,
+          )
+        : null;
+    final context =
+        searched?.context ??
+        await grounding.fromDocument(
+          document,
+          range: request.range,
+          locator: request.locator,
+          l10n: l10n,
+        );
     if (context.excerpt.isEmpty) {
       return ReaderToolResult.unavailable(l10n?.noExcerpt ?? '当前页没有可发送的摘录。');
     }
@@ -72,6 +80,16 @@ class AiReaderTool implements ReaderTool {
         question: request.question,
       ),
     );
-    return ReaderToolResult(text: text, locatorLabel: context.locatorLabel);
+    return ReaderToolResult(
+      text: text,
+      locatorLabel: context.locatorLabel,
+      proposals: [
+        for (final hit in searched?.hits ?? const <SearchResult>[])
+          ReaderJumpProposal(
+            locator: hit.locator,
+            label: DocumentGrounding.locatorLabel(hit.locator, l10n: l10n),
+          ),
+      ],
+    );
   }
 }

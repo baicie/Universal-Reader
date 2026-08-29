@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Foliate host</title>
+  <style>
+    html, body { margin: 0; padding: 0; background: transparent; }
+    #chapter { padding: 8px 4px; line-height: 1.7; font-family: Georgia, "Noto Serif", serif; }
+  </style>
+</head>
+<body>
+  <article id="chapter"></article>
+  <script>
+    function post(payload) {
+      if (window.FoliateHost && window.FoliateHost.postMessage) {
+        window.FoliateHost.postMessage(JSON.stringify(payload));
+      }
+    }
+    function openChapter(command) {
+      const article = document.getElementById('chapter');
+      article.innerHTML = command.html || '';
+      post({ type: 'relocated', href: command.href || '' });
+    }
+    window.FoliateView = {
+      openChapter: openChapter,
+      goTo: function (locator) { post({ type: 'goTo', locator: locator }); },
+      next: function () { post({ type: 'next' }); },
+      prev: function () { post({ type: 'prev' }); }
+    };
+    window.addEventListener('message', function (event) {
+      var data = event.data;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch (error) { return; }
+      }
+      if (data && data.type === 'openChapter') openChapter(data);
+    });
+  </script>
+</body>
+</html>

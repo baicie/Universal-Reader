@@ -12,6 +12,16 @@ extension PlainTextFormat on DocumentFormat {
       this == DocumentFormat.txt ||
       this == DocumentFormat.markdown ||
       this == DocumentFormat.html;
+
+  bool get isReaderEngineFormat =>
+      isPlainText ||
+      this == DocumentFormat.epub ||
+      this == DocumentFormat.pdf ||
+      this == DocumentFormat.cbz ||
+      this == DocumentFormat.cbr ||
+      this == DocumentFormat.mobi ||
+      this == DocumentFormat.azw3 ||
+      this == DocumentFormat.fb2;
 }
 
 class TextSection {
@@ -221,7 +231,7 @@ String _firstLine(String block) {
 
 int _runeCount(String value) => value.runes.length;
 
-class TextReaderDocument implements ReaderDocument {
+class TextReaderDocument implements ChapteredDocument {
   TextReaderDocument._({required this.metadata, required this.parsed});
 
   factory TextReaderDocument.parse({
@@ -241,6 +251,24 @@ class TextReaderDocument implements ReaderDocument {
 
   TextSection get currentSection =>
       parsed.sections[sectionIndex.clamp(0, parsed.sections.length - 1)];
+
+  @override
+  int get chapterIndex => sectionIndex;
+
+  @override
+  int get chapterCount => parsed.sections.length;
+
+  @override
+  String get currentChapterText => currentSection.body;
+
+  @override
+  bool get truncated => parsed.truncated;
+
+  @override
+  Locator locatorForProgress(double progress) {
+    final length = parsed.fullText.isEmpty ? 1 : parsed.fullText.length;
+    return TextLocator(offset: (progress.clamp(0, 1) * length).round());
+  }
 
   @override
   Future<Locator> currentLocator() async {
@@ -302,6 +330,31 @@ class TextReaderDocument implements ReaderDocument {
         ),
     ];
   }
+}
+
+class CorruptReaderDocument implements ReaderDocument {
+  CorruptReaderDocument({required this.metadata});
+
+  @override
+  final DocumentMetadata metadata;
+
+  @override
+  Future<Locator> currentLocator() async => const TextLocator(offset: 0);
+
+  @override
+  Future<String?> extractText(DocumentRange range) async => null;
+
+  @override
+  Future<void> goTo(Locator locator) async {}
+
+  @override
+  Stream<double> get progress => const Stream<double>.empty();
+
+  @override
+  Future<List<SearchResult>> search(String query) async => const [];
+
+  @override
+  Future<List<TocItem>> getToc() async => const [];
 }
 
 class UnavailableReaderDocument implements ReaderDocument {

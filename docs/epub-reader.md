@@ -1,0 +1,31 @@
+# Spec: EPUB 阅读
+
+## Objective
+
+导入 `.epub` 后打开，看到书里的章节正文和目录，而不是「尚未接入」。进度仍写回书库。
+
+成功标准：
+
+- 最小 EPUB（container + OPF + 两章 XHTML + nav）打开后正文来自文件。
+- 目录可跳到对应 `EpubLocator.href`。
+- 损坏 ZIP/缺 OPF 提示文件损坏，不回退样章。
+- 种子书（无字节）仍可用样章。
+
+## Assumptions
+
+1. 文本 Adapter 仍解 spine；视觉层走隔离的 Foliate 桥（测试环境回退到章节文本）。
+2. 单书抽取上限 2 MiB 文本；超长章按现有文本阅读块大小切开。
+3. MOBI / AZW3 / FB2 见 `docs/reader-engines.md`。
+
+## Commands
+
+```powershell
+cd app
+flutter test test/epub_document_test.dart test/text_document_test.dart test/widget_test.dart
+```
+
+## Boundaries
+
+- Always: 通过 `ReaderDocument` 取 TOC / 文本 / 搜索。
+- Ask first: 完整 foliate-js 分页主题。
+- Never: 把损坏 EPUB 显示成另一本种子书。

@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'content_hash.dart';
+import 'cover_extract.dart';
 import 'format_detector.dart';
 import 'models.dart';
 
@@ -11,6 +13,7 @@ abstract interface class LibraryRepository {
   Future<void> save(List<LibraryDocument> documents);
   Future<LibraryDocument> importBytes(String fileName, List<int> bytes);
   Future<List<int>?> readFile(String id);
+  Future<List<int>?> readCover(String id);
   Future<void> writeReadingState({
     required String id,
     required double progress,
@@ -18,7 +21,11 @@ abstract interface class LibraryRepository {
   });
 }
 
-LibraryDocument importedLibraryDocument(String fileName, List<int> bytes) {
+LibraryDocument importedLibraryDocument(
+  String fileName,
+  List<int> bytes, {
+  List<int>? cover,
+}) {
   final format = const FormatDetector().detect(
     DocumentSource(name: fileName, bytes: bytes),
   );
@@ -33,9 +40,22 @@ LibraryDocument importedLibraryDocument(String fileName, List<int> bytes) {
       format: format,
       type: format.type,
       coverColor: 0xFF6F8179,
+      contentHash: contentHash(bytes),
+      hasCover: cover != null,
     ),
     readingState: ReadingState(progress: 0, lastOpened: DateTime.now()),
   );
+}
+
+LibraryDocument? documentWithHash(
+  Iterable<LibraryDocument> documents,
+  String hash,
+) {
+  if (hash.isEmpty) return null;
+  for (final document in documents) {
+    if (document.metadata.contentHash == hash) return document;
+  }
+  return null;
 }
 
 class SharedPreferencesLibraryRepository implements LibraryRepository {
@@ -73,8 +93,10 @@ class SharedPreferencesLibraryRepository implements LibraryRepository {
 
   @override
   Future<LibraryDocument> importBytes(String fileName, List<int> bytes) async {
-    final document = importedLibraryDocument(fileName, bytes);
     final documents = await load();
+    final existing = documentWithHash(documents, contentHash(bytes));
+    if (existing != null) return existing;
+    final document = importedLibraryDocument(fileName, bytes);
     documents.removeWhere((item) => item.metadata.id == document.metadata.id);
     documents.insert(0, document);
     await save(documents);
@@ -83,6 +105,9 @@ class SharedPreferencesLibraryRepository implements LibraryRepository {
 
   @override
   Future<List<int>?> readFile(String id) async => null;
+
+  @override
+  Future<List<int>?> readCover(String id) async => null;
 
   @override
   Future<void> writeReadingState({
@@ -106,6 +131,7 @@ class InMemoryLibraryRepository implements LibraryRepository {
 
   List<LibraryDocument> _documents;
   final Map<String, List<int>> _files = {};
+  final Map<String, List<int>> _covers = {};
 
   @override
   bool get usesRemoteStore => false;
@@ -120,16 +146,26 @@ class InMemoryLibraryRepository implements LibraryRepository {
 
   @override
   Future<LibraryDocument> importBytes(String fileName, List<int> bytes) async {
-    final document = importedLibraryDocument(fileName, bytes);
+    final existing = documentWithHash(_documents, contentHash(bytes));
+    if (existing != null) return existing;
+    final cover = extractCover(fileName: fileName, bytes: bytes);
+    final document = importedLibraryDocument(fileName, bytes, cover: cover);
     _documents.removeWhere((item) => item.metadata.id == document.metadata.id);
     _documents.insert(0, document);
     _files[document.metadata.id] = List<int>.from(bytes);
+    if (cover != null) _covers[document.metadata.id] = cover;
     return document;
   }
 
   @override
   Future<List<int>?> readFile(String id) async {
     final bytes = _files[id];
+    return bytes == null ? null : List<int>.from(bytes);
+  }
+
+  @override
+  Future<List<int>?> readCover(String id) async {
+    final bytes = _covers[id];
     return bytes == null ? null : List<int>.from(bytes);
   }
 
@@ -159,6 +195,8 @@ class LibraryDocumentCodec {
         'format': document.metadata.format.name,
         'type': document.metadata.type.name,
         'coverColor': document.metadata.coverColor,
+        'contentHash': document.metadata.contentHash,
+        'hasCover': document.metadata.hasCover,
       },
       'readingState': {
         'progress': document.readingState.progress,
@@ -186,6 +224,8 @@ class LibraryDocumentCodec {
         format: format,
         type: type,
         coverColor: (metadata['coverColor'] as num?)?.toInt() ?? 0xFF527882,
+        contentHash: metadata['contentHash'] as String? ?? '',
+        hasCover: metadata['hasCover'] == true,
       ),
       readingState: ReadingState(
         progress: (readingState['progress'] as num?)?.toDouble() ?? 0,
@@ -221,6 +261,8 @@ class LibraryDocumentCodec {
         format: format,
         type: type,
         coverColor: (json['cover_color'] as num?)?.toInt() ?? 0xFF527882,
+        contentHash: json['content_hash'] as String? ?? '',
+        hasCover: json['has_cover'] == true,
       ),
       readingState: ReadingState(
         progress: (json['progress'] as num?)?.toDouble() ?? 0,

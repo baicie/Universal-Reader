@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models.dart';
 import '../../core/providers.dart';
 import '../../core/reader_runtime.dart';
 import '../../l10n/l10n.dart';
+import '../library/annotation_store.dart';
 import 'ai/ai_reader_tool.dart';
 import 'ai/ai_settings.dart';
 import 'ai/conversation_store.dart';
@@ -15,11 +17,13 @@ class ReaderAiPanel extends ConsumerStatefulWidget {
   const ReaderAiPanel({
     required this.document,
     required this.settings,
+    this.onJump,
     super.key,
   });
 
   final ReaderDocument document;
   final AiSettings settings;
+  final Future<void> Function(Locator locator)? onJump;
 
   @override
   ConsumerState<ReaderAiPanel> createState() => _ReaderAiPanelState();
@@ -32,8 +36,10 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
   String? excerptPreview;
   String? error;
   bool sending = false;
+  bool askDocument = false;
   var previewStarted = false;
   List<ConversationTurn> turns = const [];
+  List<ReaderJumpProposal> proposals = const [];
 
   @override
   void didChangeDependencies() {
@@ -95,7 +101,11 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
       final l10n = AppLocalizations.of(context);
       final result = await tool.run(
         document: widget.document,
-        request: ReaderToolRequest(kind: kind, question: question.text),
+        request: ReaderToolRequest(
+          kind: kind,
+          question: question.text,
+          askDocument: askDocument && kind == ReaderToolKind.ask,
+        ),
         l10n: l10n,
       );
       if (!mounted) return;
@@ -121,12 +131,40 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
         sending = false;
         turns = next;
         locatorLabel = result.locatorLabel ?? locatorLabel;
+        proposals = result.proposals;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         sending = false;
         error = AppLocalizations.of(context).requestFailed('$e');
+      });
+    }
+  }
+
+  Future<void> _saveNote(ConversationTurn turn) async {
+    try {
+      await ref
+          .read(aiRuntimeProvider)
+          .annotations
+          .append(
+            widget.document.metadata.id,
+            ReaderAnnotation(
+              id: '${turn.createdAt.millisecondsSinceEpoch}',
+              note: turn.reply,
+              quote: turn.question,
+              locatorLabel: turn.locatorLabel,
+              createdAt: DateTime.now().toUtc(),
+            ),
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).noteSaved)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        error = AppLocalizations.of(context).notesUnavailable;
       });
     }
   }
@@ -157,7 +195,7 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: Text(
-                  l10n.askThisPage,
+                  askDocument ? l10n.askThisBook : l10n.askThisPage,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -191,6 +229,12 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
                         selected: kind == item.$1,
                         onSelected: (_) => setState(() => kind = item.$1),
                       ),
+                    FilterChip(
+                      label: Text(l10n.askThisBook),
+                      selected: askDocument,
+                      onSelected: (value) =>
+                          setState(() => askDocument = value),
+                    ),
                   ],
                 ),
               ),
@@ -202,6 +246,21 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
                     minLines: 2,
                     maxLines: 3,
                     decoration: InputDecoration(hintText: l10n.askQuestionHint),
+                  ),
+                ),
+              if (proposals.isNotEmpty && widget.onJump != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final proposal in proposals)
+                        OutlinedButton(
+                          onPressed: () => widget.onJump!(proposal.locator),
+                          child: Text(l10n.jumpToLocation(proposal.label)),
+                        ),
+                    ],
                   ),
                 ),
               if (turns.isNotEmpty)
@@ -269,6 +328,10 @@ class _ReaderAiPanelState extends ConsumerState<ReaderAiPanel> {
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     height: 1.5,
                                   ),
+                                ),
+                                TextButton(
+                                  onPressed: () => _saveNote(turn),
+                                  child: Text(l10n.saveAsNote),
                                 ),
                               ],
                             );
