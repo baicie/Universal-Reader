@@ -103,7 +103,6 @@ abstract interface class ChapteredDocument implements ReaderDocument {
 - Ask first
   - 换成完整 foliate-js 分页 / CFI。
   - 用户划线选区写入笔记。
-  - 书目真相从 `catalog.json` 迁到 SQLite。
   - `flutter_rust_bridge`。
 - Never
   - 用样章或另一本书填补缺失。

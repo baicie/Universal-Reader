@@ -140,4 +140,15 @@ class HttpLibraryRepository implements LibraryRepository {
       throw FormatException('无法保存进度 (${response.statusCode})');
     }
   }
+
+  @override
+  Future<void> delete(String id) async {
+    final response = await httpClient.delete(uri('/v1/library/documents/$id'));
+    if (response.statusCode == 204 ||
+        response.statusCode == 200 ||
+        response.statusCode == 404) {
+      return;
+    }
+    throw FormatException('无法删除书籍 (${response.statusCode})');
+  }
 }

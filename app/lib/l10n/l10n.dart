@@ -10,9 +10,12 @@ extension LibraryStrings on AppLocalizations {
     return author;
   }
 
-  String sectionTitle(String section) => switch (section) {
-    'reading' => currentlyReading,
-    'favorites' => favorites,
-    _ => allBooks,
-  };
+  String sectionTitle(String section, {String? collectionName}) {
+    if (section == 'reading') return currentlyReading;
+    if (section == 'favorites') return favorites;
+    if (section.startsWith('collection:')) {
+      return collectionName ?? collections;
+    }
+    return allBooks;
+  }
 }

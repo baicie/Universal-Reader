@@ -59,6 +59,10 @@ void main() {
           request.url.path == '/v1/library/documents/9-1/file') {
         return http.Response('hello', 200);
       }
+      if (request.method == 'DELETE' &&
+          request.url.path == '/v1/library/documents/9-0') {
+        return http.Response('', 204);
+      }
       return http.Response('missing', 404);
     });
 
@@ -81,11 +85,16 @@ void main() {
     );
     expect(await repository.readFile('9-1'), utf8.encode('hello'));
 
+    await repository.delete('9-0');
+    expect(requests.last.method, 'DELETE');
+    expect(requests.last.url.path, '/v1/library/documents/9-0');
+
     expect(requests.map((request) => request.method).toList(), [
       'GET',
       'POST',
       'PATCH',
       'GET',
+      'DELETE',
     ]);
   });
 }

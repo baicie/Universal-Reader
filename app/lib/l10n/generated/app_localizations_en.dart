@@ -81,6 +81,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String get collectionTech => 'Technical reading';
 
   @override
+  String get addToFavorites => 'Add to favorites';
+
+  @override
+  String get removeFromFavorites => 'Remove from favorites';
+
+  @override
+  String get newCollection => 'New collection';
+
+  @override
+  String get collectionNameHint => 'Collection name';
+
+  @override
+  String get createCollection => 'Create';
+
+  @override
+  String get cancelAction => 'Cancel';
+
+  @override
+  String get deleteCollection => 'Delete collection';
+
+  @override
+  String get deleteFromLibrary => 'Remove from library';
+
+  @override
+  String deleteBookConfirm(String title) {
+    return 'Remove \"$title\"? The file and notes for this book are deleted. Other books are not touched.';
+  }
+
+  @override
+  String get confirmDelete => 'Delete';
+
+  @override
+  String get bookActions => 'Book actions';
+
+  @override
+  String get noCollections => 'No collections yet';
+
+  @override
+  String addToNamedCollection(String name) {
+    return 'Add to \"$name\"';
+  }
+
+  @override
+  String removeFromNamedCollection(String name) {
+    return 'Remove from \"$name\"';
+  }
+
+  @override
   String get importFolder => 'Import folder';
 
   @override

@@ -75,6 +75,13 @@ class WebPersistentLibraryRepository implements LibraryRepository {
         .writeReadingState(id: id, progress: progress, lastOpened: lastOpened);
   }
 
+  @override
+  Future<void> delete(String id) async {
+    await SharedPreferencesLibraryRepository(preferences).delete(id);
+    await preferences.remove('$filePrefix$id');
+    await preferences.remove('$coverPrefix$id');
+  }
+
   Future<void> migrateFromPreferences(SharedPreferences preferences) async {
     // Web 与 SharedPreferences 共用书目键，迁目录只是确保仓库已打开。
   }

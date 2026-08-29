@@ -721,6 +721,82 @@ async fn watch_accepts_an_absolute_folder() {
     let _ = fs::remove_dir_all(folder);
 }
 
+#[tokio::test]
+async fn shelves_round_trip_and_drop_unknown_document_ids() {
+    let storage_dir = unique_temp_dir("shelves-lib");
+    let app = app_with_storage_dir(storage_dir.clone());
+    let uploaded = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/library/files")
+                .header(
+                    "content-type",
+                    "multipart/form-data; boundary=test-boundary",
+                )
+                .body(Body::from(multipart_body("notes.txt", b"hello shelves")))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = to_bytes(uploaded.into_body(), usize::MAX).await.unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let id = json["id"].as_str().unwrap();
+
+    let saved = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/v1/library/shelves")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "favorites": [id, "ghost"],
+                        "collections": [{
+                            "id": "c-1",
+                            "name": "今晚读",
+                            "color": 1,
+                            "document_ids": [id, "missing"]
+                        }]
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(saved.status(), StatusCode::OK);
+    let saved_body = to_bytes(saved.into_body(), usize::MAX).await.unwrap();
+    let saved_json: serde_json::Value = serde_json::from_slice(&saved_body).unwrap();
+    assert_eq!(saved_json["favorites"], serde_json::json!([id]));
+    assert_eq!(
+        saved_json["collections"][0]["document_ids"],
+        serde_json::json!([id])
+    );
+
+    let loaded = app
+        .oneshot(
+            Request::builder()
+                .uri("/v1/library/shelves")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(loaded.status(), StatusCode::OK);
+    let loaded_body = to_bytes(loaded.into_body(), usize::MAX).await.unwrap();
+    let loaded_json: serde_json::Value = serde_json::from_slice(&loaded_body).unwrap();
+    assert_eq!(loaded_json["favorites"], serde_json::json!([id]));
+    assert_eq!(loaded_json["collections"][0]["name"], "今晚读");
+    assert_eq!(
+        loaded_json["collections"][0]["document_ids"],
+        serde_json::json!([id])
+    );
+    fs::remove_dir_all(storage_dir).unwrap();
+}
+
 fn multipart_body(file_name: &str, content: &[u8]) -> Vec<u8> {
     format!(
         "--test-boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{file_name}\"\r\nContent-Type: application/octet-stream\r\n\r\n"

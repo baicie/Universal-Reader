@@ -81,6 +81,54 @@ class AppLocalizationsZh extends AppLocalizations {
   String get collectionTech => '技术阅读';
 
   @override
+  String get addToFavorites => '加入收藏';
+
+  @override
+  String get removeFromFavorites => '取消收藏';
+
+  @override
+  String get newCollection => '新建收藏夹';
+
+  @override
+  String get collectionNameHint => '收藏夹名称';
+
+  @override
+  String get createCollection => '创建';
+
+  @override
+  String get cancelAction => '取消';
+
+  @override
+  String get deleteCollection => '删除收藏夹';
+
+  @override
+  String get deleteFromLibrary => '从书库删除';
+
+  @override
+  String deleteBookConfirm(String title) {
+    return '删除「$title」？原文件和该书的笔记会一起去掉，其它书不受影响。';
+  }
+
+  @override
+  String get confirmDelete => '删除';
+
+  @override
+  String get bookActions => '书籍操作';
+
+  @override
+  String get noCollections => '还没有收藏夹';
+
+  @override
+  String addToNamedCollection(String name) {
+    return '添加到「$name」';
+  }
+
+  @override
+  String removeFromNamedCollection(String name) {
+    return '从「$name」移除';
+  }
+
+  @override
   String get importFolder => '导入文件夹';
 
   @override

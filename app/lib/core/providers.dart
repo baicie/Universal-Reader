@@ -6,7 +6,7 @@ import 'library_controller.dart';
 import 'library_repository.dart';
 import 'locale_controller.dart';
 import 'reader_prefs.dart';
-import 'seed_documents.dart';
+import '../features/library/shelf_store.dart';
 import '../features/tools/ai/ai_runtime.dart';
 import '../features/tools/ai/ai_settings.dart';
 import '../features/tools/ai/ai_settings_controller.dart';
@@ -16,12 +16,16 @@ final libraryRepositoryProvider = Provider<LibraryRepository>((ref) {
   throw StateError('Library repository must be overridden at startup');
 });
 
+final shelfRepositoryProvider = Provider<ShelfRepository>((ref) {
+  return InMemoryShelfRepository();
+});
+
 final libraryProvider = ChangeNotifierProvider<PersistedLibraryController>((
   ref,
 ) {
   final controller = PersistedLibraryController(
     repository: ref.watch(libraryRepositoryProvider),
-    initialDocuments: seedDocuments,
+    shelfRepository: ref.watch(shelfRepositoryProvider),
   );
   controller.load();
   return controller;

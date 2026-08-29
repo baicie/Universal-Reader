@@ -1,4 +1,5 @@
 use std::{
+    collections::HashSet,
     path::{Path, PathBuf},
     sync::{
         Arc,
@@ -50,6 +51,27 @@ pub struct SearchHit {
 pub struct Annotations {
     #[serde(default)]
     pub notes: Vec<AnnotationRecord>,
+}
+
+const MAX_COLLECTIONS: usize = 50;
+const MAX_COLLECTION_NAME: usize = 40;
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Shelves {
+    #[serde(default)]
+    pub favorites: Vec<String>,
+    #[serde(default)]
+    pub collections: Vec<ShelfCollection>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ShelfCollection {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub color: u32,
+    #[serde(default, alias = "documentIds")]
+    pub document_ids: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -324,6 +346,13 @@ impl LibraryStore {
         if let Ok(conn) = sqlite::open(&self.root) {
             let _ = conn.execute("DELETE FROM document_fts WHERE document_id = ?1", [id]);
             let _ = conn.execute("DELETE FROM annotations WHERE document_id = ?1", [id]);
+            let known: HashSet<String> = catalog.documents.iter().map(|d| d.id.clone()).collect();
+            if let Ok(Some(raw)) = sqlite::get_setting(&conn, "shelves")
+                && let Ok(shelves) = serde_json::from_str::<Shelves>(&raw)
+                && let Ok(encoded) = serde_json::to_string(&prune_shelves(shelves, &known))
+            {
+                let _ = sqlite::set_setting(&conn, "shelves", &encoded);
+            }
         }
         Ok(record)
     }
@@ -428,6 +457,35 @@ impl LibraryStore {
         Ok(annotations)
     }
 
+    pub async fn load_shelves(&self) -> Result<Shelves, LibraryError> {
+        let documents = self.list().await?;
+        let known: HashSet<String> = documents.into_iter().map(|document| document.id).collect();
+        let _guard = self.lock.lock().await;
+        self.read_shelves_locked(&known)
+    }
+
+    pub async fn save_shelves(&self, shelves: Shelves) -> Result<Shelves, LibraryError> {
+        let documents = self.list().await?;
+        let known: HashSet<String> = documents.into_iter().map(|document| document.id).collect();
+        let pruned = prune_shelves(shelves, &known);
+        let _guard = self.lock.lock().await;
+        let conn = sqlite::open(&self.root)?;
+        let raw = serde_json::to_string(&pruned).map_err(|_| LibraryError::Io)?;
+        sqlite::set_setting(&conn, "shelves", &raw).map_err(|_| LibraryError::Io)?;
+        Ok(pruned)
+    }
+
+    fn read_shelves_locked(&self, known: &HashSet<String>) -> Result<Shelves, LibraryError> {
+        let conn = sqlite::open(&self.root)?;
+        let raw = sqlite::get_setting(&conn, "shelves").map_err(|_| LibraryError::Io)?;
+        let shelves = match raw {
+            None => Shelves::default(),
+            Some(value) if value.is_empty() => Shelves::default(),
+            Some(value) => serde_json::from_str(&value).map_err(|_| LibraryError::Io)?,
+        };
+        Ok(prune_shelves(shelves, known))
+    }
+
     fn reindex_locked(
         &self,
         id: &str,
@@ -503,21 +561,32 @@ impl LibraryStore {
     }
 
     async fn load_catalog(&self) -> Result<Catalog, LibraryError> {
-        match tokio::fs::read(self.catalog_path()).await {
-            Ok(bytes) => Ok(serde_json::from_slice(&bytes).unwrap_or_default()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Catalog::default()),
-            Err(_) => Err(LibraryError::Io),
-        }
+        let legacy = self.read_legacy_catalog_json().await?;
+        let mut conn = sqlite::open(&self.root)?;
+        sqlite::migrate_catalog_once(
+            &mut conn,
+            legacy.as_ref().map(|catalog| catalog.documents.as_slice()),
+        )?;
+        Ok(Catalog {
+            documents: sqlite::load_documents(&conn)?,
+        })
     }
 
     async fn save_catalog(&self, catalog: &Catalog) -> Result<(), LibraryError> {
-        tokio::fs::create_dir_all(&self.root)
-            .await
-            .map_err(|_| LibraryError::Io)?;
-        let payload = serde_json::to_vec_pretty(catalog).map_err(|_| LibraryError::Io)?;
-        tokio::fs::write(self.catalog_path(), payload)
-            .await
-            .map_err(|_| LibraryError::Io)
+        let mut conn = sqlite::open(&self.root)?;
+        sqlite::replace_documents(&mut conn, &catalog.documents)?;
+        sqlite::mark_catalog_migrated(&conn)
+    }
+
+    async fn read_legacy_catalog_json(&self) -> Result<Option<Catalog>, LibraryError> {
+        match tokio::fs::read(self.catalog_path()).await {
+            Ok(bytes) => match serde_json::from_slice::<Catalog>(&bytes) {
+                Ok(catalog) if !catalog.documents.is_empty() => Ok(Some(catalog)),
+                _ => Ok(None),
+            },
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(_) => Err(LibraryError::Io),
+        }
     }
 
     async fn reconcile(&self, catalog: &mut Catalog) -> Result<(), LibraryError> {
@@ -577,6 +646,43 @@ pub fn content_type_for(format: &str) -> &'static str {
         "html" => "text/html; charset=utf-8",
         _ => "application/octet-stream",
     }
+}
+
+fn prune_shelves(mut shelves: Shelves, known: &HashSet<String>) -> Shelves {
+    shelves.favorites = unique_known(shelves.favorites, known);
+    let mut collections = Vec::new();
+    for mut collection in shelves.collections {
+        if collection.id.is_empty() {
+            continue;
+        }
+        collection.name = collection
+            .name
+            .trim()
+            .chars()
+            .take(MAX_COLLECTION_NAME)
+            .collect();
+        if collection.name.is_empty() {
+            continue;
+        }
+        collection.document_ids = unique_known(collection.document_ids, known);
+        collections.push(collection);
+        if collections.len() == MAX_COLLECTIONS {
+            break;
+        }
+    }
+    shelves.collections = collections;
+    shelves
+}
+
+fn unique_known(ids: Vec<String>, known: &HashSet<String>) -> Vec<String> {
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for id in ids {
+        if known.contains(&id) && seen.insert(id.clone()) {
+            out.push(id);
+        }
+    }
+    out
 }
 
 pub fn valid_id(id: &str) -> bool {
@@ -733,5 +839,127 @@ mod tests {
         let loaded = store.load_conversation(&record.id).await;
         assert!(matches!(loaded, Err(LibraryError::Io)));
         let _ = tokio::fs::remove_dir_all(dir).await;
+    }
+
+    #[tokio::test]
+    async fn sqlite_catalog_keeps_title_and_progress_when_json_is_poisoned() {
+        let dir = unique_temp("sqlite-wins");
+        let store = LibraryStore::new(dir.clone());
+        let record = store
+            .ingest("notes.txt".to_string(), b"hello")
+            .await
+            .unwrap();
+        store.update_progress(&record.id, 0.4).await.unwrap();
+        assert!(!dir.join("catalog.json").is_file());
+
+        tokio::fs::write(
+            dir.join("catalog.json"),
+            poisoned_catalog_json(&record, "设计中的设计", 0.0),
+        )
+        .await
+        .unwrap();
+
+        let listed = LibraryStore::new(dir.clone()).list().await.unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, record.id);
+        assert_eq!(listed[0].title, "notes");
+        assert!((listed[0].progress - 0.4).abs() < 1e-9);
+        let _ = tokio::fs::remove_dir_all(dir).await;
+    }
+
+    #[tokio::test]
+    async fn ingest_title_survives_after_catalog_json_is_gone() {
+        let dir = unique_temp("sqlite-no-json");
+        let store = LibraryStore::new(dir.clone());
+        let record = store
+            .ingest("notes.txt".to_string(), b"hello")
+            .await
+            .unwrap();
+        assert!(!dir.join("catalog.json").is_file());
+
+        let listed = LibraryStore::new(dir.clone()).list().await.unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, record.id);
+        assert_eq!(listed[0].title, "notes");
+        let _ = tokio::fs::remove_dir_all(dir).await;
+    }
+
+    #[tokio::test]
+    async fn empty_sqlite_imports_legacy_catalog_json_once() {
+        let dir = unique_temp("legacy-json");
+        tokio::fs::create_dir_all(dir.join("files")).await.unwrap();
+        tokio::fs::write(dir.join("files").join("9-0.txt"), b"legacy")
+            .await
+            .unwrap();
+        tokio::fs::write(
+            dir.join("catalog.json"),
+            r#"{
+              "documents": [{
+                "id": "9-0",
+                "file_name": "notes.txt",
+                "stored_name": "9-0.txt",
+                "title": "notes",
+                "author": "",
+                "format": "txt",
+                "document_type": "reflow",
+                "size": 6,
+                "cover_color": 1,
+                "progress": 0.37,
+                "last_opened_ms": 1,
+                "content_hash": "abc",
+                "has_cover": false
+              }]
+            }"#,
+        )
+        .await
+        .unwrap();
+
+        let listed = LibraryStore::new(dir.clone()).list().await.unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, "9-0");
+        assert_eq!(listed[0].title, "notes");
+        assert!((listed[0].progress - 0.37).abs() < 1e-9);
+
+        tokio::fs::write(
+            dir.join("catalog.json"),
+            poisoned_catalog_json(&listed[0], "设计中的设计", 0.0),
+        )
+        .await
+        .unwrap();
+        let listed = LibraryStore::new(dir.clone()).list().await.unwrap();
+        assert_eq!(listed[0].title, "notes");
+        assert!((listed[0].progress - 0.37).abs() < 1e-9);
+        let _ = tokio::fs::remove_dir_all(dir).await;
+    }
+
+    fn unique_temp(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "universal-reader-{name}-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ))
+    }
+
+    fn poisoned_catalog_json(record: &LibraryDocumentRecord, title: &str, progress: f64) -> String {
+        serde_json::json!({
+            "documents": [{
+                "id": record.id,
+                "file_name": record.file_name,
+                "stored_name": record.stored_name,
+                "title": title,
+                "author": "",
+                "format": "txt",
+                "document_type": "reflow",
+                "size": record.size,
+                "cover_color": record.cover_color,
+                "progress": progress,
+                "last_opened_ms": 0,
+                "content_hash": record.content_hash,
+                "has_cover": false
+            }]
+        })
+        .to_string()
     }
 }

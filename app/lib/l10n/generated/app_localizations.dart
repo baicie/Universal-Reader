@@ -236,6 +236,90 @@ abstract class AppLocalizations {
   /// **'技术阅读'**
   String get collectionTech;
 
+  /// No description provided for @addToFavorites.
+  ///
+  /// In zh, this message translates to:
+  /// **'加入收藏'**
+  String get addToFavorites;
+
+  /// No description provided for @removeFromFavorites.
+  ///
+  /// In zh, this message translates to:
+  /// **'取消收藏'**
+  String get removeFromFavorites;
+
+  /// No description provided for @newCollection.
+  ///
+  /// In zh, this message translates to:
+  /// **'新建收藏夹'**
+  String get newCollection;
+
+  /// No description provided for @collectionNameHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'收藏夹名称'**
+  String get collectionNameHint;
+
+  /// No description provided for @createCollection.
+  ///
+  /// In zh, this message translates to:
+  /// **'创建'**
+  String get createCollection;
+
+  /// No description provided for @cancelAction.
+  ///
+  /// In zh, this message translates to:
+  /// **'取消'**
+  String get cancelAction;
+
+  /// No description provided for @deleteCollection.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除收藏夹'**
+  String get deleteCollection;
+
+  /// No description provided for @deleteFromLibrary.
+  ///
+  /// In zh, this message translates to:
+  /// **'从书库删除'**
+  String get deleteFromLibrary;
+
+  /// No description provided for @deleteBookConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除「{title}」？原文件和该书的笔记会一起去掉，其它书不受影响。'**
+  String deleteBookConfirm(String title);
+
+  /// No description provided for @confirmDelete.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String get confirmDelete;
+
+  /// No description provided for @bookActions.
+  ///
+  /// In zh, this message translates to:
+  /// **'书籍操作'**
+  String get bookActions;
+
+  /// No description provided for @noCollections.
+  ///
+  /// In zh, this message translates to:
+  /// **'还没有收藏夹'**
+  String get noCollections;
+
+  /// No description provided for @addToNamedCollection.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加到「{name}」'**
+  String addToNamedCollection(String name);
+
+  /// No description provided for @removeFromNamedCollection.
+  ///
+  /// In zh, this message translates to:
+  /// **'从「{name}」移除'**
+  String removeFromNamedCollection(String name);
+
   /// No description provided for @importFolder.
   ///
   /// In zh, this message translates to:

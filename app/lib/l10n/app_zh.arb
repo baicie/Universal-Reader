@@ -28,6 +28,35 @@
   "collections": "收藏夹",
   "collectionDesign": "设计与灵感",
   "collectionTech": "技术阅读",
+  "addToFavorites": "加入收藏",
+  "removeFromFavorites": "取消收藏",
+  "newCollection": "新建收藏夹",
+  "collectionNameHint": "收藏夹名称",
+  "createCollection": "创建",
+  "cancelAction": "取消",
+  "deleteCollection": "删除收藏夹",
+  "deleteFromLibrary": "从书库删除",
+  "deleteBookConfirm": "删除「{title}」？原文件和该书的笔记会一起去掉，其它书不受影响。",
+  "@deleteBookConfirm": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "confirmDelete": "删除",
+  "bookActions": "书籍操作",
+  "noCollections": "还没有收藏夹",
+  "addToNamedCollection": "添加到「{name}」",
+  "@addToNamedCollection": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "removeFromNamedCollection": "从「{name}」移除",
+  "@removeFromNamedCollection": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
   "importFolder": "导入文件夹",
   "localFirstOffline": "Local-first · 离线可用",
   "searchHint": "搜索书名、作者或格式",

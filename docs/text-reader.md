@@ -9,7 +9,7 @@
 - 导入 `notes.txt` 后点开，正文是文件内容，而不是样章。
 - Markdown 按标题切分，目录可跳转。
 - 漫画仍明确提示尚未接入。EPUB/PDF 见 `docs/epub-reader.md` 与 `docs/pdf-reader.md`。
-- 演示书（本地空库种子）仍可用样章，避免空书架演示崩掉。
+- 没有文件字节时提示找不到文件，不回退样章；空库保持为空。
 - 单文件最多解析前 1 MiB，按块切分，不把整本打成一个巨大 Widget。
 
 ## Assumptions

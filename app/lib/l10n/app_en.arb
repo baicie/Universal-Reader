@@ -23,6 +23,35 @@
   "collections": "Collections",
   "collectionDesign": "Design & inspiration",
   "collectionTech": "Technical reading",
+  "addToFavorites": "Add to favorites",
+  "removeFromFavorites": "Remove from favorites",
+  "newCollection": "New collection",
+  "collectionNameHint": "Collection name",
+  "createCollection": "Create",
+  "cancelAction": "Cancel",
+  "deleteCollection": "Delete collection",
+  "deleteFromLibrary": "Remove from library",
+  "deleteBookConfirm": "Remove \"{title}\"? The file and notes for this book are deleted. Other books are not touched.",
+  "@deleteBookConfirm": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "confirmDelete": "Delete",
+  "bookActions": "Book actions",
+  "noCollections": "No collections yet",
+  "addToNamedCollection": "Add to \"{name}\"",
+  "@addToNamedCollection": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "removeFromNamedCollection": "Remove from \"{name}\"",
+  "@removeFromNamedCollection": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
   "importFolder": "Import folder",
   "localFirstOffline": "Local-first · works offline",
   "searchHint": "Search title, author, or format",

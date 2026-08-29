@@ -42,6 +42,25 @@ void main() {
     expect(find.text('阅读助手'), findsNothing);
   });
 
+  testWidgets('empty library does not invent seed books', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(
+            InMemoryLibraryRepository(),
+          ),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('设计中的设计'), findsNothing);
+    expect(find.text('书库还是空的'), findsOneWidget);
+  });
+
   testWidgets('settings expose a disabled reading assistant', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -422,5 +441,161 @@ void main() {
     await tester.enterText(find.byKey(readerSearchFieldKey), '   ');
     await tester.pump();
     expect(find.byKey(const Key('search-hit-0')), findsNothing);
+  });
+
+  testWidgets('favorites section stays empty until a book is starred', (
+    tester,
+  ) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', utf8.encode('hello from notes'));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.byTooltip('打开菜单'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('收藏'));
+    await tester.pumpAndSettle();
+    expect(find.text('notes'), findsNothing);
+    expect(find.text('设计中的设计'), findsNothing);
+    expect(find.text('没有找到匹配的书籍'), findsOneWidget);
+  });
+
+  testWidgets('starring an imported book shows it only in favorites', (
+    tester,
+  ) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', utf8.encode('hello from notes'));
+    await repository.importBytes('other.txt', utf8.encode('another book'));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(
+      find.descendant(
+        of: find.ancestor(
+          of: find.text('notes'),
+          matching: find.byType(BookCard),
+        ),
+        matching: find.byTooltip('加入收藏'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('打开菜单'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('收藏'));
+    await tester.pumpAndSettle();
+    expect(find.text('notes'), findsWidgets);
+    expect(find.text('other'), findsNothing);
+    expect(find.text('设计中的设计'), findsNothing);
+  });
+
+  testWidgets('a new collection only lists books added to it', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', utf8.encode('hello from notes'));
+    await repository.importBytes('other.txt', utf8.encode('another book'));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.byTooltip('打开菜单'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('新建收藏夹'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextField),
+      ),
+      '今晚读',
+    );
+    await tester.tap(find.text('创建'));
+    await tester.pumpAndSettle();
+    expect(find.text('今晚读'), findsWidgets);
+    final drawer = find.byType(Drawer);
+    if (tester.any(drawer)) {
+      Navigator.of(tester.element(drawer)).pop();
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(
+      find.descendant(
+        of: find.ancestor(
+          of: find.text('notes'),
+          matching: find.byType(BookCard),
+        ),
+        matching: find.byTooltip('书籍操作'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('添加到「今晚读」'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('打开菜单'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('今晚读').last);
+    await tester.pumpAndSettle();
+    expect(find.text('notes'), findsWidgets);
+    expect(find.text('other'), findsNothing);
+    expect(find.text('设计中的设计'), findsNothing);
+  });
+
+  testWidgets('deleting a book keeps the other book and invents nothing', (
+    tester,
+  ) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', utf8.encode('hello from notes'));
+    await repository.importBytes('other.txt', utf8.encode('another book'));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(
+      find.descendant(
+        of: find.ancestor(
+          of: find.text('notes'),
+          matching: find.byType(BookCard),
+        ),
+        matching: find.byTooltip('书籍操作'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('从书库删除'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '删除'));
+    await tester.pumpAndSettle();
+    expect(find.text('notes'), findsNothing);
+    expect(find.text('other'), findsWidgets);
+    expect(find.text('设计中的设计'), findsNothing);
   });
 }

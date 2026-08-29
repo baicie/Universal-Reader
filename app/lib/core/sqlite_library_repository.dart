@@ -66,6 +66,30 @@ CREATE TABLE IF NOT EXISTS annotations (
   PRIMARY KEY (document_id, id)
 )
 ''');
+    await db.execute('''
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+)
+''');
+  }
+
+  Future<String?> readSetting(String key) async {
+    final rows = await _db.query(
+      'settings',
+      columns: ['value'],
+      where: 'key = ?',
+      whereArgs: [key],
+    );
+    if (rows.isEmpty) return null;
+    return rows.first['value'] as String?;
+  }
+
+  Future<void> writeSetting(String key, String value) {
+    return _db.insert('settings', {
+      'key': key,
+      'value': value,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   @override
@@ -161,6 +185,12 @@ CREATE TABLE IF NOT EXISTS annotations (
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    await _db.delete('documents', where: 'id = ?', whereArgs: [id]);
+    await _db.delete('annotations', where: 'document_id = ?', whereArgs: [id]);
   }
 
   Future<void> migrateFromPreferences(SharedPreferences preferences) async {
