@@ -305,6 +305,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readingPaperFollow => 'Match app';
 
   @override
+  String get comicLayout => 'Comics';
+
+  @override
+  String get comicLayoutSingle => 'Single';
+
+  @override
+  String get comicLayoutDouble => 'Double';
+
+  @override
+  String get comicLayoutVertical => 'Vertical';
+
+  @override
+  String get comicReadRtl => 'Right to left';
+
+  @override
+  String get pdfZoom => 'Page zoom';
+
+  @override
   String get preferences => 'Preferences';
 
   @override

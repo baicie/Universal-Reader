@@ -24,6 +24,7 @@ class FoliateSession {
     required this.href,
     required this.title,
     required this.pages,
+    required this.chapterHtml,
   });
 
   factory FoliateSession.open(
@@ -39,12 +40,14 @@ class FoliateSession {
       href: document.currentChapterHref,
       title: document.currentChapterTitle,
       pages: pages,
+      chapterHtml: document.currentChapterHtml,
     );
   }
 
   final String href;
   final String title;
   final List<FoliatePage> pages;
+  final String chapterHtml;
   int pageIndex = 0;
 
   int get pageCount => pages.length;
@@ -52,6 +55,9 @@ class FoliateSession {
   FoliatePage get currentPage => pages[pageIndex.clamp(0, pages.length - 1)];
 
   String get currentPageHtml => currentPage.html;
+
+  String get visualHtml =>
+      chapterHtml.isNotEmpty ? chapterHtml : currentPageHtml;
 
   String get currentCfi => 'epubcfi($href:${currentPage.startOffset})';
 
@@ -75,6 +81,18 @@ class FoliateSession {
     final index = pages.lastIndexWhere((page) => page.startOffset <= offset);
     pageIndex = index < 0 ? 0 : index;
     return true;
+  }
+
+  void goToPage(int index) {
+    if (pages.isEmpty) {
+      pageIndex = 0;
+      return;
+    }
+    pageIndex = index.clamp(0, pages.length - 1);
+  }
+
+  void goToLastPage() {
+    goToPage(pageCount - 1);
   }
 
   FoliateSelection? selectionFromEvent(Object? raw) {

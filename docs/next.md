@@ -1,22 +1,25 @@
-# Spec: 书架改书名和作者
+# Spec: foliate-js 第一刀（章 HTML + 本地 paginator）
 
 ## Objective
 
-用户可以改书架上显示的书名和作者。改的是书目，不改原文件。空书名不写；没有这本书就不造另一本。
+现在 EPUB 能翻页、能拖进度，但 WebView 只把抽出的纯文本页塞进 `#chapter`。图没了，章内 CSS 没了，分页也不跟窗口走。
+
+这一刀让 host **用本地 vendor 的 `paginator.js` 排当前章 HTML**，而不是再灌整个 foliate-js npm / `view.js` / `epub.js`。Dart 仍然解析 EPUB、仍然按字符页翻页和写进度；测试环境仍然不加载真 WebView。
 
 成功标准：
 
-- 把 `notes.txt` 的书名改成「设计笔记」后，书架显示「设计笔记」，再 load 仍是这个名字。
-- 作者可改成真实名字，也可改成空（界面仍用「本地书库」标签）。
-- 书名为空或只含空白时保留原书名，不换成种子书。
-- 未知 id 不新增条目。
-- 本机 SQLite / 内存库 / HTTP `PATCH` 都能改；走服务时 `{ "title", "author" }` 不必带 `progress`。
+- 带 `<img>` 和 class 的最小 EPUB，打开命令里的 HTML 仍是标签，并把图变成 `data:`，不是 `&lt;img`，也不是另一本书的图。
+- 缺失的图片保持缺失，不拿封面或样章补。
+- `host.html` 从本地 `./paginator.js` 建 `foliate-paginator`；源码不含 jsDelivr / unpkg。
+- 现有点按 / 方向键 / 进度 / 字号测试继续绿。损坏 EPUB 仍是损坏。
 
 ## Assumptions
 
-1. 只改目录项，不重写 EPUB OPF / TXT 文件。
-2. 同一文件再导入仍命中原 id，用户改过的书名保留。
-3. 不引入 `flutter_rust_bridge`。不发版，除非另说。
+1. 只 vendor `paginator.js`（MIT）和它的 LICENSE。不引入 `view.js`、`epub.js`、`zip.js`、`reader.html`，也不引入 CDN。
+2. 业务代码仍只发 `FoliateBridge` 打开命令。UI 不点名 `FoliateView` / `foliate-paginator`。
+3. 打开命令的 `html` 是**当前章标记**（含图和 class），不是 1800 字切片的 `<p>转义文本</p>`。测试 fallback 仍显示当前页纯文本。
+4. 真机 host 用 blob URL 把这一章交给 paginator；Dart 的 `pageIndex` / `pageCount` 仍作锚点，直到下一刀用视口页数替换字符分页。
+5. 不引入 `flutter_rust_bridge`。不发版，除非另说。
 
 请直接纠正以上假设，否则按它们实现。
 
@@ -24,47 +27,47 @@
 
 ```powershell
 cd app
-flutter gen-l10n
-flutter test test/library_repository_test.dart test/sqlite_library_repository_test.dart test/library_controller_test.dart test/library_api_test.dart test/widget_test.dart
+flutter test test/epub_document_test.dart test/foliate_bridge_test.dart test/foliate_session_test.dart test/widget_test.dart
 flutter analyze
-cd ..\rust
-cargo test --workspace
-cargo clippy --workspace --all-targets -- -D warnings
 ```
 
 ## Project Structure
 
 ```text
 docs/next.md
-app/lib/core/library_repository.dart
-app/lib/core/library_controller.dart
-app/lib/features/library/shelf_ui.dart
-app/lib/l10n/app_zh.arb
-app/lib/l10n/app_en.arb
-rust/crates/reader-server/src/lib.rs
-rust/crates/reader-server/src/library.rs
+docs/epub-reader.md
+docs/reader-engines.md
+app/assets/reader/foliate/host.html
+app/assets/reader/foliate/paginator.js
+app/lib/core/epub_document.dart
+app/lib/core/foliate_bridge.dart
+app/lib/core/foliate_session.dart
+app/test/support/epub_fixture.dart
 ```
 
 ## Code Style
 
 ```dart
-Future<void> writeIdentity({
-  required String id,
-  required String title,
-  required String author,
-});
+FoliateBridge.openSession(session); // html 含 <img> / class，不含 FoliateView
 ```
 
-UI 放 `features/library/`，文案走 l10n。书名来自用户输入，不翻译。
+```html
+<script type="module">
+  import './paginator.js';
+</script>
+```
+
+UI 仍在 `features/reader/`。资源改写在 `core/`。
 
 ## Testing Strategy
 
-- 先失败：改书名后 load 仍是文件名。
-- 空书名、未知 id、HTTP PATCH 无 progress。
-- Widget：书籍操作 → 编辑书名 → 保存后书架是新书名。
+- 先失败：章 HTML 丢掉 img；host 仍是 `innerHTML` 纯文本、没有本地 paginator。
+- 单元：带图 EPUB → `currentChapterHtml` 含 `data:image/png` 和原 class；缺图文件则 src 仍指向缺失路径。
+- 桥：host 源码 import `./paginator.js`、出现 `foliate-paginator`、无 CDN。
+- 回归：点按、方向键、进度条、损坏 EPUB。
 
 ## Boundaries
 
-- Always: 缺书就是缺；空书名保持原名。
-- Ask first: 改封面、批量重命名、写回 OPF。
-- Never: 用种子书名顶上；未知 id 新建一本。
+- Always: 损坏如实披露；测试不加载真 WebView；缺资源就是缺。
+- Ask first: 其余 foliate-js 模块（`view.js` / `epub.js` / overlayer / 搜索）、用 host 视口页数替换 Dart 字符分页、字体文件。
+- Never: jsDelivr / unpkg；一次灌进整个 npm；`flutter_rust_bridge`；用样章或另一本书填补缺失。

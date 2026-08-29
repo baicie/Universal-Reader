@@ -51,6 +51,14 @@ void main() {
     expect(session.progression, greaterThan(0));
   });
 
+  test('goToLastPage lands on the final page', () {
+    final session = FoliateSession.open(document(), pageCharLimit: 40);
+    expect(session.pageCount, greaterThan(1));
+    session.goToLastPage();
+    expect(session.pageIndex, session.pageCount - 1);
+    expect(session.next(), isFalse);
+  });
+
   test('selection events without text stay missing', () {
     final session = FoliateSession.open(document(), pageCharLimit: 80);
     expect(

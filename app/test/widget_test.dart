@@ -14,12 +14,14 @@ import 'package:app/features/tools/ai/conversation_store.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/main.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'support/epub_fixture.dart';
 import 'support/image_fixture.dart';
+import 'support/pdf_fixture.dart';
 
 void main() {
   testWidgets('renders the library shell from a repository', (tester) async {
@@ -128,6 +130,112 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('hello from epub'), findsOneWidget);
     expect(find.textContaining('阅读器尚未接入'), findsNothing);
+  });
+
+  testWidgets('epub tap turns pages then the next chapter', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes(
+      'story.epub',
+      minimalEpubBytes(
+        firstBody:
+            '${List.filled(170, 'alpha-page').join(' ')} ${List.filled(50, 'beta-page').join(' ')}',
+        secondBody: 'omega-chapter',
+      ),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('Fixture Book').first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('alpha-page'), findsOneWidget);
+    expect(find.textContaining('beta-page'), findsNothing);
+    expect(find.textContaining('omega-chapter'), findsNothing);
+    final surface = tester.getRect(find.byKey(const Key('foliate-surface')));
+    await tester.tapAt(Offset(surface.right - 8, surface.center.dy));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('beta-page'), findsOneWidget);
+    expect(find.textContaining('omega-chapter'), findsNothing);
+    await tester.tapAt(Offset(surface.right - 8, surface.center.dy));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('omega-chapter'), findsOneWidget);
+    final after = tester.getRect(find.byKey(const Key('foliate-surface')));
+    await tester.tapAt(Offset(after.right - 8, after.center.dy));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('omega-chapter'), findsOneWidget);
+    expect(find.text('设计中的设计'), findsNothing);
+  });
+
+  testWidgets('epub arrow key turns the current page', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes(
+      'story.epub',
+      minimalEpubBytes(
+        firstBody:
+            '${List.filled(170, 'alpha-page').join(' ')} ${List.filled(50, 'beta-page').join(' ')}',
+        secondBody: 'omega-chapter',
+      ),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('Fixture Book').first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('beta-page'), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('beta-page'), findsOneWidget);
+    expect(find.textContaining('omega-chapter'), findsNothing);
+    expect(find.text('设计中的设计'), findsNothing);
+  });
+
+  testWidgets('epub progress slider opens the later chapter page', (
+    tester,
+  ) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes(
+      'story.epub',
+      minimalEpubBytes(
+        firstBody:
+            '${List.filled(170, 'alpha-page').join(' ')} ${List.filled(50, 'beta-page').join(' ')}',
+        secondBody: 'omega-chapter',
+      ),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('Fixture Book').first);
+    await tester.pumpAndSettle();
+    tester.widget<Slider>(find.byType(Slider)).onChanged!(0.9);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('omega-chapter'), findsOneWidget);
+    expect(find.text('设计中的设计'), findsNothing);
   });
 
   testWidgets('opens imported plain text in the reader', (tester) async {
@@ -291,6 +399,166 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('comic-page')), findsOneWidget);
     expect(find.textContaining('阅读器尚未接入'), findsNothing);
+  });
+
+  testWidgets('opens imported pdf pages in the reader', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes(
+      'scan.pdf',
+      minimalPdfBytes(pages: ['hello from pdf']),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('scan').first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('hello from pdf'), findsOneWidget);
+    expect(find.textContaining('阅读器尚未接入'), findsNothing);
+    expect(find.text('设计中的设计'), findsNothing);
+  });
+
+  testWidgets('pdf page fills the reading surface', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes(
+      'scan.pdf',
+      minimalPdfBytes(pages: ['hello from pdf']),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('scan').first);
+    await tester.pumpAndSettle();
+    final surface = tester.getRect(find.byKey(const Key('pdf-surface')));
+    final frame = tester.getSize(find.byType(Scaffold).last);
+    expect(surface.width, greaterThan(680));
+    expect(surface.width, frame.width);
+    expect(find.textContaining('hello from pdf'), findsOneWidget);
+    expect(find.text('设计中的设计'), findsNothing);
+  });
+
+  testWidgets('pdf reading settings zoom the current page', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes(
+      'scan.pdf',
+      minimalPdfBytes(pages: ['hello from pdf']),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('scan').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('阅读设置'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('150%'));
+    await tester.pumpAndSettle();
+    Navigator.of(tester.element(find.text('页面缩放'))).pop();
+    await tester.pumpAndSettle();
+    final zoom = tester.widget<Transform>(find.byKey(const Key('pdf-zoom')));
+    expect(zoom.transform.getMaxScaleOnAxis(), 1.5);
+    expect(find.textContaining('hello from pdf'), findsOneWidget);
+  });
+
+  testWidgets('comic double page shows a pair then the leftover last page', (
+    tester,
+  ) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes(
+      'pages.cbz',
+      zipNamedFiles({
+        'page-01.png': tinyPngBytes(),
+        'page-02.png': tinyPngBytes(),
+        'page-03.png': tinyPngBytes(),
+      }),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('pages').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('阅读设置'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('双页'));
+    await tester.pumpAndSettle();
+    Navigator.of(tester.element(find.text('漫画阅读'))).pop();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('comic-page-left')), findsOneWidget);
+    expect(find.byKey(const Key('comic-page-right')), findsOneWidget);
+    final surface = tester.getRect(find.byKey(const Key('comic-surface')));
+    await tester.tapAt(Offset(surface.right - 8, surface.center.dy));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('comic-page-left')), findsOneWidget);
+    expect(find.byKey(const Key('comic-page-right')), findsNothing);
+    expect(find.text('设计中的设计'), findsNothing);
+  });
+
+  testWidgets('comic vertical layout stacks this book only', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes(
+      'pages.cbz',
+      zipNamedFiles({
+        'page-01.png': tinyPngBytes(),
+        'page-02.png': tinyPngBytes(),
+      }),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('pages').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('阅读设置'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('竖滑'));
+    await tester.pumpAndSettle();
+    Navigator.of(tester.element(find.text('漫画阅读'))).pop();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('comic-vertical')), findsOneWidget);
+    expect(find.byType(Image), findsNWidgets(2));
+    expect(find.text('设计中的设计'), findsNothing);
   });
 
   testWidgets('adds a bookmark that can jump without leaving the book', (

@@ -72,4 +72,80 @@ void main() {
     expect(preferences.getString(ReaderPrefsController.fontFamilyKey), 'mono');
     expect(preferences.getString(ReaderPrefsController.paperKey), 'light');
   });
+
+  test('load restores comic layout and reading direction', () async {
+    SharedPreferences.setMockInitialValues({
+      ReaderPrefsController.comicLayoutKey: 'double',
+      ReaderPrefsController.comicDirectionKey: 'rtl',
+    });
+    final preferences = await SharedPreferences.getInstance();
+    final prefs = ReaderPrefsController(preferences);
+    await prefs.load();
+    expect(prefs.comicLayout, ComicLayout.double);
+    expect(prefs.comicDirection, ComicReadDirection.rtl);
+  });
+
+  test('unknown comic layout stays single and left-to-right', () async {
+    SharedPreferences.setMockInitialValues({
+      ReaderPrefsController.comicLayoutKey: 'wide',
+      ReaderPrefsController.comicDirectionKey: 'vertical',
+    });
+    final preferences = await SharedPreferences.getInstance();
+    final prefs = ReaderPrefsController(preferences);
+    await prefs.load();
+    expect(prefs.comicLayout, ComicLayout.single);
+    expect(prefs.comicDirection, ComicReadDirection.ltr);
+  });
+
+  test('setters persist comic layout and direction', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final prefs = ReaderPrefsController(preferences);
+    await prefs.setComicLayout(ComicLayout.vertical);
+    await prefs.setComicDirection(ComicReadDirection.rtl);
+    expect(prefs.comicLayout, ComicLayout.vertical);
+    expect(
+      preferences.getString(ReaderPrefsController.comicLayoutKey),
+      'vertical',
+    );
+    expect(
+      preferences.getString(ReaderPrefsController.comicDirectionKey),
+      'rtl',
+    );
+  });
+
+  test('clamps pdf zoom to quarter steps in range', () {
+    expect(clampPdfZoom(0.2), ReaderPrefsController.minPdfZoom);
+    expect(clampPdfZoom(5), ReaderPrefsController.maxPdfZoom);
+    expect(clampPdfZoom(1.6), 1.5);
+  });
+
+  test('load restores pdf zoom', () async {
+    SharedPreferences.setMockInitialValues({
+      ReaderPrefsController.pdfZoomKey: 1.5,
+    });
+    final preferences = await SharedPreferences.getInstance();
+    final prefs = ReaderPrefsController(preferences);
+    await prefs.load();
+    expect(prefs.pdfZoom, 1.5);
+  });
+
+  test('unknown pdf zoom stays at 1', () async {
+    SharedPreferences.setMockInitialValues({
+      ReaderPrefsController.pdfZoomKey: 0.0,
+    });
+    final preferences = await SharedPreferences.getInstance();
+    final prefs = ReaderPrefsController(preferences);
+    await prefs.load();
+    expect(prefs.pdfZoom, ReaderPrefsController.minPdfZoom);
+  });
+
+  test('setPdfZoom persists the clamped value', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final prefs = ReaderPrefsController(preferences);
+    await prefs.setPdfZoom(1.6);
+    expect(prefs.pdfZoom, 1.5);
+    expect(preferences.getDouble(ReaderPrefsController.pdfZoomKey), 1.5);
+  });
 }

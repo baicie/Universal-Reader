@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:archive/archive.dart';
 
+import 'image_fixture.dart';
+
 List<int> minimalEpubBytes({
   String title = 'Fixture Book',
   String author = 'Fixture Author',
@@ -9,6 +11,9 @@ List<int> minimalEpubBytes({
   String firstBody = 'hello from epub',
   String secondTitle = '第二章',
   String secondBody = 'second chapter text',
+  String firstHead = '',
+  String firstMarkup = '',
+  Map<String, List<int>> extraFiles = const {},
 }) {
   final files = <String, List<int>>{
     'mimetype': utf8.encode('application/epub+zip'),
@@ -51,13 +56,29 @@ List<int> minimalEpubBytes({
 </html>
 '''),
     'OEBPS/ch1.xhtml': utf8.encode(
-      '<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><body><h1>$firstTitle</h1><p>$firstBody</p></body></html>',
+      '<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml">${firstHead.isEmpty ? '' : '<head>$firstHead</head>'}<body><h1>$firstTitle</h1><p>$firstBody</p>$firstMarkup</body></html>',
     ),
     'OEBPS/ch2.xhtml': utf8.encode(
       '<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><body><h1>$secondTitle</h1><p>$secondBody</p></body></html>',
     ),
+    ...extraFiles,
   };
   return zipNamedFiles(files, uncompressed: const {'mimetype'});
+}
+
+List<int> illustratedEpubBytes({
+  String firstBody = 'hello from epub',
+  bool includeImage = true,
+}) {
+  return minimalEpubBytes(
+    firstBody: firstBody,
+    firstHead: '<link rel="stylesheet" href="styles.css"/>',
+    firstMarkup: '<p class="caption">spot caption</p><img src="images/spot.png" alt="spot"/>',
+    extraFiles: {
+      'OEBPS/styles.css': utf8.encode('.caption { font-style: italic; }'),
+      if (includeImage) 'OEBPS/images/spot.png': tinyPngBytes(),
+    },
+  );
 }
 
 List<int> zipNamedFiles(

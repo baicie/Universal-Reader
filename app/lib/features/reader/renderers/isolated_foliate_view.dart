@@ -17,6 +17,8 @@ class IsolatedFoliateView extends StatefulWidget {
     this.surface = ReadingSurface.light,
     this.onSelection,
     this.onHostEvent,
+    this.onNext,
+    this.onPrevious,
     super.key,
   });
 
@@ -26,6 +28,8 @@ class IsolatedFoliateView extends StatefulWidget {
   final ReadingSurface surface;
   final ValueChanged<FoliateSelection>? onSelection;
   final ValueChanged<Map<String, Object?>>? onHostEvent;
+  final VoidCallback? onNext;
+  final VoidCallback? onPrevious;
 
   @override
   State<IsolatedFoliateView> createState() => _IsolatedFoliateViewState();
@@ -98,10 +102,52 @@ class _IsolatedFoliateViewState extends State<IsolatedFoliateView> {
     );
   }
 
+  Widget _page() {
+    final controller = _controller;
+    if (controller == null) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(28, 32, 28, 48),
+        child: widget.fallback,
+      );
+    }
+    return WebViewWidget(controller: controller);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final controller = _controller;
-    if (controller == null) return widget.fallback;
-    return WebViewWidget(controller: controller);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final strip = constraints.maxWidth / 3;
+        return SizedBox.expand(
+          child: Stack(
+            key: const Key('foliate-surface'),
+            fit: StackFit.expand,
+            children: [
+              Positioned.fill(child: _page()),
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: strip,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: widget.onPrevious,
+                ),
+              ),
+              Positioned(
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: strip,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: widget.onNext,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

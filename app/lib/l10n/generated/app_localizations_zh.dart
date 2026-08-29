@@ -301,6 +301,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readingPaperFollow => '跟随应用';
 
   @override
+  String get comicLayout => '漫画阅读';
+
+  @override
+  String get comicLayoutSingle => '单页';
+
+  @override
+  String get comicLayoutDouble => '双页';
+
+  @override
+  String get comicLayoutVertical => '竖滑';
+
+  @override
+  String get comicReadRtl => '从右到左';
+
+  @override
+  String get pdfZoom => '页面缩放';
+
+  @override
   String get preferences => '偏好';
 
   @override

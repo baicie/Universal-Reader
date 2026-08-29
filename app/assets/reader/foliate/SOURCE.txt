@@ -1,0 +1,6 @@
+paginator.js is vendored from johnfactotum/foliate-js (MIT).
+https://github.com/johnfactotum/foliate-js
+commit 78914aef4466eb960965702401634c2cb348e9b1
+
+Only the reflow paginator is included. The host loads it from this folder.
+Do not load jsDelivr, unpkg, or other CDNs at runtime.
