@@ -12,7 +12,9 @@ import 'core/models.dart';
 import 'core/providers.dart';
 import 'core/reader_prefs.dart';
 import 'features/reader/reader_page.dart';
+import 'features/tools/ai/ai_runtime.dart';
 import 'features/tools/ai/ai_settings.dart';
+import 'features/tools/ai/ai_settings_card.dart';
 import 'l10n/l10n.dart';
 import 'widgets/eyebrow.dart';
 
@@ -27,6 +29,7 @@ Future<void> main() async {
   await localeController.load();
   final readerPrefs = ReaderPrefsController(preferences);
   await readerPrefs.load();
+  final aiRuntime = await resolveAiRuntime(repository, preferences);
   runApp(
     ProviderScope(
       overrides: [
@@ -34,6 +37,7 @@ Future<void> main() async {
         aiSettingsRepositoryProvider.overrideWithValue(aiSettings),
         localeProvider.overrideWith((ref) => localeController),
         readerPrefsProvider.overrideWith((ref) => readerPrefs),
+        aiRuntimeProvider.overrideWithValue(aiRuntime),
       ],
       child: const UniversalReaderApp(),
     ),
@@ -1057,7 +1061,7 @@ class SettingsPage extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              const _AiSettingsCard(),
+              const AiSettingsCard(),
               const SizedBox(height: 28),
               Text(
                 l10n.library,
@@ -1085,115 +1089,6 @@ class SettingsPage extends ConsumerWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AiSettingsCard extends ConsumerStatefulWidget {
-  const _AiSettingsCard();
-
-  @override
-  ConsumerState<_AiSettingsCard> createState() => _AiSettingsCardState();
-}
-
-class _AiSettingsCardState extends ConsumerState<_AiSettingsCard> {
-  late final TextEditingController endpoint;
-  late final TextEditingController model;
-  late final TextEditingController apiKey;
-  bool synced = false;
-
-  @override
-  void initState() {
-    super.initState();
-    endpoint = TextEditingController();
-    model = TextEditingController();
-    apiKey = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    endpoint.dispose();
-    model.dispose();
-    apiKey.dispose();
-    super.dispose();
-  }
-
-  void _sync(AiSettings settings) {
-    if (synced) return;
-    endpoint.text = settings.endpoint;
-    model.text = settings.model;
-    apiKey.text = settings.apiKey;
-    synced = true;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = ref.watch(aiSettingsProvider);
-    final settings = controller.settings;
-    if (!controller.loading && !synced) {
-      _sync(settings);
-    }
-    final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(l10n.enableAssistant),
-              subtitle: Text(l10n.enableAssistantSubtitle),
-              value: settings.enabled,
-              onChanged: (value) {
-                controller.update(settings.copyWith(enabled: value));
-              },
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: endpoint,
-              decoration: InputDecoration(
-                labelText: l10n.endpointLabel,
-                hintText: 'http://127.0.0.1:11434/v1',
-              ),
-              onChanged: (value) {
-                controller.update(settings.copyWith(endpoint: value));
-              },
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: model,
-              decoration: InputDecoration(
-                labelText: l10n.modelLabel,
-                hintText: l10n.modelHint,
-              ),
-              onChanged: (value) {
-                controller.update(settings.copyWith(model: value));
-              },
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: apiKey,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: l10n.apiKeyLabel,
-                hintText: l10n.apiKeyHint,
-              ),
-              onChanged: (value) {
-                controller.update(settings.copyWith(apiKey: value));
-              },
-            ),
-            const SizedBox(height: 12),
-            Text(
-              l10n.assistantPrivacyNote,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
         ),
       ),
     );

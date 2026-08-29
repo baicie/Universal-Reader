@@ -7,8 +7,10 @@ import 'library_repository.dart';
 import 'locale_controller.dart';
 import 'reader_prefs.dart';
 import 'seed_documents.dart';
+import '../features/tools/ai/ai_runtime.dart';
 import '../features/tools/ai/ai_settings.dart';
 import '../features/tools/ai/ai_settings_controller.dart';
+import '../features/tools/ai/conversation_store.dart';
 
 final libraryRepositoryProvider = Provider<LibraryRepository>((ref) {
   throw StateError('Library repository must be overridden at startup');
@@ -47,4 +49,8 @@ final readerPrefsProvider = ChangeNotifierProvider<ReaderPrefsController>((
   ref,
 ) {
   return ReaderPrefsController();
+});
+
+final aiRuntimeProvider = Provider<AiRuntime>((ref) {
+  return AiRuntime.local(InMemoryConversationRepository());
 });

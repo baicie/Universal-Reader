@@ -12,12 +12,14 @@ class AiReaderTool implements ReaderTool {
     this.grounding = const DocumentGrounding(),
     this.prompts = const ReaderPrompts(),
     this.clientFactory,
+    this.allowMissingApiKey = false,
   });
 
   final AiSettings settings;
   final DocumentGrounding grounding;
   final ReaderPrompts prompts;
   final ModelClient Function(AiSettings settings)? clientFactory;
+  final bool allowMissingApiKey;
 
   @override
   String get id => 'ai.reader';
@@ -34,14 +36,17 @@ class AiReaderTool implements ReaderTool {
     required ReaderToolRequest request,
     AppLocalizations? l10n,
   }) async {
-    if (!settings.enabled) {
+    final resolved = settings.withProjectDefaults();
+    if (!resolved.enabled) {
       return ReaderToolResult.unavailable(
         l10n?.assistantDisabled ?? '阅读助手未启用。可在设置中打开。',
       );
     }
-    if (settings.endpoint.trim().isEmpty || settings.model.trim().isEmpty) {
+    if (resolved.endpoint.trim().isEmpty ||
+        resolved.model.trim().isEmpty ||
+        (resolved.apiKey.trim().isEmpty && !allowMissingApiKey)) {
       return ReaderToolResult.unavailable(
-        l10n?.assistantNotConfigured ?? '请先在设置中填写接口地址和模型名称。',
+        l10n?.assistantNotConfigured ?? '请先在设置中填写 DeepSeek API Key。',
       );
     }
     final context = await grounding.fromDocument(
@@ -54,11 +59,11 @@ class AiReaderTool implements ReaderTool {
       return ReaderToolResult.unavailable(l10n?.noExcerpt ?? '当前页没有可发送的摘录。');
     }
     final client =
-        clientFactory?.call(settings) ??
+        clientFactory?.call(resolved) ??
         OpenAiCompatibleClient(
-          endpoint: settings.endpoint,
-          model: settings.model,
-          apiKey: settings.apiKey,
+          endpoint: resolved.endpoint,
+          model: resolved.model,
+          apiKey: resolved.apiKey,
         );
     final text = await client.complete(
       prompts.messages(

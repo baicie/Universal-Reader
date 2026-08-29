@@ -1,13 +1,17 @@
 use axum::{
+    Json, Router,
     body::{Body, to_bytes},
     http::{Request, StatusCode, header},
+    routing::post,
 };
 use std::{
     fs,
     time::{SystemTime, UNIX_EPOCH},
 };
 use tower::ServiceExt;
-use universal_reader_server::{app, app_with_storage_and_web, app_with_storage_dir};
+use universal_reader_server::{
+    AiConfig, app, app_with_storage_and_ai, app_with_storage_and_web, app_with_storage_dir,
+};
 
 #[tokio::test]
 async fn health_endpoint_reports_service_status() {
@@ -306,6 +310,226 @@ async fn library_drive_lists_updates_downloads_and_deletes_documents() {
         .unwrap();
     assert_eq!(missing.status(), StatusCode::NOT_FOUND);
 
+    fs::remove_dir_all(storage_dir).unwrap();
+}
+
+#[tokio::test]
+async fn ai_status_reports_whether_a_server_key_is_configured() {
+    let storage_dir = unique_temp_dir("ai-status");
+    let response = app_with_storage_and_ai(
+        storage_dir.clone(),
+        AiConfig::new(String::new(), String::new()),
+    )
+    .oneshot(
+        Request::builder()
+            .uri("/v1/ai/status")
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["configured"], false);
+    assert_eq!(json["provider"], "deepseek");
+    let _ = fs::remove_dir_all(storage_dir);
+}
+
+#[tokio::test]
+async fn ai_chat_rejects_unknown_models_before_requiring_a_key() {
+    let storage_dir = unique_temp_dir("ai-model");
+    let response = app_with_storage_and_ai(
+        storage_dir.clone(),
+        AiConfig::new(String::new(), String::new()),
+    )
+    .oneshot(
+        Request::builder()
+            .method("POST")
+            .uri("/v1/ai/chat")
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(
+                r#"{"model":"gpt-4","messages":[{"role":"user","content":"hi"}]}"#,
+            ))
+            .unwrap(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let _ = fs::remove_dir_all(storage_dir);
+}
+
+#[tokio::test]
+async fn ai_chat_rejects_empty_messages() {
+    let storage_dir = unique_temp_dir("ai-empty-messages");
+    let response = app_with_storage_and_ai(
+        storage_dir.clone(),
+        AiConfig::new(String::new(), "sk-test".into()),
+    )
+    .oneshot(
+        Request::builder()
+            .method("POST")
+            .uri("/v1/ai/chat")
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(r#"{"model":"deepseek-chat","messages":[]}"#))
+            .unwrap(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let _ = fs::remove_dir_all(storage_dir);
+}
+
+#[tokio::test]
+async fn ai_chat_requires_a_key_from_the_request_or_the_server() {
+    let storage_dir = unique_temp_dir("ai-key");
+    let response = app_with_storage_and_ai(
+        storage_dir.clone(),
+        AiConfig::new(String::new(), String::new()),
+    )
+    .oneshot(
+        Request::builder()
+            .method("POST")
+            .uri("/v1/ai/chat")
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(
+                r#"{"model":"deepseek-chat","messages":[{"role":"user","content":"hi"}]}"#,
+            ))
+            .unwrap(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let _ = fs::remove_dir_all(storage_dir);
+}
+
+#[tokio::test]
+async fn ai_chat_forwards_to_the_configured_deepseek_endpoint() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let mock = Router::new().route(
+        "/v1/chat/completions",
+        post(|| async {
+            Json(serde_json::json!({
+                "choices": [{ "message": { "content": "  只谈当前摘录。  " } }]
+            }))
+        }),
+    );
+    tokio::spawn(async move {
+        axum::serve(listener, mock).await.unwrap();
+    });
+
+    let storage_dir = unique_temp_dir("ai-chat");
+    let app = app_with_storage_and_ai(
+        storage_dir.clone(),
+        AiConfig::new(format!("http://{addr}"), "sk-server".into()),
+    );
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/ai/chat")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    r#"{"model":"deepseek-chat","endpoint":"http://evil.example","messages":[{"role":"user","content":"hi"}]}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["content"], "只谈当前摘录。");
+    let _ = fs::remove_dir_all(storage_dir);
+}
+
+#[tokio::test]
+async fn conversation_endpoint_persists_turns_for_an_existing_book() {
+    let storage_dir = unique_temp_dir("conversations");
+    let app = app_with_storage_dir(storage_dir.clone());
+
+    let uploaded = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/library/files")
+                .header(
+                    "content-type",
+                    "multipart/form-data; boundary=test-boundary",
+                )
+                .body(Body::from(multipart_body("notes.txt", b"hello")))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(uploaded.status(), StatusCode::CREATED);
+    let uploaded_body = to_bytes(uploaded.into_body(), usize::MAX).await.unwrap();
+    let uploaded_json: serde_json::Value = serde_json::from_slice(&uploaded_body).unwrap();
+    let id = uploaded_json["id"].as_str().unwrap().to_string();
+
+    let empty = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/v1/library/documents/{id}/conversations"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(empty.status(), StatusCode::OK);
+    let empty_body = to_bytes(empty.into_body(), usize::MAX).await.unwrap();
+    let empty_json: serde_json::Value = serde_json::from_slice(&empty_body).unwrap();
+    assert_eq!(empty_json["turns"], serde_json::json!([]));
+
+    let saved = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/v1/library/documents/{id}/conversations"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    r#"{"turns":[{"kind":"ask","question":"这句话什么意思？","reply":"它在讲留白。","locator_label":"Offset 12","created_at_ms":1}]}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(saved.status(), StatusCode::OK);
+
+    let loaded = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/v1/library/documents/{id}/conversations"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let loaded_body = to_bytes(loaded.into_body(), usize::MAX).await.unwrap();
+    let loaded_json: serde_json::Value = serde_json::from_slice(&loaded_body).unwrap();
+    assert_eq!(loaded_json["turns"][0]["reply"], "它在讲留白。");
+    assert!(
+        storage_dir
+            .join("conversations")
+            .join(format!("{id}.json"))
+            .is_file()
+    );
+
+    let missing = app
+        .oneshot(
+            Request::builder()
+                .uri("/v1/library/documents/missing-id/conversations")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(missing.status(), StatusCode::NOT_FOUND);
     fs::remove_dir_all(storage_dir).unwrap();
 }
 

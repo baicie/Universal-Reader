@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.0.1-dev.9 - 2026-08-29
+
+- The reading assistant now uses DeepSeek (`deepseek-chat` / `deepseek-reasoner`), with endpoint, model, and optional API key configurable in Settings or project `--dart-define` values.
+- Questions and answers are remembered per book (on-device, or in `conversations/` when using the local server).
+- The Rust service can forward DeepSeek chat requests and store conversation logs; it does not run a second reading agent.
+
 ## 0.0.1-dev.8 - 2026-08-29
 
 - The reader now opens imported TXT, Markdown, and HTML files instead of a placeholder chapter.

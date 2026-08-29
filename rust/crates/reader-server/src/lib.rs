@@ -17,11 +17,13 @@ use tower_http::{
     services::{ServeDir, ServeFile},
 };
 
+mod ai;
 mod library;
 
+pub use ai::AiConfig;
 pub use library::{LibraryDocumentRecord, LibraryStore};
 
-use library::{LibraryError, content_type_for};
+use library::{Conversation, LibraryError, content_type_for};
 
 pub const SERVICE_NAME: &str = "universal-reader-server";
 pub const SERVICE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -57,6 +59,7 @@ pub fn detect_format(file_name: &str) -> Option<DetectedFormat> {
 #[derive(Clone)]
 struct AppState {
     store: LibraryStore,
+    ai: AiConfig,
 }
 
 pub fn app() -> Router {
@@ -67,7 +70,11 @@ pub fn app() -> Router {
 }
 
 pub fn app_with_storage_dir(storage_dir: PathBuf) -> Router {
-    api_router(LibraryStore::new(storage_dir))
+    api_router(LibraryStore::new(storage_dir), AiConfig::from_env())
+}
+
+pub fn app_with_storage_and_ai(storage_dir: PathBuf, ai: AiConfig) -> Router {
+    api_router(LibraryStore::new(storage_dir), ai)
 }
 
 pub fn app_for_server() -> Router {
@@ -78,7 +85,10 @@ pub fn app_for_server() -> Router {
 }
 
 pub fn app_with_storage_and_web(storage_dir: PathBuf, web_dir: Option<PathBuf>) -> Router {
-    with_optional_web(api_router(LibraryStore::new(storage_dir)), web_dir)
+    with_optional_web(
+        api_router(LibraryStore::new(storage_dir), AiConfig::from_env()),
+        web_dir,
+    )
 }
 
 pub fn resolve_web_dir() -> Option<PathBuf> {
@@ -102,10 +112,12 @@ fn has_web_index(dir: &Path) -> bool {
     dir.join("index.html").is_file()
 }
 
-fn api_router(store: LibraryStore) -> Router {
+fn api_router(store: LibraryStore, ai: AiConfig) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/v1/formats/{file_name}", get(format))
+        .route("/v1/ai/status", get(ai::ai_status))
+        .route("/v1/ai/chat", post(ai::ai_chat))
         .route("/v1/library/documents", get(list_documents))
         .route(
             "/v1/library/documents/{id}",
@@ -114,9 +126,13 @@ fn api_router(store: LibraryStore) -> Router {
                 .delete(delete_document),
         )
         .route("/v1/library/documents/{id}/file", get(download_document))
+        .route(
+            "/v1/library/documents/{id}/conversations",
+            get(get_conversation).put(put_conversation),
+        )
         .route("/v1/library/files", post(upload_file))
         .layer(CorsLayer::permissive())
-        .with_state(AppState { store })
+        .with_state(AppState { store, ai })
 }
 
 fn with_optional_web(api: Router, web_dir: Option<PathBuf>) -> Router {
@@ -213,6 +229,27 @@ async fn delete_document(
 ) -> impl IntoResponse {
     match state.store.delete(&id).await {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(error) => library_error(error).into_response(),
+    }
+}
+
+async fn get_conversation(
+    State(state): State<AppState>,
+    PathParam(id): PathParam<String>,
+) -> impl IntoResponse {
+    match state.store.load_conversation(&id).await {
+        Ok(conversation) => (StatusCode::OK, Json(conversation)).into_response(),
+        Err(error) => library_error(error).into_response(),
+    }
+}
+
+async fn put_conversation(
+    State(state): State<AppState>,
+    PathParam(id): PathParam<String>,
+    Json(body): Json<Conversation>,
+) -> impl IntoResponse {
+    match state.store.save_conversation(&id, body).await {
+        Ok(conversation) => (StatusCode::OK, Json(conversation)).into_response(),
         Err(error) => library_error(error).into_response(),
     }
 }

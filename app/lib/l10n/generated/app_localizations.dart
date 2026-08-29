@@ -425,32 +425,62 @@ abstract class AppLocalizations {
   /// No description provided for @modelLabel.
   ///
   /// In zh, this message translates to:
-  /// **'模型名称'**
+  /// **'模型'**
   String get modelLabel;
 
   /// No description provided for @modelHint.
   ///
   /// In zh, this message translates to:
-  /// **'llama3.1 或 gpt-4o-mini'**
+  /// **'deepseek-chat'**
   String get modelHint;
 
   /// No description provided for @apiKeyLabel.
   ///
   /// In zh, this message translates to:
-  /// **'API Key（可选）'**
+  /// **'API Key'**
   String get apiKeyLabel;
 
   /// No description provided for @apiKeyHint.
   ///
   /// In zh, this message translates to:
-  /// **'仅保存在本机'**
+  /// **'仅保存在本机，也可通过项目编译参数提供'**
   String get apiKeyHint;
+
+  /// No description provided for @assistantProvider.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型服务'**
+  String get assistantProvider;
 
   /// No description provided for @assistantPrivacyNote.
   ///
   /// In zh, this message translates to:
-  /// **'发送时会把当前摘录交给你配置的 OpenAI 兼容接口，例如本机 Ollama。不上整本书，也不上传书库。'**
+  /// **'启用后会把当前摘录发给 DeepSeek。不上整本书，也不上传书库。问答记录按书保存在本机。接口地址和模型可在本页或项目编译参数中配置。'**
   String get assistantPrivacyNote;
+
+  /// No description provided for @assistantGatewayNote.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前由本机服务转发 DeepSeek 请求，避免浏览器跨域。不会使用客户端填写的接口地址。密钥可填在这里，或由服务端环境变量提供。'**
+  String get assistantGatewayNote;
+
+  /// No description provided for @apiKeyOptionalHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'本机服务已配置密钥，可留空'**
+  String get apiKeyOptionalHint;
+
+  /// No description provided for @conversationHistory.
+  ///
+  /// In zh, this message translates to:
+  /// **'问答记录'**
+  String get conversationHistory;
+
+  /// No description provided for @conversationUnavailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法读取问答记录。'**
+  String get conversationUnavailable;
 
   /// No description provided for @defaultImportLocation.
   ///
@@ -557,7 +587,7 @@ abstract class AppLocalizations {
   /// No description provided for @assistantNotConfigured.
   ///
   /// In zh, this message translates to:
-  /// **'请先在设置中填写接口地址和模型名称。'**
+  /// **'请先填写 DeepSeek API Key。'**
   String get assistantNotConfigured;
 
   /// No description provided for @noExcerpt.

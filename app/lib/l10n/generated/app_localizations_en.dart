@@ -184,17 +184,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelLabel => 'Model';
 
   @override
-  String get modelHint => 'llama3.1 or gpt-4o-mini';
+  String get modelHint => 'deepseek-chat';
 
   @override
-  String get apiKeyLabel => 'API key (optional)';
+  String get apiKeyLabel => 'API key';
 
   @override
-  String get apiKeyHint => 'Stored on this device only';
+  String get apiKeyHint =>
+      'Stored on this device, or supplied by a project build define';
+
+  @override
+  String get assistantProvider => 'Provider';
 
   @override
   String get assistantPrivacyNote =>
-      'Only the current excerpt is sent to your OpenAI-compatible endpoint, such as local Ollama. The full book and library are not uploaded.';
+      'When enabled, the current excerpt is sent to DeepSeek. The full book and library are not uploaded. Questions and answers are remembered per book on this device. Endpoint and model can be set here or with project build defines.';
+
+  @override
+  String get assistantGatewayNote =>
+      'The local server forwards DeepSeek requests, which avoids browser CORS. The client endpoint is not used. You can paste a key here or set it on the server.';
+
+  @override
+  String get apiKeyOptionalHint =>
+      'The local server already has a key; this can be blank';
+
+  @override
+  String get conversationHistory => 'Conversation';
+
+  @override
+  String get conversationUnavailable => 'Could not load the conversation.';
 
   @override
   String get defaultImportLocation => 'Default import location';
@@ -257,7 +275,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assistantNotConfigured =>
-      'Add an endpoint and model name in Settings first.';
+      'Add a DeepSeek API key in Settings first.';
 
   @override
   String get noExcerpt => 'This page has no excerpt to send.';
