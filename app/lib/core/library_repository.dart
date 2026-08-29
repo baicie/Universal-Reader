@@ -19,6 +19,7 @@ abstract interface class LibraryRepository {
     required double progress,
     required DateTime lastOpened,
   });
+  Future<void> delete(String id);
 }
 
 LibraryDocument importedLibraryDocument(
@@ -123,6 +124,13 @@ class SharedPreferencesLibraryRepository implements LibraryRepository {
     );
     await save(documents);
   }
+
+  @override
+  Future<void> delete(String id) async {
+    final documents = await load();
+    documents.removeWhere((item) => item.metadata.id == id);
+    await save(documents);
+  }
 }
 
 class InMemoryLibraryRepository implements LibraryRepository {
@@ -180,6 +188,13 @@ class InMemoryLibraryRepository implements LibraryRepository {
     _documents[index] = _documents[index].copyWith(
       readingState: ReadingState(progress: progress, lastOpened: lastOpened),
     );
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    _documents.removeWhere((item) => item.metadata.id == id);
+    _files.remove(id);
+    _covers.remove(id);
   }
 }
 

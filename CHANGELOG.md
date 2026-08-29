@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Favorites and collections persist per library: starring a book, creating a collection, and opening a collection only show those books. Seed titles are not used as fake favorites.
+- An empty local library stays empty instead of writing seed books. A book can be removed from the shelf without inventing another title.
+- The local server keeps the document list in SQLite. An existing `catalog.json` is imported once and is not the catalog after that.
+
 ## 0.0.1-dev.10 - 2026-08-29
 
 - EPUB and simple text PDFs open as real chapters/pages instead of the unavailable placeholder; corrupt files stay corrupt.

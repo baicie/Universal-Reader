@@ -29,7 +29,7 @@ pub use ai::AiConfig;
 pub use library::{LibraryDocumentRecord, LibraryStore};
 pub use sources::SourcesConfig;
 
-use library::{Annotations, Conversation, LibraryError, content_type_for};
+use library::{Annotations, Conversation, LibraryError, Shelves, content_type_for};
 
 pub const SERVICE_NAME: &str = "universal-reader-server";
 pub const SERVICE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -156,6 +156,7 @@ fn api_router(store: LibraryStore, ai: AiConfig, sources: SourcesConfig) -> Rout
             "/v1/library/documents/{id}/annotations",
             get(get_annotations).put(put_annotations),
         )
+        .route("/v1/library/shelves", get(get_shelves).put(put_shelves))
         .route("/v1/library/files", post(upload_file))
         .route("/v1/library/scan", post(scan_folder))
         .route("/v1/library/webdav/import", post(import_webdav))
@@ -366,6 +367,23 @@ async fn put_annotations(
 ) -> impl IntoResponse {
     match state.store.save_annotations(&id, body).await {
         Ok(annotations) => (StatusCode::OK, Json(annotations)).into_response(),
+        Err(error) => library_error(error).into_response(),
+    }
+}
+
+async fn get_shelves(State(state): State<AppState>) -> impl IntoResponse {
+    match state.store.load_shelves().await {
+        Ok(shelves) => (StatusCode::OK, Json(shelves)).into_response(),
+        Err(error) => library_error(error).into_response(),
+    }
+}
+
+async fn put_shelves(
+    State(state): State<AppState>,
+    Json(body): Json<Shelves>,
+) -> impl IntoResponse {
+    match state.store.save_shelves(body).await {
+        Ok(shelves) => (StatusCode::OK, Json(shelves)).into_response(),
         Err(error) => library_error(error).into_response(),
     }
 }

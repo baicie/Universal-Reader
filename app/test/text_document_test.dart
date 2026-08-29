@@ -4,7 +4,6 @@ import 'package:app/core/models.dart';
 import 'package:app/features/reader/open_reader.dart';
 import 'package:app/core/reader_runtime.dart';
 import 'package:app/core/text_document.dart';
-import 'package:app/features/tools/sample_reader_document.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -95,7 +94,7 @@ void main() {
     );
     expect(pdf, isA<CorruptReaderDocument>());
 
-    final seed = openReaderDocument(
+    final leftoverSeedId = openReaderDocument(
       metadata: const DocumentMetadata(
         id: 'design',
         title: '设计中的设计',
@@ -104,7 +103,7 @@ void main() {
         type: DocumentType.reflow,
       ),
     );
-    expect(seed, isA<SampleReaderDocument>());
+    expect(leftoverSeedId, isA<UnavailableReaderDocument>());
   });
 
   test('chunks oversized sections even when other chapters exist', () {

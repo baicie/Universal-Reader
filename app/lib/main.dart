@@ -13,6 +13,8 @@ import 'core/providers.dart';
 import 'core/reader_prefs.dart';
 import 'features/library/library_cover.dart';
 import 'features/library/library_sources_card.dart';
+import 'features/library/shelf_store.dart';
+import 'features/library/shelf_ui.dart';
 import 'features/reader/reader_page.dart';
 import 'features/tools/ai/ai_runtime.dart';
 import 'features/tools/ai/ai_settings.dart';
@@ -36,6 +38,9 @@ Future<void> main() async {
     ProviderScope(
       overrides: [
         libraryRepositoryProvider.overrideWithValue(repository),
+        shelfRepositoryProvider.overrideWithValue(
+          resolveShelfRepository(repository, preferences),
+        ),
         aiSettingsRepositoryProvider.overrideWithValue(aiSettings),
         localeProvider.overrideWith((ref) => localeController),
         readerPrefsProvider.overrideWith((ref) => readerPrefs),
@@ -337,7 +342,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             ),
           ),
         ),
-        if (controller.continueReading != null)
+        if (controller.section == 'all' && controller.continueReading != null)
           SliverPadding(
             padding: EdgeInsets.fromLTRB(side, 0, side, 8),
             sliver: SliverToBoxAdapter(
@@ -433,7 +438,6 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     bool wide,
   ) {
     final l10n = AppLocalizations.of(context);
-    final title = l10n.sectionTitle(controller.section);
     final theme = Theme.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -449,7 +453,10 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                title,
+                l10n.sectionTitle(
+                  controller.section,
+                  collectionName: controller.collectionName(controller.section),
+                ),
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.4,
@@ -646,10 +653,6 @@ class LibraryDrawer extends ConsumerWidget {
       ('reading', Icons.auto_stories_outlined, l10n.currentlyReading),
       ('favorites', Icons.favorite_border, l10n.favorites),
     ];
-    final collections = [
-      (const Color(0xFFC69355), l10n.collectionDesign),
-      (const Color(0xFF6C9EB4), l10n.collectionTech),
-    ];
     final nav = SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 20, 12, 16),
@@ -679,28 +682,64 @@ class LibraryDrawer extends ConsumerWidget {
               child: Eyebrow(l10n.collections),
             ),
             const SizedBox(height: 8),
-            for (final item in collections)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: item.$1,
-                        borderRadius: BorderRadius.circular(2),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  if (controller.collections.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                      child: Text(
+                        l10n.noCollections,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Text(item.$2, style: theme.textTheme.bodyMedium),
-                  ],
-                ),
+                  for (final collection in controller.collections)
+                    ListTile(
+                      leading: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: Color(collection.color),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      title: Text(
+                        collection.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      selected:
+                          controller.section ==
+                          collectionSection(collection.id),
+                      trailing: IconButton(
+                        tooltip: l10n.deleteCollection,
+                        icon: const Icon(Icons.close, size: 16),
+                        onPressed: () =>
+                            controller.deleteCollection(collection.id),
+                      ),
+                      onTap: () {
+                        controller.selectSection(
+                          collectionSection(collection.id),
+                        );
+                        if (!embedded && Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        }
+                      },
+                    ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.create_new_folder_outlined,
+                      size: 20,
+                    ),
+                    title: Text(l10n.newCollection),
+                    onTap: () => showCreateCollectionDialog(context, ref),
+                  ),
+                ],
               ),
-            const Spacer(),
+            ),
             OutlinedButton.icon(
               onPressed: () => importFolderWithFeedback(context, ref),
               icon: const Icon(Icons.create_new_folder_outlined, size: 18),
@@ -794,14 +833,36 @@ class BookCard extends ConsumerWidget {
               ),
               const SizedBox(width: 14),
               Expanded(child: details),
+              BookActionsButton(documentId: metadata.id),
+              FavoriteButton(documentId: metadata.id),
             ],
           )
         : Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              LibraryCover(
-                metadata: metadata,
-                fallback: CoverArt(metadata: metadata),
+              Stack(
+                children: [
+                  LibraryCover(
+                    metadata: metadata,
+                    fallback: CoverArt(metadata: metadata),
+                  ),
+                  Positioned(
+                    top: 4,
+                    left: 4,
+                    child: BookActionsButton(
+                      documentId: metadata.id,
+                      onCover: true,
+                    ),
+                  ),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: FavoriteButton(
+                      documentId: metadata.id,
+                      onCover: true,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
               Expanded(child: details),

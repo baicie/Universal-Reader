@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:app/core/library_repository.dart';
 import 'package:app/core/sqlite_library_repository.dart';
+import 'package:app/features/library/annotation_store.dart';
+import 'package:app/features/library/shelf_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -81,4 +83,50 @@ void main() {
       expect(await repository.readFile('old.txt'), isNull);
     },
   );
+
+  test('sqlite shelves persist without inventing seed favorites', () async {
+    final repository = await SqliteLibraryRepository.memory();
+    addTearDown(repository.close);
+    final notes = await repository.importBytes(
+      'notes.txt',
+      Uint8List.fromList('hello shelves'.codeUnits),
+    );
+    final store = SqliteShelfRepository(repository);
+    expect((await store.load()).favoriteIds, isEmpty);
+
+    await store.save(toggleFavorite(const LibraryShelves(), notes.metadata.id));
+    final loaded = await store.load();
+    expect(loaded.favoriteIds, {notes.metadata.id});
+    expect(loaded.favoriteIds.contains('design'), isFalse);
+  });
+
+  test('deleting a sqlite book drops its bytes and keeps the other', () async {
+    final repository = await SqliteLibraryRepository.memory();
+    addTearDown(repository.close);
+    final notes = await repository.importBytes(
+      'notes.txt',
+      Uint8List.fromList('hello notes'.codeUnits),
+    );
+    final other = await repository.importBytes(
+      'other.txt',
+      Uint8List.fromList('hello other'.codeUnits),
+    );
+    await repository.saveAnnotations(notes.metadata.id, [
+      ReaderAnnotation(
+        id: 'n1',
+        note: 'only this book',
+        createdAt: DateTime.utc(2026, 1, 1),
+      ),
+    ]);
+
+    await repository.delete(notes.metadata.id);
+
+    expect(await repository.readFile(notes.metadata.id), isNull);
+    expect(
+      await repository.readFile(other.metadata.id),
+      'hello other'.codeUnits,
+    );
+    expect((await repository.load()).single.metadata.id, other.metadata.id);
+    expect(await repository.loadAnnotations(notes.metadata.id), isEmpty);
+  });
 }

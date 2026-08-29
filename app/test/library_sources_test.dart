@@ -12,7 +12,6 @@ void main() {
     () async {
       final controller = PersistedLibraryController(
         repository: InMemoryLibraryRepository(),
-        initialDocuments: const [],
       );
       await controller.load();
 

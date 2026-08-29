@@ -62,10 +62,6 @@ final seedDocuments = <LibraryDocument>[
   ),
 ];
 
-final seedDocumentIds = {
-  for (final document in seedDocuments) document.metadata.id,
-};
-
 LibraryDocument _doc(
   String id,
   String title,

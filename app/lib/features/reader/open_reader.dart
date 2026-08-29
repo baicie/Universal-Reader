@@ -5,9 +5,7 @@ import '../../core/mobi_document.dart';
 import '../../core/models.dart';
 import '../../core/pdf_document.dart';
 import '../../core/reader_runtime.dart';
-import '../../core/seed_documents.dart';
 import '../../core/text_document.dart';
-import '../tools/sample_reader_document.dart';
 
 ReaderDocument openReaderDocument({
   required DocumentMetadata metadata,
@@ -55,9 +53,6 @@ ReaderDocument openReaderDocument({
       }
     }
     return UnavailableReaderDocument(metadata: metadata);
-  }
-  if (seedDocumentIds.contains(metadata.id)) {
-    return SampleReaderDocument(metadata: metadata);
   }
   return UnavailableReaderDocument(metadata: metadata);
 }
