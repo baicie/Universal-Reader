@@ -8,6 +8,7 @@
 - Reflow books open through an isolated Foliate WebView host (tests keep the chapter text), PDFs through an isolated pdfrx page, and CBZ/CBR as comic pages. MOBI/AZW3/FB2 have engines.
 - Without Rust, Flutter keeps the library in SQLite so imported files still open after a restart. Web uses the same repository interface with durable local storage.
 - Notes paint their quote in the current chapter. The server hashes files, extracts covers, can watch a folder, and can sync WebDAV both ways.
+- The reader can save a text selection as a user note, keep bookmarks on the same annotation store, and paginate reflow chapters through a testable Foliate session with CFI.
 
 ## 0.0.1-dev.9 - 2026-08-29
 

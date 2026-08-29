@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/annotated_text.dart';
 import '../../core/comic_document.dart';
+import '../../core/foliate_session.dart';
+import '../../core/locator_codec.dart';
 import '../../core/models.dart';
 import '../../core/pdf_document.dart';
 import '../../core/providers.dart';
@@ -15,9 +17,13 @@ import '../../widgets/eyebrow.dart';
 import '../library/annotation_store.dart';
 import '../tools/reader_ai_panel.dart';
 import 'open_reader.dart';
+import 'reader_bookmarks.dart';
+import 'reader_bookmarks_pane.dart';
+import 'reader_selection.dart';
 import 'renderers/isolated_comic_view.dart';
 import 'renderers/isolated_foliate_view.dart';
 import 'renderers/isolated_pdf_view.dart';
+import 'selection_confirm_bar.dart';
 
 class ReaderPage extends ConsumerStatefulWidget {
   const ReaderPage({required this.id, super.key});
@@ -29,6 +35,7 @@ class ReaderPage extends ConsumerStatefulWidget {
 class _ReaderPageState extends ConsumerState<ReaderPage> {
   bool chrome = true;
   bool toc = false;
+  bool bookmarks = false;
   bool ask = false;
   late double progress;
   bool loading = true;
@@ -37,6 +44,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   String body = '';
   List<int>? fileBytes;
   List<ReaderAnnotation> notes = const [];
+  String? pendingQuote;
+  FoliateSession? foliateSession;
 
   @override
   void initState() {
@@ -92,6 +101,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       body = _bodyFor(reader);
       fileBytes = bytes;
       notes = loadedNotes;
+      foliateSession = reader is HtmlChapteredDocument
+          ? FoliateSession.open(reader)
+          : null;
       loading = false;
     });
   }
@@ -101,18 +113,92 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     return '';
   }
 
-  Future<void> _goTo(TocItem item) async {
+  Future<void> _goTo(Locator locator) async {
     final reader = opened;
     if (reader == null) return;
-    await reader.goTo(item.locator);
+    await reader.goTo(locator);
+    FoliateSession? session;
+    if (reader is HtmlChapteredDocument) {
+      session = FoliateSession.open(reader);
+      if (locator is EpubLocator && locator.cfi != null) {
+        session.goToCfi(locator.cfi!);
+      }
+    }
     if (!mounted) return;
     setState(() {
       body = _bodyFor(reader);
+      foliateSession = session;
       if (reader is ChapteredDocument && reader.chapterCount > 0) {
         progress = reader.chapterIndex / reader.chapterCount;
         ref.read(libraryProvider).updateProgress(widget.id, progress);
       }
     });
+  }
+
+  Future<void> _goToToc(TocItem item) => _goTo(item.locator);
+
+  Future<Locator> _bookmarkLocator() async {
+    final reader = opened;
+    if (reader == null) return const TextLocator(offset: 0);
+    final current = await reader.currentLocator();
+    final session = foliateSession;
+    if (current is EpubLocator && session != null) {
+      return EpubLocator(
+        href: current.href,
+        cfi: session.currentCfi,
+        progression: session.progression,
+      );
+    }
+    return current;
+  }
+
+  Future<void> _addBookmark() async {
+    if (opened == null || loading) return;
+    final mark = bookmarkAt(locator: await _bookmarkLocator());
+    await ref.read(aiRuntimeProvider).annotations.append(widget.id, mark);
+    if (!mounted) return;
+    setState(() {
+      notes = [...notes, mark];
+      bookmarks = true;
+      chrome = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(AppLocalizations.of(context).bookmarkAdded)),
+    );
+  }
+
+  Future<void> _saveSelection() async {
+    final quote = pendingQuote;
+    if (quote == null) return;
+    final note = noteFromSelection(
+      quote,
+      locatorLabel: encodeLocator(await _bookmarkLocator()),
+    );
+    if (note == null) {
+      setState(() => pendingQuote = null);
+      return;
+    }
+    await ref.read(aiRuntimeProvider).annotations.append(widget.id, note);
+    if (!mounted) return;
+    setState(() {
+      notes = [...notes, note];
+      pendingQuote = null;
+    });
+  }
+
+  void _onFoliateSelection(FoliateSelection selection) {
+    setState(() => pendingQuote = selection.quote);
+  }
+
+  void _onFoliateHostEvent(Map<String, Object?> event) {
+    final type = event['type'];
+    final session = foliateSession;
+    if (session == null) return;
+    if (type == 'next' && session.next()) {
+      setState(() {});
+    } else if ((type == 'prev' || type == 'previous') && session.previous()) {
+      setState(() {});
+    }
   }
 
   @override
@@ -178,6 +264,20 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                   }),
                 ),
                 IconButton(
+                  key: addBookmarkButtonKey,
+                  tooltip: l10n.addBookmark,
+                  icon: const Icon(Icons.bookmark_add_outlined),
+                  onPressed: _addBookmark,
+                ),
+                IconButton(
+                  tooltip: l10n.bookmarks,
+                  icon: Icon(
+                    bookmarks ? Icons.bookmarks : Icons.bookmarks_outlined,
+                    color: bookmarks ? accent : ink,
+                  ),
+                  onPressed: () => setState(() => bookmarks = !bookmarks),
+                ),
+                IconButton(
                   tooltip: l10n.tableOfContents,
                   icon: Icon(
                     toc ? Icons.menu_book : Icons.menu_book_outlined,
@@ -194,12 +294,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
             )
           : null,
       body: GestureDetector(
-        onTap: () => setState(() => chrome = !chrome),
+        onTap: () {
+          if (pendingQuote != null && pendingQuote!.trim().isNotEmpty) return;
+          setState(() => chrome = !chrome);
+        },
         child: Stack(
           children: [
             Row(
               children: [
-                if (toc)
+                if (toc || bookmarks)
                   Material(
                     color: tocBg,
                     child: GestureDetector(
@@ -209,34 +312,50 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         child: ListView(
                           padding: const EdgeInsets.fromLTRB(20, 24, 16, 24),
                           children: [
-                            Eyebrow(l10n.tableOfContents),
-                            const SizedBox(height: 12),
-                            if (tocItems.isEmpty)
-                              Text(
-                                l10n.untitledSection,
-                                style: TextStyle(color: muted, height: 1.4),
+                            if (bookmarks) ...[
+                              ReaderBookmarksPane(
+                                title: l10n.bookmarks,
+                                emptyLabel: l10n.noBookmarks,
+                                bookmarks: bookmarksOf(notes),
+                                onOpen: (mark) {
+                                  final locator = decodeLocator(
+                                    mark.locatorLabel,
+                                  );
+                                  if (locator != null) _goTo(locator);
+                                },
                               ),
-                            for (var i = 0; i < tocItems.length; i++)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 6,
+                              if (toc) const SizedBox(height: 28),
+                            ],
+                            if (toc) ...[
+                              Eyebrow(l10n.tableOfContents),
+                              const SizedBox(height: 12),
+                              if (tocItems.isEmpty)
+                                Text(
+                                  l10n.untitledSection,
+                                  style: TextStyle(color: muted, height: 1.4),
                                 ),
-                                child: InkWell(
-                                  onTap: () => _goTo(tocItems[i]),
-                                  child: Text(
-                                    tocItems[i].title.trim().isEmpty
-                                        ? l10n.untitledSection
-                                        : tocItems[i].title,
-                                    style: TextStyle(
-                                      fontWeight: i == currentIndex
-                                          ? FontWeight.w700
-                                          : FontWeight.w400,
-                                      color: i == currentIndex ? accent : ink,
-                                      height: 1.4,
+                              for (var i = 0; i < tocItems.length; i++)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 6,
+                                  ),
+                                  child: InkWell(
+                                    onTap: () => _goToToc(tocItems[i]),
+                                    child: Text(
+                                      tocItems[i].title.trim().isEmpty
+                                          ? l10n.untitledSection
+                                          : tocItems[i].title,
+                                      style: TextStyle(
+                                        fontWeight: i == currentIndex
+                                            ? FontWeight.w700
+                                            : FontWeight.w400,
+                                        color: i == currentIndex ? accent : ink,
+                                        height: 1.4,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -282,18 +401,27 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                 child: ReaderAiPanel(
                   document: opened!,
                   settings: ref.watch(aiSettingsProvider).settings,
-                  onJump: (locator) async {
-                    final reader = opened;
-                    if (reader == null) return;
-                    await reader.goTo(locator);
-                    if (!mounted) return;
-                    setState(() => body = _bodyFor(reader));
-                  },
+                  onJump: (locator) => _goTo(locator),
+                ),
+              ),
+            if (pendingQuote != null && pendingQuote!.trim().isNotEmpty)
+              Positioned(
+                left: toc || bookmarks ? 240 : 0,
+                right: ask && wide ? 320 : 0,
+                bottom: chrome ? 72 : 0,
+                child: GestureDetector(
+                  onTap: () {},
+                  child: SelectionConfirmBar(
+                    quote: pendingQuote!,
+                    saveLabel: l10n.saveSelection,
+                    onSave: _saveSelection,
+                    onDismiss: () => setState(() => pendingQuote = null),
+                  ),
                 ),
               ),
             if (chrome)
               Positioned(
-                left: toc ? 240 : 0,
+                left: toc || bookmarks ? 240 : 0,
                 right: ask && wide ? 320 : 0,
                 bottom: 0,
                 child: Material(
@@ -318,6 +446,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                                 if (reader is ChapteredDocument) {
                                   reader.goTo(reader.locatorForProgress(value));
                                   body = _bodyFor(reader);
+                                  if (reader is HtmlChapteredDocument) {
+                                    foliateSession = FoliateSession.open(
+                                      reader,
+                                    );
+                                  }
                                 }
                               },
                             ),
@@ -509,7 +642,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       );
     }
     if (reader is HtmlChapteredDocument) {
-      return IsolatedFoliateView(document: reader, fallback: fallback);
+      return IsolatedFoliateView(
+        document: reader,
+        session: foliateSession,
+        fallback: fallback,
+        onSelection: _onFoliateSelection,
+        onHostEvent: _onFoliateHostEvent,
+      );
     }
     return fallback;
   }
@@ -532,13 +671,22 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   Widget _annotatedParagraph(String text, TextStyle style) {
-    final spans = annotatePlainText(text, notes, style: style);
+    final spans = annotatePlainText(text, notesOf(notes), style: style);
     final highlighted = spans.any(
       (span) => span is TextSpan && span.style?.backgroundColor != null,
     );
-    if (!highlighted) {
-      return Text(text, style: style);
-    }
-    return Text.rich(TextSpan(children: spans), key: annotatedQuoteKey);
+    return SelectableText.rich(
+      TextSpan(children: spans, style: style),
+      key: highlighted ? annotatedQuoteKey : null,
+      onSelectionChanged: (selection, _) {
+        if (!selection.isValid || selection.isCollapsed) return;
+        final start = selection.start;
+        final end = selection.end;
+        if (start < 0 || end > text.length || start >= end) return;
+        final quote = text.substring(start, end);
+        if (quote.trim().isEmpty) return;
+        setState(() => pendingQuote = quote);
+      },
+    );
   }
 }

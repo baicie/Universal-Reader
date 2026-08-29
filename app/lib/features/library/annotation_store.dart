@@ -4,6 +4,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 const maxAnnotations = 100;
+const userNoteSource = 'user';
+const bookmarkSource = 'bookmark';
+const assistantNoteSource = 'assistant';
 
 class ReaderAnnotation {
   const ReaderAnnotation({
@@ -11,7 +14,7 @@ class ReaderAnnotation {
     required this.note,
     this.quote = '',
     this.locatorLabel = '',
-    this.source = 'assistant',
+    this.source = assistantNoteSource,
     required this.createdAt,
   });
 
@@ -44,7 +47,7 @@ class ReaderAnnotation {
           json['locatorLabel'] as String? ??
           json['locator_label'] as String? ??
           '',
-      source: json['source'] as String? ?? 'assistant',
+      source: json['source'] as String? ?? assistantNoteSource,
       createdAt: DateTime.fromMillisecondsSinceEpoch(createdAtMs, isUtc: true),
     );
   }

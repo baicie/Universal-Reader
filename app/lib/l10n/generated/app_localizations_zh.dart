@@ -145,6 +145,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get notesUnavailable => '无法读取笔记。';
 
   @override
+  String get bookmarks => '书签';
+
+  @override
+  String get addBookmark => '添加书签';
+
+  @override
+  String get bookmarkAdded => '已添加书签。';
+
+  @override
+  String get saveSelection => '保存选区';
+
+  @override
+  String get noBookmarks => '这本书还没有书签。';
+
+  @override
   String get scanFolder => '扫描文件夹';
 
   @override

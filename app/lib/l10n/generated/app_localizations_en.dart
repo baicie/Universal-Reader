@@ -149,6 +149,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notesUnavailable => 'Could not load notes.';
 
   @override
+  String get bookmarks => 'Bookmarks';
+
+  @override
+  String get addBookmark => 'Add bookmark';
+
+  @override
+  String get bookmarkAdded => 'Bookmark added.';
+
+  @override
+  String get saveSelection => 'Save selection';
+
+  @override
+  String get noBookmarks => 'This book has no bookmarks yet.';
+
+  @override
   String get scanFolder => 'Scan folder';
 
   @override

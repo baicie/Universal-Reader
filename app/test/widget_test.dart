@@ -4,9 +4,12 @@ import 'package:app/core/annotated_text.dart';
 import 'package:app/core/library_repository.dart';
 import 'package:app/core/locale_controller.dart';
 import 'package:app/features/library/annotation_store.dart';
+import 'package:app/features/reader/reader_bookmarks_pane.dart';
+import 'package:app/features/reader/selection_confirm_bar.dart';
 import 'package:app/features/tools/ai/ai_runtime.dart';
 import 'package:app/features/tools/ai/ai_settings.dart';
 import 'package:app/features/tools/ai/conversation_store.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -235,5 +238,78 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('comic-page')), findsOneWidget);
     expect(find.textContaining('阅读器尚未接入'), findsNothing);
+  });
+
+  testWidgets('adds a bookmark that can jump without leaving the book', (
+    tester,
+  ) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', utf8.encode('hello from notes'));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('notes').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('添加书签'));
+    await tester.pump();
+    expect(find.byKey(bookmarksPanelKey), findsOneWidget);
+    expect(find.textContaining('text|'), findsOneWidget);
+    await tester.tap(find.textContaining('text|'));
+    await tester.pump();
+    expect(find.text('hello from notes'), findsOneWidget);
+  });
+
+  testWidgets('reader has no selection confirm without a quote', (
+    tester,
+  ) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', utf8.encode('hello from notes'));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('notes').first);
+    await tester.pumpAndSettle();
+    expect(find.byKey(selectionConfirmKey), findsNothing);
+  });
+
+  testWidgets('selection confirm bar saves the quote', (tester) async {
+    var saved = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SelectionConfirmBar(
+            quote: 'hello from notes',
+            saveLabel: '保存选区',
+            onSave: () => saved = true,
+            onDismiss: () {},
+          ),
+        ),
+      ),
+    );
+    expect(find.byKey(selectionConfirmKey), findsOneWidget);
+    expect(find.text('hello from notes'), findsOneWidget);
+    await tester.tap(find.text('保存选区'));
+    expect(saved, isTrue);
   });
 }

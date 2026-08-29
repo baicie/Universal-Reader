@@ -356,6 +356,36 @@ abstract class AppLocalizations {
   /// **'无法读取笔记。'**
   String get notesUnavailable;
 
+  /// No description provided for @bookmarks.
+  ///
+  /// In zh, this message translates to:
+  /// **'书签'**
+  String get bookmarks;
+
+  /// No description provided for @addBookmark.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加书签'**
+  String get addBookmark;
+
+  /// No description provided for @bookmarkAdded.
+  ///
+  /// In zh, this message translates to:
+  /// **'已添加书签。'**
+  String get bookmarkAdded;
+
+  /// No description provided for @saveSelection.
+  ///
+  /// In zh, this message translates to:
+  /// **'保存选区'**
+  String get saveSelection;
+
+  /// No description provided for @noBookmarks.
+  ///
+  /// In zh, this message translates to:
+  /// **'这本书还没有书签。'**
+  String get noBookmarks;
+
   /// No description provided for @scanFolder.
   ///
   /// In zh, this message translates to:
