@@ -10,7 +10,7 @@ class AiSettingsController extends ChangeNotifier {
   bool loading = true;
 
   Future<void> load() async {
-    settings = await repository.load();
+    settings = (await repository.load()).withProjectDefaults();
     loading = false;
     notifyListeners();
   }

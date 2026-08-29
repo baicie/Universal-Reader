@@ -31,21 +31,23 @@ Future<LibraryRepository> resolveLibraryRepository(
         response.body.contains('universal-reader-server')) {
       return HttpLibraryRepository(baseUrl: origin, httpClient: client);
     }
-  } catch (_) {}
+  } catch (_) {
+    // 服务不可达时回退到本机书库，探测失败不是应用错误。
+  }
   return SharedPreferencesLibraryRepository(preferences);
 }
 
 class HttpLibraryRepository implements LibraryRepository {
   HttpLibraryRepository({required this.baseUrl, http.Client? httpClient})
-    : _http = httpClient ?? http.Client();
+    : httpClient = httpClient ?? http.Client();
 
   final String baseUrl;
-  final http.Client _http;
+  final http.Client httpClient;
 
   @override
   bool get usesRemoteStore => true;
 
-  Uri _uri(String path) {
+  Uri uri(String path) {
     final root = baseUrl.endsWith('/')
         ? baseUrl.substring(0, baseUrl.length - 1)
         : baseUrl;
@@ -54,7 +56,7 @@ class HttpLibraryRepository implements LibraryRepository {
 
   @override
   Future<List<LibraryDocument>> load() async {
-    final response = await _http.get(_uri('/v1/library/documents'));
+    final response = await httpClient.get(uri('/v1/library/documents'));
     if (response.statusCode != 200) {
       throw FormatException('无法读取书库 (${response.statusCode})');
     }
@@ -77,11 +79,13 @@ class HttpLibraryRepository implements LibraryRepository {
 
   @override
   Future<LibraryDocument> importBytes(String fileName, List<int> bytes) async {
-    final request = http.MultipartRequest('POST', _uri('/v1/library/files'));
+    final request = http.MultipartRequest('POST', uri('/v1/library/files'));
     request.files.add(
       http.MultipartFile.fromBytes('file', bytes, filename: fileName),
     );
-    final response = await http.Response.fromStream(await _http.send(request));
+    final response = await http.Response.fromStream(
+      await httpClient.send(request),
+    );
     if (response.statusCode == 415) {
       throw const FormatException('unsupported document format');
     }
@@ -95,7 +99,9 @@ class HttpLibraryRepository implements LibraryRepository {
 
   @override
   Future<List<int>?> readFile(String id) async {
-    final response = await _http.get(_uri('/v1/library/documents/$id/file'));
+    final response = await httpClient.get(
+      uri('/v1/library/documents/$id/file'),
+    );
     if (response.statusCode == 404) return null;
     if (response.statusCode != 200) {
       throw FormatException('无法读取文件 (${response.statusCode})');
@@ -109,8 +115,8 @@ class HttpLibraryRepository implements LibraryRepository {
     required double progress,
     required DateTime lastOpened,
   }) async {
-    final response = await _http.patch(
-      _uri('/v1/library/documents/$id'),
+    final response = await httpClient.patch(
+      uri('/v1/library/documents/$id'),
       headers: const {'Content-Type': 'application/json'},
       body: jsonEncode({
         'progress': progress,

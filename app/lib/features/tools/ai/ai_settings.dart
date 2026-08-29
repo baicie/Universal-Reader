@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'deepseek.dart';
+
 class AiSettings {
   const AiSettings({
     this.enabled = false,
@@ -15,8 +17,27 @@ class AiSettings {
   final String apiKey;
   final String model;
 
-  bool get ready =>
-      enabled && endpoint.trim().isNotEmpty && model.trim().isNotEmpty;
+  bool get ready => isReady();
+
+  bool isReady({bool serverHasKey = false}) {
+    final resolved = withProjectDefaults();
+    return resolved.enabled &&
+        resolved.endpoint.trim().isNotEmpty &&
+        resolved.model.trim().isNotEmpty &&
+        (resolved.apiKey.trim().isNotEmpty || serverHasKey);
+  }
+
+  AiSettings withProjectDefaults({
+    String endpoint = DeepSeek.endpoint,
+    String model = DeepSeek.defaultModel,
+    String apiKey = DeepSeek.projectApiKey,
+  }) {
+    return copyWith(
+      endpoint: this.endpoint.trim().isEmpty ? endpoint : this.endpoint,
+      model: this.model.trim().isEmpty ? model : this.model,
+      apiKey: this.apiKey.trim().isEmpty ? apiKey : this.apiKey,
+    );
+  }
 
   AiSettings copyWith({
     bool? enabled,

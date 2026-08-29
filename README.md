@@ -34,6 +34,30 @@ Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK
 - 阅读器目录、进度、主题和移动端交互
 - 界面默认中文，可在设置中切换 English 或跟随系统
 - TXT / Markdown / HTML 可阅读原文件（EPUB/PDF 等仍提示尚未接入）
+- 可选阅读助手，当前支持 DeepSeek；接口、模型和 API Key 可在设置或项目编译参数中配置
+
+## 阅读助手（DeepSeek）
+
+默认关闭。在设置中打开阅读助手、选择 `deepseek-chat` 或 `deepseek-reasoner`，并填写 API Key。接口默认是 `https://api.deepseek.com`。问答记录按书保存在本机；走本机 Rust 服务时写入 `conversations/{id}.json`。
+
+项目级默认值可用编译参数提供。不要把生产环境的 API Key 打进 Web 发布包，Web 产物里的 `--dart-define` 能被读出来；密钥请放在本机设置里，或只放在服务端环境变量中。
+
+```powershell
+cd app
+flutter run -d chrome --dart-define=UNIVERSAL_READER_DEEPSEEK_API_KEY=sk-...
+# 可选：
+# --dart-define=UNIVERSAL_READER_DEEPSEEK_MODEL=deepseek-reasoner
+# --dart-define=UNIVERSAL_READER_DEEPSEEK_ENDPOINT=https://api.deepseek.com
+```
+
+走本机服务（含 Web 同域部署）时，浏览器通过 `POST /v1/ai/chat` 转发，不直连 DeepSeek。服务端可用：
+
+```bash
+export UNIVERSAL_READER_DEEPSEEK_API_KEY=sk-...
+# 可选：UNIVERSAL_READER_DEEPSEEK_ENDPOINT=https://api.deepseek.com
+```
+
+Rust 只转发请求并保存问答，不复制 Flutter 侧的 prompt / grounding。
 
 ## Rust 后端服务
 

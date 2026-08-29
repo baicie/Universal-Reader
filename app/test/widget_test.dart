@@ -48,6 +48,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('阅读助手'), findsOneWidget);
     expect(find.text('启用阅读助手'), findsOneWidget);
+    expect(find.text('DeepSeek'), findsOneWidget);
     expect(find.text('语言'), findsOneWidget);
   });
 

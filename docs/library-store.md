@@ -24,6 +24,7 @@ Rust 服务把书库做成**简单对象存储**（网盘），Flutter 只负责
 $UNIVERSAL_READER_STORAGE_DIR/     # 默认 data/library
   files/{id}.{ext}                 # 二进制，服务生成稳定 id
   catalog.json                     # 文档列表 + 进度
+  conversations/{id}.json          # 该书问答记录（可选，最多 50 条）
 ```
 
 选择这个模型而不是「按原文件名堆目录」或「立刻上 SQLite」的原因：
@@ -41,7 +42,11 @@ $UNIVERSAL_READER_STORAGE_DIR/     # 默认 data/library
 | `GET` | `/v1/library/documents/{id}/file` | 下载原文件 |
 | `POST` | `/v1/library/files` | multipart 字段 `file`，写入 `files/` 并登记 |
 | `PATCH` | `/v1/library/documents/{id}` | `{ "progress": 0.37 }`，同时更新最近打开时间 |
-| `DELETE` | `/v1/library/documents/{id}` | 删文件和目录项 |
+| `DELETE` | `/v1/library/documents/{id}` | 删文件、目录项和问答记录 |
+| `GET` | `/v1/library/documents/{id}/conversations` | 该书问答记录 |
+| `PUT` | `/v1/library/documents/{id}/conversations` | 覆盖该书问答记录 |
+| `GET` | `/v1/ai/status` | `{ "configured": bool, "provider": "deepseek" }` |
+| `POST` | `/v1/ai/chat` | 转发 DeepSeek chat；不接受客户端 endpoint |
 
 列表/上传响应字段：`id`、`file_name`、`stored_name`、`title`、`author`、`format`、`document_type`、`size`、`cover_color`、`progress`、`last_opened_ms`。
 

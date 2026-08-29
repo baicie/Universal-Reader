@@ -17,10 +17,10 @@
 1. 「引入 AI agent」指产品能力（阅读助手），不是再加一层 Cursor 开发 Agent。
 2. 遵守 `index.md` §25 与 §34：AI 是 enhancement；第一年不做自主大模型 Agent。
 3. Local-first：默认不联网、不建账号；用户必须显式启用 Provider。
-4. 第一批已实现 Tool slot 与用户配置的 OpenAI 兼容接口；默认关闭。
+4. 当前支持用户配置的 DeepSeek 接口；默认关闭。
 5. Agent 只使用当前打开文档的 `extractText` / `search` / `TOC` / `Locator`，不把整库上传。
 6. 界面挂在 Reader Chrome / 选区菜单，不新增资料库一级入口。
-7. 模型推理放在用户配置的 Provider（本机或用户自己的 API），Rust Core 不内置模型权重。
+7. 模型推理走用户配置的 DeepSeek（或兼容网关），Rust Core 不内置模型权重。
 
 ## Tech Stack
 
@@ -31,9 +31,9 @@
 | App | Flutter / Dart，Riverpod，go_router |
 | 阅读协议 | 现有 `ReaderDocument`、`Locator`、`DocumentRange` |
 | 插件槽位 | `index.md` §23 的 `ToolProvider` |
-| 本地能力 | 现有 Rust 服务只负责文件、索引、FTS；不负责生成 |
-| 模型 | 用户配置的 Local 或 Remote Provider；默认关闭 |
-| 持久化 | 工具设置进 Settings；对话不进书库主数据，除非用户保存为笔记 |
+| 本地能力 | Rust 服务负责文件、书库，以及可选的 DeepSeek 转发与按书问答落盘；**不**复制 prompt / grounding |
+| 模型 | 用户配置的 DeepSeek；走本机服务时由服务转发，默认关闭 |
+| 持久化 | 工具设置进 Settings；问答记录按书保存（本机 SharedPreferences，或服务端 `conversations/{id}.json`），不进 annotations |
 
 ## Commands
 
@@ -67,12 +67,18 @@ app/lib/
       ai/
         ai_tool_provider.dart
         model_provider.dart
-        grounding.dart      从 ReaderDocument 取上下文
-        prompts.dart        把文档当作不可信输入
+        conversation_store.dart 按书保存问答
+        model_client.dart       DeepSeek 直连或同域网关
+        grounding.dart          从 ReaderDocument 取上下文
+        prompts.dart            把文档当作不可信输入
 docs/ai-agent.md            本规格（活文档）
 ```
 
-Rust 侧本期不新增 `reader-ai` crate。若未来做本地模型网关，另开 ADR，不从本规格直接开工。
+Rust 侧**不要**再做一份阅读助手：不写 prompt、不抽摘录、不内置模型。只提供：
+
+- `POST /v1/ai/chat`：把 `{ model, messages, api_key? }` 转到服务端配置的 DeepSeek；客户端不能指定 endpoint（防 SSRF）。
+- `GET /v1/ai/status`：服务端是否已配置密钥。
+- `GET/PUT /v1/library/documents/{id}/conversations`：按书保存问答，最多 50 条。
 
 ## Code Style
 
@@ -124,12 +130,14 @@ class ReaderToolRequest {
   - 把书籍内容当不可信输入，防提示注入。
   - 用户主动点「发送」后才调用模型。
   - 移动端仍是点中心区域显隐 Reader Chrome。
+  - 问答记录按书保存；Rust 只做轻量转发和落盘。
+  - 服务端 DeepSeek endpoint 只来自环境变量，不接受客户端传入的 URL。
 - Ask first
-  - 增加 HTTP / OpenAI 兼容 SDK / Ollama 等依赖。
+  - 增加 Ollama 或其他 Provider。
   - 默认把选区送出设备。
-  - 把对话存进 annotations 或同步链路。
-  - 让 Rust 服务转发模型请求。
+  - 把对话存进 annotations / 笔记。
   - 给资料库首页加 AI 入口或推荐。
+  - 在 Rust 里复制一套 prompt / grounding Agent。
 - Never
   - 无 AI 就无法打开书。
   - 导入时自动摘要整库。
@@ -189,7 +197,7 @@ goTo(locator)          只建议跳转，必须用户确认
 3. **Ask document**：FTS + `extractText` 做有限上下文问答，回答必须带 locator。
 4. **Limited loop**：模型可提议 `search` / `goTo`，跳转需确认。仍不是自主 Agent。
 
-当前已完成第 1、2 步的壳层：默认关闭的 Tool、设置项、问这一页面板，以及用户自备 endpoint。第 3、4 步仍未开始。
+当前已完成第 1、2 步，以及按书问答记录和 Rust 轻量网关。第 3、4 步仍未开始。
 
 ## Success Criteria
 

@@ -78,8 +78,9 @@ void main() {
     final tool = AiReaderTool(
       settings: const AiSettings(
         enabled: true,
-        endpoint: 'http://127.0.0.1:11434/v1',
-        model: 'llama3.1',
+        endpoint: 'https://api.deepseek.com',
+        model: 'deepseek-chat',
+        apiKey: 'sk-test',
       ),
       clientFactory: (_) => client,
     );
@@ -94,8 +95,50 @@ void main() {
     expect(client.calls, 1);
     expect(client.lastMessages!.last['content'], contains('白是一种包容'));
     expect(
-      OpenAiCompatibleClient.chatCompletionsUrl('http://127.0.0.1:11434/v1'),
-      'http://127.0.0.1:11434/v1/chat/completions',
+      OpenAiCompatibleClient.chatCompletionsUrl('https://api.deepseek.com'),
+      'https://api.deepseek.com/v1/chat/completions',
     );
+  });
+
+  test('server key lets the tool run without a client API key', () async {
+    final client = RecordingModelClient(reply: '服务端密钥');
+    final tool = AiReaderTool(
+      settings: const AiSettings(
+        enabled: true,
+        endpoint: 'https://api.deepseek.com',
+        model: 'deepseek-chat',
+      ),
+      allowMissingApiKey: true,
+      clientFactory: (_) => client,
+    );
+
+    final result = await tool.run(
+      document: document,
+      request: const ReaderToolRequest(kind: ReaderToolKind.summarize),
+    );
+
+    expect(result.unavailable, isFalse);
+    expect(result.text, '服务端密钥');
+    expect(client.calls, 1);
+  });
+
+  test('enabled tool without a key does not call the model', () async {
+    final client = RecordingModelClient();
+    final tool = AiReaderTool(
+      settings: const AiSettings(
+        enabled: true,
+        endpoint: 'https://api.deepseek.com',
+        model: 'deepseek-chat',
+      ),
+      clientFactory: (_) => client,
+    );
+
+    final result = await tool.run(
+      document: document,
+      request: const ReaderToolRequest(kind: ReaderToolKind.summarize),
+    );
+
+    expect(result.unavailable, isTrue);
+    expect(client.calls, 0);
   });
 }

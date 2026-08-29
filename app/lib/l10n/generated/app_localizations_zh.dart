@@ -176,20 +176,36 @@ class AppLocalizationsZh extends AppLocalizations {
   String get endpointLabel => '接口地址';
 
   @override
-  String get modelLabel => '模型名称';
+  String get modelLabel => '模型';
 
   @override
-  String get modelHint => 'llama3.1 或 gpt-4o-mini';
+  String get modelHint => 'deepseek-chat';
 
   @override
-  String get apiKeyLabel => 'API Key（可选）';
+  String get apiKeyLabel => 'API Key';
 
   @override
-  String get apiKeyHint => '仅保存在本机';
+  String get apiKeyHint => '仅保存在本机，也可通过项目编译参数提供';
+
+  @override
+  String get assistantProvider => '模型服务';
 
   @override
   String get assistantPrivacyNote =>
-      '发送时会把当前摘录交给你配置的 OpenAI 兼容接口，例如本机 Ollama。不上整本书，也不上传书库。';
+      '启用后会把当前摘录发给 DeepSeek。不上整本书，也不上传书库。问答记录按书保存在本机。接口地址和模型可在本页或项目编译参数中配置。';
+
+  @override
+  String get assistantGatewayNote =>
+      '当前由本机服务转发 DeepSeek 请求，避免浏览器跨域。不会使用客户端填写的接口地址。密钥可填在这里，或由服务端环境变量提供。';
+
+  @override
+  String get apiKeyOptionalHint => '本机服务已配置密钥，可留空';
+
+  @override
+  String get conversationHistory => '问答记录';
+
+  @override
+  String get conversationUnavailable => '无法读取问答记录。';
 
   @override
   String get defaultImportLocation => '默认导入位置';
@@ -247,7 +263,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assistantDisabled => '阅读助手未启用。可在设置中打开。';
 
   @override
-  String get assistantNotConfigured => '请先在设置中填写接口地址和模型名称。';
+  String get assistantNotConfigured => '请先填写 DeepSeek API Key。';
 
   @override
   String get noExcerpt => '当前页没有可发送的摘录。';

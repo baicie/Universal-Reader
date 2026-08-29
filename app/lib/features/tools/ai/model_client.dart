@@ -65,6 +65,48 @@ class OpenAiCompatibleClient implements ModelClient {
   }
 }
 
+class ReaderServerAiClient implements ModelClient {
+  ReaderServerAiClient({
+    required this.baseUrl,
+    required this.model,
+    this.apiKey = '',
+    http.Client? httpClient,
+  }) : _http = httpClient ?? http.Client();
+
+  final String baseUrl;
+  final String model;
+  final String apiKey;
+  final http.Client _http;
+
+  @override
+  Future<String> complete(List<Map<String, String>> messages) async {
+    final root = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    final response = await _http.post(
+      Uri.parse('$root/v1/ai/chat'),
+      headers: const {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'model': model,
+        'messages': messages,
+        if (apiKey.trim().isNotEmpty) 'api_key': apiKey.trim(),
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw StateError('模型接口返回 ${response.statusCode}');
+    }
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException('模型接口返回了无法解析的内容');
+    }
+    final content = decoded['content'];
+    if (content is String && content.trim().isNotEmpty) {
+      return content.trim();
+    }
+    throw const FormatException('模型接口没有返回文本');
+  }
+}
+
 class RecordingModelClient implements ModelClient {
   RecordingModelClient({this.reply = '示例回复', this.onComplete});
 

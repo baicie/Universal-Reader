@@ -30,6 +30,24 @@ pub struct LibraryDocumentRecord {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Conversation {
+    #[serde(default)]
+    pub turns: Vec<ConversationTurn>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ConversationTurn {
+    pub kind: String,
+    #[serde(default)]
+    pub question: String,
+    pub reply: String,
+    #[serde(default, alias = "locatorLabel")]
+    pub locator_label: String,
+    #[serde(default, alias = "createdAtMs")]
+    pub created_at_ms: u64,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 struct Catalog {
     documents: Vec<LibraryDocumentRecord>,
 }
@@ -183,7 +201,60 @@ impl LibraryStore {
         let path = self.files_dir().join(&record.stored_name);
         let _ = tokio::fs::remove_file(path).await;
         self.save_catalog(&catalog).await?;
+        let _ = tokio::fs::remove_file(self.conversation_path(id)).await;
         Ok(record)
+    }
+
+    pub async fn load_conversation(&self, id: &str) -> Result<Conversation, LibraryError> {
+        if !valid_id(id) {
+            return Err(LibraryError::InvalidName);
+        }
+        let _guard = self.lock.lock().await;
+        let catalog = self.load_catalog().await?;
+        if !catalog.documents.iter().any(|document| document.id == id) {
+            return Err(LibraryError::NotFound);
+        }
+        match tokio::fs::read(self.conversation_path(id)).await {
+            Ok(bytes) => serde_json::from_slice(&bytes).map_err(|_| LibraryError::Io),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                Ok(Conversation::default())
+            }
+            Err(_) => Err(LibraryError::Io),
+        }
+    }
+
+    pub async fn save_conversation(
+        &self,
+        id: &str,
+        mut conversation: Conversation,
+    ) -> Result<Conversation, LibraryError> {
+        if !valid_id(id) {
+            return Err(LibraryError::InvalidName);
+        }
+        if conversation.turns.len() > 50 {
+            conversation.turns.drain(0..conversation.turns.len() - 50);
+        }
+        let _guard = self.lock.lock().await;
+        let catalog = self.load_catalog().await?;
+        if !catalog.documents.iter().any(|document| document.id == id) {
+            return Err(LibraryError::NotFound);
+        }
+        tokio::fs::create_dir_all(self.conversations_dir())
+            .await
+            .map_err(|_| LibraryError::Io)?;
+        let payload = serde_json::to_vec_pretty(&conversation).map_err(|_| LibraryError::Io)?;
+        tokio::fs::write(self.conversation_path(id), payload)
+            .await
+            .map_err(|_| LibraryError::Io)?;
+        Ok(conversation)
+    }
+
+    fn conversations_dir(&self) -> PathBuf {
+        self.root.join("conversations")
+    }
+
+    fn conversation_path(&self, id: &str) -> PathBuf {
+        self.conversations_dir().join(format!("{id}.json"))
     }
 
     async fn load_catalog(&self) -> Result<Catalog, LibraryError> {
@@ -313,5 +384,70 @@ mod tests {
     #[test]
     fn titles_drop_the_extension() {
         assert_eq!(title_from_file_name("Design.epub"), "Design");
+    }
+
+    #[tokio::test]
+    async fn conversation_store_keeps_the_latest_fifty_turns_for_one_book() {
+        let dir = std::env::temp_dir().join(format!(
+            "universal-reader-conv-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let store = LibraryStore::new(dir.clone());
+        let record = store
+            .ingest("notes.txt".to_string(), b"hello")
+            .await
+            .unwrap();
+        let conversation = Conversation {
+            turns: (0u64..51)
+                .map(|index| ConversationTurn {
+                    kind: "ask".into(),
+                    question: String::new(),
+                    reply: format!("r{index}"),
+                    locator_label: String::new(),
+                    created_at_ms: index,
+                })
+                .collect(),
+        };
+        let saved = store
+            .save_conversation(&record.id, conversation)
+            .await
+            .unwrap();
+        assert_eq!(saved.turns.len(), 50);
+        assert_eq!(saved.turns.first().unwrap().reply, "r1");
+        assert_eq!(saved.turns.last().unwrap().reply, "r50");
+        let missing = store
+            .save_conversation("missing-id", Conversation::default())
+            .await;
+        assert!(matches!(missing, Err(LibraryError::NotFound)));
+        let _ = tokio::fs::remove_dir_all(dir).await;
+    }
+
+    #[tokio::test]
+    async fn corrupt_conversation_json_is_an_error_not_an_empty_history() {
+        let dir = std::env::temp_dir().join(format!(
+            "universal-reader-conv-corrupt-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let store = LibraryStore::new(dir.clone());
+        let record = store
+            .ingest("notes.txt".to_string(), b"hello")
+            .await
+            .unwrap();
+        let path = dir
+            .join("conversations")
+            .join(format!("{}.json", record.id));
+        tokio::fs::create_dir_all(path.parent().unwrap())
+            .await
+            .unwrap();
+        tokio::fs::write(&path, b"{not-json").await.unwrap();
+        let loaded = store.load_conversation(&record.id).await;
+        assert!(matches!(loaded, Err(LibraryError::Io)));
+        let _ = tokio::fs::remove_dir_all(dir).await;
     }
 }
