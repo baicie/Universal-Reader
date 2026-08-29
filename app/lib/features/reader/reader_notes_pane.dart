@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../widgets/eyebrow.dart';
 import '../library/annotation_store.dart';
+import 'reader_notes.dart';
 
-const bookmarksPanelKey = Key('bookmarks-panel');
-const addBookmarkButtonKey = Key('add-bookmark');
+const notesPanelKey = Key('notes-panel');
 
-class ReaderBookmarksPane extends StatelessWidget {
-  const ReaderBookmarksPane({
+class ReaderNotesPane extends StatelessWidget {
+  const ReaderNotesPane({
     required this.title,
     required this.emptyLabel,
     required this.deleteLabel,
-    required this.bookmarks,
+    required this.notes,
     required this.onOpen,
     required this.onDelete,
     super.key,
@@ -20,7 +20,7 @@ class ReaderBookmarksPane extends StatelessWidget {
   final String title;
   final String emptyLabel;
   final String deleteLabel;
-  final List<ReaderAnnotation> bookmarks;
+  final List<ReaderAnnotation> notes;
   final ValueChanged<ReaderAnnotation> onOpen;
   final ValueChanged<ReaderAnnotation> onDelete;
 
@@ -30,14 +30,14 @@ class ReaderBookmarksPane extends StatelessWidget {
     final ink = theme.colorScheme.onSurface;
     final muted = theme.colorScheme.onSurfaceVariant;
     return Column(
-      key: bookmarksPanelKey,
+      key: notesPanelKey,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Eyebrow(title),
         const SizedBox(height: 12),
-        if (bookmarks.isEmpty)
+        if (notes.isEmpty)
           Text(emptyLabel, style: TextStyle(color: muted, height: 1.4)),
-        for (final mark in bookmarks)
+        for (final note in notes)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Row(
@@ -45,18 +45,18 @@ class ReaderBookmarksPane extends StatelessWidget {
               children: [
                 Expanded(
                   child: InkWell(
-                    onTap: () => onOpen(mark),
+                    onTap: () => onOpen(note),
                     child: Text(
-                      mark.locatorLabel,
+                      noteListLabel(note),
                       style: TextStyle(color: ink, height: 1.4),
                     ),
                   ),
                 ),
                 IconButton(
-                  key: Key('delete-bookmark-${mark.id}'),
+                  key: Key('delete-note-${note.id}'),
                   tooltip: deleteLabel,
                   visualDensity: VisualDensity.compact,
-                  onPressed: () => onDelete(mark),
+                  onPressed: () => onDelete(note),
                   icon: Icon(Icons.close, size: 18, color: muted),
                 ),
               ],

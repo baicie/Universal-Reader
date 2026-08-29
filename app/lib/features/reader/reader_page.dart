@@ -19,6 +19,9 @@ import '../tools/reader_ai_panel.dart';
 import 'open_reader.dart';
 import 'reader_bookmarks.dart';
 import 'reader_bookmarks_pane.dart';
+import 'reader_notes_pane.dart';
+import 'reader_search.dart';
+import 'reader_search_pane.dart';
 import 'reader_selection.dart';
 import 'renderers/isolated_comic_view.dart';
 import 'renderers/isolated_foliate_view.dart';
@@ -36,6 +39,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   bool chrome = true;
   bool toc = false;
   bool bookmarks = false;
+  bool showNotes = false;
+  bool showSearch = false;
   bool ask = false;
   late double progress;
   bool loading = true;
@@ -46,6 +51,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   List<ReaderAnnotation> notes = const [];
   String? pendingQuote;
   FoliateSession? foliateSession;
+  String searchQuery = '';
+  List<SearchResult> searchHits = const [];
 
   @override
   void initState() {
@@ -167,6 +174,27 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
   }
 
+  Future<void> _removeMark(String noteId) async {
+    final next = await ref
+        .read(aiRuntimeProvider)
+        .annotations
+        .remove(widget.id, noteId);
+    if (!mounted) return;
+    setState(() => notes = next);
+  }
+
+  Future<void> _searchBook(String query) async {
+    final reader = opened;
+    setState(() => searchQuery = query);
+    if (reader == null) {
+      setState(() => searchHits = const []);
+      return;
+    }
+    final hits = await hitsForQuery(reader, query);
+    if (!mounted) return;
+    setState(() => searchHits = hits);
+  }
+
   Future<void> _saveSelection() async {
     final quote = pendingQuote;
     if (quote == null) return;
@@ -214,6 +242,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final muted = dark ? const Color(0xFFB7A894) : const Color(0xFF8A7358);
     final tocBg = dark ? const Color(0xFF24231F) : const Color(0xFFF0EADF);
     final wide = MediaQuery.sizeOf(context).width >= 900;
+    final sideOpen = toc || bookmarks || showNotes || showSearch;
     final currentIndex = opened is ChapteredDocument
         ? (opened as ChapteredDocument).chapterIndex
         : 0;
@@ -264,6 +293,24 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                   }),
                 ),
                 IconButton(
+                  tooltip: l10n.searchInBook,
+                  icon: Icon(Icons.search, color: showSearch ? accent : ink),
+                  onPressed: () => setState(() {
+                    showSearch = !showSearch;
+                    chrome = true;
+                  }),
+                ),
+                IconButton(
+                  tooltip: l10n.notesTitle,
+                  icon: Icon(
+                    showNotes
+                        ? Icons.sticky_note_2
+                        : Icons.sticky_note_2_outlined,
+                    color: showNotes ? accent : ink,
+                  ),
+                  onPressed: () => setState(() => showNotes = !showNotes),
+                ),
+                IconButton(
                   key: addBookmarkButtonKey,
                   tooltip: l10n.addBookmark,
                   icon: const Icon(Icons.bookmark_add_outlined),
@@ -302,7 +349,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           children: [
             Row(
               children: [
-                if (toc || bookmarks)
+                if (sideOpen)
                   Material(
                     color: tocBg,
                     child: GestureDetector(
@@ -312,10 +359,40 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         child: ListView(
                           padding: const EdgeInsets.fromLTRB(20, 24, 16, 24),
                           children: [
+                            if (showSearch) ...[
+                              ReaderSearchPane(
+                                title: l10n.searchInBook,
+                                hint: l10n.searchInBookHint,
+                                emptyLabel: l10n.noSearchResults,
+                                query: searchQuery,
+                                hits: searchHits,
+                                onQuery: _searchBook,
+                                onOpen: (hit) => _goTo(hit.locator),
+                              ),
+                              if (showNotes || bookmarks || toc)
+                                const SizedBox(height: 28),
+                            ],
+                            if (showNotes) ...[
+                              ReaderNotesPane(
+                                title: l10n.notesTitle,
+                                emptyLabel: l10n.noNotes,
+                                deleteLabel: l10n.deleteNote,
+                                notes: notesOf(notes),
+                                onOpen: (note) {
+                                  final locator = decodeLocator(
+                                    note.locatorLabel,
+                                  );
+                                  if (locator != null) _goTo(locator);
+                                },
+                                onDelete: (note) => _removeMark(note.id),
+                              ),
+                              if (bookmarks || toc) const SizedBox(height: 28),
+                            ],
                             if (bookmarks) ...[
                               ReaderBookmarksPane(
                                 title: l10n.bookmarks,
                                 emptyLabel: l10n.noBookmarks,
+                                deleteLabel: l10n.deleteBookmark,
                                 bookmarks: bookmarksOf(notes),
                                 onOpen: (mark) {
                                   final locator = decodeLocator(
@@ -323,6 +400,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                                   );
                                   if (locator != null) _goTo(locator);
                                 },
+                                onDelete: (mark) => _removeMark(mark.id),
                               ),
                               if (toc) const SizedBox(height: 28),
                             ],
@@ -406,7 +484,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               ),
             if (pendingQuote != null && pendingQuote!.trim().isNotEmpty)
               Positioned(
-                left: toc || bookmarks ? 240 : 0,
+                left: sideOpen ? 240 : 0,
                 right: ask && wide ? 320 : 0,
                 bottom: chrome ? 72 : 0,
                 child: GestureDetector(
@@ -421,7 +499,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               ),
             if (chrome)
               Positioned(
-                left: toc || bookmarks ? 240 : 0,
+                left: sideOpen ? 240 : 0,
                 right: ask && wide ? 320 : 0,
                 bottom: 0,
                 child: Material(

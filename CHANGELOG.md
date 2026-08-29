@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.0.1-dev.10 - 2026-08-29
+
 - EPUB and simple text PDFs open as real chapters/pages instead of the unavailable placeholder; corrupt files stay corrupt.
 - The local server keeps the catalog in SQLite with FTS5, can scan a folder or import from a configured WebDAV location, and can search one book by locator.
 - The assistant can ask the current book (not just the current excerpt), suggest a jump the user must confirm, talk to Ollama, and save a turn as a note.
@@ -9,6 +11,7 @@
 - Without Rust, Flutter keeps the library in SQLite so imported files still open after a restart. Web uses the same repository interface with durable local storage.
 - Notes paint their quote in the current chapter. The server hashes files, extracts covers, can watch a folder, and can sync WebDAV both ways.
 - The reader can save a text selection as a user note, keep bookmarks on the same annotation store, and paginate reflow chapters through a testable Foliate session with CFI.
+- Notes and bookmarks can be listed and deleted per book without touching the conversation. In-book search jumps through the current document only.
 
 ## 0.0.1-dev.9 - 2026-08-29
 

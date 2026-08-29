@@ -386,6 +386,42 @@ abstract class AppLocalizations {
   /// **'这本书还没有书签。'**
   String get noBookmarks;
 
+  /// No description provided for @noNotes.
+  ///
+  /// In zh, this message translates to:
+  /// **'这本书还没有笔记。'**
+  String get noNotes;
+
+  /// No description provided for @deleteNote.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除笔记'**
+  String get deleteNote;
+
+  /// No description provided for @deleteBookmark.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除书签'**
+  String get deleteBookmark;
+
+  /// No description provided for @searchInBook.
+  ///
+  /// In zh, this message translates to:
+  /// **'在这本书里搜索'**
+  String get searchInBook;
+
+  /// No description provided for @searchInBookHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索这本书'**
+  String get searchInBookHint;
+
+  /// No description provided for @noSearchResults.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有找到匹配的内容。'**
+  String get noSearchResults;
+
   /// No description provided for @scanFolder.
   ///
   /// In zh, this message translates to:

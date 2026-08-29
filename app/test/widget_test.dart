@@ -5,6 +5,8 @@ import 'package:app/core/library_repository.dart';
 import 'package:app/core/locale_controller.dart';
 import 'package:app/features/library/annotation_store.dart';
 import 'package:app/features/reader/reader_bookmarks_pane.dart';
+import 'package:app/features/reader/reader_notes_pane.dart';
+import 'package:app/features/reader/reader_search_pane.dart';
 import 'package:app/features/reader/selection_confirm_bar.dart';
 import 'package:app/features/tools/ai/ai_runtime.dart';
 import 'package:app/features/tools/ai/ai_settings.dart';
@@ -266,6 +268,10 @@ void main() {
     await tester.tap(find.textContaining('text|'));
     await tester.pump();
     expect(find.text('hello from notes'), findsOneWidget);
+    await tester.tap(find.byTooltip('删除书签'));
+    await tester.pump();
+    expect(find.textContaining('text|'), findsNothing);
+    expect(find.text('hello from notes'), findsOneWidget);
   });
 
   testWidgets('reader has no selection confirm without a quote', (
@@ -311,5 +317,110 @@ void main() {
     expect(find.text('hello from notes'), findsOneWidget);
     await tester.tap(find.text('保存选区'));
     expect(saved, isTrue);
+  });
+
+  testWidgets('opens a saved note and can delete it without leaving the book', (
+    tester,
+  ) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', utf8.encode('hello from notes'));
+    final notes = InMemoryAnnotationRepository();
+    await notes.save('notes.txt', [
+      ReaderAnnotation(
+        id: 'n1',
+        note: 'keep',
+        quote: 'hello from notes',
+        locatorLabel: 'text|0',
+        source: userNoteSource,
+        createdAt: DateTime.utc(2026, 1, 1),
+      ),
+    ]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+          aiRuntimeProvider.overrideWithValue(
+            AiRuntime.local(
+              InMemoryConversationRepository(),
+              annotations: notes,
+            ),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('notes').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('笔记'));
+    await tester.pump();
+    expect(find.byKey(notesPanelKey), findsOneWidget);
+    expect(find.text('hello from notes'), findsWidgets);
+    await tester.tap(find.text('hello from notes').last);
+    await tester.pump();
+    expect(find.text('hello from notes'), findsWidgets);
+    await tester.tap(find.byKey(const Key('delete-note-n1')));
+    await tester.pump();
+    expect(find.byKey(const Key('delete-note-n1')), findsNothing);
+    expect(find.text('hello from notes'), findsOneWidget);
+  });
+
+  testWidgets('search hits jump inside the current book', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', utf8.encode('hello from notes'));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('notes').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('在这本书里搜索'));
+    await tester.pump();
+    expect(find.byKey(searchPanelKey), findsOneWidget);
+    await tester.enterText(
+      find.byKey(readerSearchFieldKey),
+      'hello from notes',
+    );
+    await tester.pump();
+    expect(find.byKey(const Key('search-hit-0')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('search-hit-0')));
+    await tester.pump();
+    expect(find.text('hello from notes'), findsWidgets);
+    expect(find.textContaining('阅读器尚未接入'), findsNothing);
+  });
+
+  testWidgets('empty search does not invent hits', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', utf8.encode('hello from notes'));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('notes').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('在这本书里搜索'));
+    await tester.pump();
+    await tester.enterText(find.byKey(readerSearchFieldKey), '   ');
+    await tester.pump();
+    expect(find.byKey(const Key('search-hit-0')), findsNothing);
   });
 }

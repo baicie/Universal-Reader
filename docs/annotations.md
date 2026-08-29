@@ -17,6 +17,7 @@
 2. 服务端进 SQLite `annotations` 表；本机无服务时优先进 Flutter SQLite，否则 SharedPreferences，前缀 `universal_reader.annotations.v1.`。
 3. `source` 为 `user`、`assistant` 或 `bookmark`。用户划线是 `user`；书签是 `bookmark`，走独立 API，存同一张表。
 4. 空选区不写笔记。
+5. 删笔记不影响问答记录。找不到的 locator 不跳转。
 
 ## Commands
 
