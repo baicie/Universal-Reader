@@ -76,6 +76,16 @@ class WebPersistentLibraryRepository implements LibraryRepository {
   }
 
   @override
+  Future<void> writeIdentity({
+    required String id,
+    required String title,
+    required String author,
+  }) {
+    return SharedPreferencesLibraryRepository(preferences)
+        .writeIdentity(id: id, title: title, author: author);
+  }
+
+  @override
   Future<void> delete(String id) async {
     await SharedPreferencesLibraryRepository(preferences).delete(id);
     await preferences.remove('$filePrefix$id');

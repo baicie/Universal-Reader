@@ -302,6 +302,30 @@ abstract class AppLocalizations {
   /// **'书籍操作'**
   String get bookActions;
 
+  /// No description provided for @editBookIdentity.
+  ///
+  /// In zh, this message translates to:
+  /// **'编辑书名'**
+  String get editBookIdentity;
+
+  /// No description provided for @bookTitleLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'书名'**
+  String get bookTitleLabel;
+
+  /// No description provided for @bookAuthorLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'作者'**
+  String get bookAuthorLabel;
+
+  /// No description provided for @saveAction.
+  ///
+  /// In zh, this message translates to:
+  /// **'保存'**
+  String get saveAction;
+
   /// No description provided for @noCollections.
   ///
   /// In zh, this message translates to:

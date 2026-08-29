@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:charset/charset.dart';
+
 import 'models.dart';
 import 'reader_runtime.dart';
 
@@ -54,7 +56,9 @@ ParsedTextDocument parseTextDocument({
 }) {
   final truncated = bytes.length > textReaderByteLimit;
   final slice = truncated ? bytes.sublist(0, textReaderByteLimit) : bytes;
-  var text = decodeTextBytes(slice);
+  var text = format == DocumentFormat.html
+      ? decodeTextBytes(slice)
+      : decodePlainTextBytes(slice);
   if (format == DocumentFormat.html) {
     text = stripHtml(text);
   }
@@ -87,6 +91,31 @@ String decodeTextBytes(List<int> bytes) {
     offset = 3;
   }
   return utf8.decode(bytes.sublist(offset), allowMalformed: true);
+}
+
+String decodePlainTextBytes(List<int> bytes) {
+  if (bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) {
+    return _utf16(bytes, 2, bigEndian: false);
+  }
+  if (bytes.length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF) {
+    return _utf16(bytes, 2, bigEndian: true);
+  }
+  var offset = 0;
+  if (bytes.length >= 3 &&
+      bytes[0] == 0xEF &&
+      bytes[1] == 0xBB &&
+      bytes[2] == 0xBF) {
+    offset = 3;
+  }
+  final slice = bytes.sublist(offset);
+  if (offset == 3) {
+    return utf8.decode(slice);
+  }
+  try {
+    return utf8.decode(slice);
+  } on FormatException {
+    return gbk.decode(slice);
+  }
 }
 
 String _utf16(List<int> bytes, int offset, {required bool bigEndian}) {

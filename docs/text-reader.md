@@ -15,7 +15,7 @@
 ## Assumptions
 
 1. 纯文本阅读先于 EPUB/PDF 引擎；EPUB/PDF 现已按独立 Adapter 接入（章节/页文本，不是 foliate-js / pdfrx）。
-2. 编码优先 UTF-8（含 BOM）和 UTF-16 BOM；不在这一步做 GBK。
+2. 编码优先 UTF-8（含 BOM）和 UTF-16 BOM；无 BOM 且 UTF-8 非法时再试 GBK/GB18030。HTML 不猜 charset。
 3. Markdown 不当 HTML 渲染，只按 ATX 标题切章并显示原文。
 4. HTML 去掉 script/style/标签后当文本读。
 5. 无文件字节时（本地 SharedPreferences 重启后）提示找不到文件，不回退样章。

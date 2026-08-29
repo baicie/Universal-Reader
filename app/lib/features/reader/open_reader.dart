@@ -12,7 +12,15 @@ ReaderDocument openReaderDocument({
   List<int>? bytes,
 }) {
   if (bytes != null && bytes.isNotEmpty) {
-    if (metadata.format.isPlainText) {
+    if (metadata.format == DocumentFormat.txt ||
+        metadata.format == DocumentFormat.markdown) {
+      try {
+        return TextReaderDocument.parse(metadata: metadata, bytes: bytes);
+      } on FormatException {
+        return CorruptReaderDocument(metadata: metadata);
+      }
+    }
+    if (metadata.format == DocumentFormat.html) {
       return TextReaderDocument.parse(metadata: metadata, bytes: bytes);
     }
     if (metadata.format == DocumentFormat.epub) {

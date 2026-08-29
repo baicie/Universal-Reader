@@ -116,6 +116,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bookActions => 'Book actions';
 
   @override
+  String get editBookIdentity => 'Edit title';
+
+  @override
+  String get bookTitleLabel => 'Title';
+
+  @override
+  String get bookAuthorLabel => 'Author';
+
+  @override
+  String get saveAction => 'Save';
+
+  @override
   String get noCollections => 'No collections yet';
 
   @override

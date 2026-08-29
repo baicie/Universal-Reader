@@ -121,4 +121,37 @@ void main() {
       isTrue,
     );
   });
+
+  test('gb18030 txt decodes as chinese instead of replacement characters', () {
+    final parsed = parseTextDocument(
+      bytes: const [181, 218, 210, 187, 213, 194, 10, 10, 213, 253, 206, 196],
+      format: DocumentFormat.txt,
+    );
+    expect(parsed.fullText, contains('第一章'));
+    expect(parsed.fullText, contains('正文'));
+    expect(parsed.fullText, isNot(contains('\uFFFD')));
+  });
+
+  test('valid utf-8 chinese is not reinterpreted as gb18030', () {
+    final parsed = parseTextDocument(
+      bytes: utf8.encode('第一章'),
+      format: DocumentFormat.txt,
+    );
+    expect(parsed.fullText, '第一章');
+  });
+
+  test('undecodable txt is corrupt instead of another book', () {
+    final opened = openReaderDocument(
+      metadata: const DocumentMetadata(
+        id: 'broken-txt',
+        title: 'broken',
+        author: '',
+        format: DocumentFormat.txt,
+        type: DocumentType.reflow,
+      ),
+      bytes: const [0xFF],
+    );
+    expect(opened, isA<CorruptReaderDocument>());
+    expect(opened.metadata.title, 'broken');
+  });
 }

@@ -1,23 +1,22 @@
-# Spec: 阅读排版进 Foliate host
+# Spec: 书架改书名和作者
 
 ## Objective
 
-阅读设置里的行距、正文字体、纸张（跟随应用 / 浅色 / 夜间）到达 Foliate host 和文本回退层。字号已经进 host；这一刀把正文排版补齐。不引入完整 foliate-js npm。
+用户可以改书架上显示的书名和作者。改的是书目，不改原文件。空书名不写；没有这本书就不造另一本。
 
 成功标准：
 
-- 打开命令带 `fontSize`、`lineHeight`、`fontFamily`、`background`、`color`。host 用它们排正文，不请求 CDN。
-- 阅读设置可改行距、衬线/无衬线/等宽、纸张；本机记住。
-- 纸张选「浅色」时，应用是深色也不把书页改成夜间；选「跟随应用」时跟 `Theme.brightness`。
-- 文本回退层（无 WebView 的测试和损坏回退）用同一套字号、行距、字体和墨色。PDF / 漫画页不套这套排版。
-- 未知的已存字体或纸张回到默认（衬线、跟随应用），不编一本别的书。
+- 把 `notes.txt` 的书名改成「设计笔记」后，书架显示「设计笔记」，再 load 仍是这个名字。
+- 作者可改成真实名字，也可改成空（界面仍用「本地书库」标签）。
+- 书名为空或只含空白时保留原书名，不换成种子书。
+- 未知 id 不新增条目。
+- 本机 SQLite / 内存库 / HTTP `PATCH` 都能改；走服务时 `{ "title", "author" }` 不必带 `progress`。
 
 ## Assumptions
 
-1. 三种字体只映射到 CSS / Flutter 族名，不打包网页字体、不上完整 foliate-js 主题。
-2. 纸张颜色沿用现有阅读页：浅色 `#F5F0E8` / `#2A2620`，夜间 `#1C1B18` / `#E8E2D6`。
-3. 行距 1.4–2.2，默认 1.7；字号范围不变。
-4. 不引入 `flutter_rust_bridge`。不发新版本，除非另说。
+1. 只改目录项，不重写 EPUB OPF / TXT 文件。
+2. 同一文件再导入仍命中原 id，用户改过的书名保留。
+3. 不引入 `flutter_rust_bridge`。不发版，除非另说。
 
 请直接纠正以上假设，否则按它们实现。
 
@@ -26,47 +25,46 @@
 ```powershell
 cd app
 flutter gen-l10n
-flutter test test/reader_prefs_test.dart test/reading_surface_test.dart test/foliate_bridge_test.dart test/foliate_session_test.dart test/widget_test.dart
+flutter test test/library_repository_test.dart test/sqlite_library_repository_test.dart test/library_controller_test.dart test/library_api_test.dart test/widget_test.dart
 flutter analyze
+cd ..\rust
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
 ```
 
 ## Project Structure
 
 ```text
 docs/next.md
-app/lib/core/reader_prefs.dart
-app/lib/core/reading_surface.dart
-app/lib/core/foliate_bridge.dart
-app/assets/reader/foliate/host.html
-app/lib/features/reader/reading_settings_sheet.dart
-app/lib/features/reader/reader_page.dart
-app/lib/features/reader/renderers/isolated_foliate_view.dart
+app/lib/core/library_repository.dart
+app/lib/core/library_controller.dart
+app/lib/features/library/shelf_ui.dart
 app/lib/l10n/app_zh.arb
 app/lib/l10n/app_en.arb
+rust/crates/reader-server/src/lib.rs
+rust/crates/reader-server/src/library.rs
 ```
 
 ## Code Style
 
-打开命令由 Dart 算出 CSS 值，host 只应用，不猜主题：
-
 ```dart
-FoliateBridge.openSession(
-  session,
-  typography: surface.toFoliateCommand(),
-);
+Future<void> writeIdentity({
+  required String id,
+  required String title,
+  required String author,
+});
 ```
 
-新 UI 放 `features/reader/`，不把设置面板继续堆进 `reader_page.dart`。文案走 l10n。
+UI 放 `features/library/`，文案走 l10n。书名来自用户输入，不翻译。
 
 ## Testing Strategy
 
-- 先失败：打开命令缺行距/字体/纸色；host 不含 `command.lineHeight`；prefs 不恢复行距。
-- `ReadingSurface.resolve`：跟随应用 + 深色 → 夜间纸色；强制浅色 + 深色应用 → 仍浅色。
-- Widget：阅读设置里能看到行距、字体、纸张。
-- 不在 CI 开真实 WebView。
+- 先失败：改书名后 load 仍是文件名。
+- 空书名、未知 id、HTTP PATCH 无 progress。
+- Widget：书籍操作 → 编辑书名 → 保存后书架是新书名。
 
 ## Boundaries
 
-- Always: 缺排版字段用默认值；PDF/漫画不套重排样式。
-- Ask first: 完整 foliate-js npm 分页主题、自定义网页字体。
-- Never: 用另一本书的样式顶上；host 拉 CDN。
+- Always: 缺书就是缺；空书名保持原名。
+- Ask first: 改封面、批量重命名、写回 OPF。
+- Never: 用种子书名顶上；未知 id 新建一本。

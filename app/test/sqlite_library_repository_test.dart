@@ -102,6 +102,32 @@ void main() {
     expect(loaded.favoriteIds.contains('design'), isFalse);
   });
 
+  test('sqlite writeIdentity keeps the file and the renamed title', () async {
+    final dir = Directory.systemTemp.createTempSync('ur-sqlite-rename-');
+    final path = '${dir.path}/library.sqlite';
+    addTearDown(() {
+      if (dir.existsSync()) dir.deleteSync(recursive: true);
+    });
+    final first = await SqliteLibraryRepository.open(path);
+    final notes = await first.importBytes(
+      'notes.txt',
+      Uint8List.fromList('hello sqlite'.codeUnits),
+    );
+    await first.writeIdentity(
+      id: notes.metadata.id,
+      title: '设计笔记',
+      author: '某作者',
+    );
+    await first.close();
+
+    final second = await SqliteLibraryRepository.open(path);
+    addTearDown(second.close);
+    final loaded = (await second.load()).single;
+    expect(loaded.metadata.title, '设计笔记');
+    expect(loaded.metadata.author, '某作者');
+    expect(await second.readFile(notes.metadata.id), 'hello sqlite'.codeUnits);
+  });
+
   test('deleting a sqlite book drops its bytes and keeps the other', () async {
     final repository = await SqliteLibraryRepository.memory();
     addTearDown(repository.close);

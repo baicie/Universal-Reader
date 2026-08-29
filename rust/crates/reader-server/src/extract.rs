@@ -12,12 +12,19 @@ pub struct TextUnit {
 pub fn extract_units(file_name: &str, bytes: &[u8]) -> Option<Vec<TextUnit>> {
     let ext = file_name.rsplit_once('.')?.1.to_ascii_lowercase();
     match ext.as_str() {
-        "txt" | "md" | "markdown" | "html" | "htm" => {
-            let mut text = decode_text(bytes);
-            if matches!(ext.as_str(), "html" | "htm") {
-                text = strip_html(&text);
+        "txt" | "md" | "markdown" => {
+            let text = decode_plain_text(bytes)?.trim().to_string();
+            if text.is_empty() {
+                return None;
             }
-            let text = text.trim().to_string();
+            Some(vec![TextUnit {
+                locator: "offset 0".into(),
+                title: title_from_name(file_name),
+                body: text,
+            }])
+        }
+        "html" | "htm" => {
+            let text = strip_html(&decode_text(bytes)).trim().to_string();
             if text.is_empty() {
                 return None;
             }
@@ -175,6 +182,51 @@ fn unescape_xml(value: &str) -> String {
 
 fn decode_text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).replace('\r', "")
+}
+
+fn decode_plain_text(bytes: &[u8]) -> Option<String> {
+    if let Some(text) = decode_utf16_bom(bytes) {
+        return Some(text);
+    }
+    let slice = if bytes.len() >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF {
+        &bytes[3..]
+    } else {
+        bytes
+    };
+    if std::str::from_utf8(slice).is_ok() || slice.len() != bytes.len() {
+        return std::str::from_utf8(slice)
+            .ok()
+            .map(|text| text.replace('\r', ""));
+    }
+    let (cow, _, had_errors) = encoding_rs::GB18030.decode(bytes);
+    if had_errors {
+        return None;
+    }
+    Some(cow.into_owned().replace('\r', ""))
+}
+
+fn decode_utf16_bom(bytes: &[u8]) -> Option<String> {
+    let (offset, big_endian) = if bytes.len() >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE {
+        (2usize, false)
+    } else if bytes.len() >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF {
+        (2, true)
+    } else {
+        return None;
+    };
+    let mut units = Vec::new();
+    let mut index = offset;
+    while index + 1 < bytes.len() {
+        let unit = if big_endian {
+            u16::from_be_bytes([bytes[index], bytes[index + 1]])
+        } else {
+            u16::from_le_bytes([bytes[index], bytes[index + 1]])
+        };
+        units.push(unit);
+        index += 2;
+    }
+    String::from_utf16(&units)
+        .ok()
+        .map(|text| text.replace('\r', ""))
 }
 
 fn strip_html(source: &str) -> String {
@@ -439,6 +491,18 @@ mod tests {
     fn extracts_plain_text() {
         let units = extract_units("notes.txt", b"hello search").unwrap();
         assert_eq!(units[0].body, "hello search");
+    }
+
+    #[test]
+    fn extracts_gb18030_text_as_chinese() {
+        let bytes: &[u8] = &[181, 218, 210, 187, 213, 194];
+        let units = extract_units("notes.txt", bytes).unwrap();
+        assert!(units[0].body.contains("第一章"));
+    }
+
+    #[test]
+    fn undecodable_txt_is_not_indexed_as_replacement_text() {
+        assert!(extract_units("notes.txt", &[0xFF]).is_none());
     }
 
     #[test]

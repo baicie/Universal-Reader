@@ -265,6 +265,25 @@ async fn library_drive_lists_updates_downloads_and_deletes_documents() {
     let patched_body = to_bytes(patched.into_body(), usize::MAX).await.unwrap();
     assert!(std::str::from_utf8(&patched_body).unwrap().contains("0.4"));
 
+    let renamed = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/v1/library/documents/{id}"))
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"title":"设计笔记","author":"某作者"}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(renamed.status(), StatusCode::OK);
+    let renamed_body = to_bytes(renamed.into_body(), usize::MAX).await.unwrap();
+    let renamed_json: serde_json::Value = serde_json::from_slice(&renamed_body).unwrap();
+    assert_eq!(renamed_json["title"], "设计笔记");
+    assert_eq!(renamed_json["author"], "某作者");
+    assert!((renamed_json["progress"].as_f64().unwrap() - 0.4).abs() < 1e-9);
+
     let downloaded = app
         .clone()
         .oneshot(

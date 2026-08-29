@@ -142,6 +142,22 @@ class HttpLibraryRepository implements LibraryRepository {
   }
 
   @override
+  Future<void> writeIdentity({
+    required String id,
+    required String title,
+    required String author,
+  }) async {
+    final response = await httpClient.patch(
+      uri('/v1/library/documents/$id'),
+      headers: const {'Content-Type': 'application/json'},
+      body: jsonEncode({'title': title, 'author': author}),
+    );
+    if (response.statusCode != 200) {
+      throw FormatException('无法保存书名 (${response.statusCode})');
+    }
+  }
+
+  @override
   Future<void> delete(String id) async {
     final response = await httpClient.delete(uri('/v1/library/documents/$id'));
     if (response.statusCode == 204 ||

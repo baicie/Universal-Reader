@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/library_controller.dart';
+import '../../core/library_repository.dart';
+import '../../core/models.dart';
 import '../../core/providers.dart';
 import '../../l10n/l10n.dart';
 import 'shelf_store.dart';
@@ -35,6 +37,98 @@ Future<void> confirmAndDeleteBook(
     },
   );
   if (confirmed == true) await controller.deleteDocument(documentId);
+}
+
+Future<void> showEditBookIdentityDialog(
+  BuildContext context,
+  WidgetRef ref,
+  String documentId,
+) async {
+  final controller = ref.read(libraryProvider);
+  final document = controller.documentById(documentId);
+  if (document == null) return;
+  await showDialog<void>(
+    context: context,
+    builder: (context) =>
+        _EditBookIdentityDialog(controller: controller, document: document),
+  );
+}
+
+class _EditBookIdentityDialog extends StatefulWidget {
+  const _EditBookIdentityDialog({
+    required this.controller,
+    required this.document,
+  });
+
+  final PersistedLibraryController controller;
+  final LibraryDocument document;
+
+  @override
+  State<_EditBookIdentityDialog> createState() =>
+      _EditBookIdentityDialogState();
+}
+
+class _EditBookIdentityDialogState extends State<_EditBookIdentityDialog> {
+  late final TextEditingController title;
+  late final TextEditingController author;
+
+  @override
+  void initState() {
+    super.initState();
+    title = TextEditingController(text: widget.document.metadata.title);
+    author = TextEditingController(text: widget.document.metadata.author);
+  }
+
+  @override
+  void dispose() {
+    title.dispose();
+    author.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    await widget.controller.writeIdentity(
+      id: widget.document.metadata.id,
+      title: title.text,
+      author: author.text,
+    );
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(l10n.editBookIdentity),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            key: const Key('edit-book-title'),
+            controller: title,
+            autofocus: true,
+            maxLength: maxBookIdentityLength,
+            decoration: InputDecoration(labelText: l10n.bookTitleLabel),
+            onSubmitted: (_) => _submit(),
+          ),
+          TextField(
+            key: const Key('edit-book-author'),
+            controller: author,
+            maxLength: maxBookIdentityLength,
+            decoration: InputDecoration(labelText: l10n.bookAuthorLabel),
+            onSubmitted: (_) => _submit(),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.cancelAction),
+        ),
+        FilledButton(onPressed: _submit, child: Text(l10n.saveAction)),
+      ],
+    );
+  }
 }
 
 Future<LibraryCollection?> showCreateCollectionDialog(
@@ -156,6 +250,10 @@ class BookActionsButton extends ConsumerWidget {
             : Theme.of(context).colorScheme.onSurfaceVariant,
       ),
       onSelected: (value) async {
+        if (value == 'edit-identity') {
+          await showEditBookIdentityDialog(context, ref, documentId);
+          return;
+        }
         if (value == 'new') {
           final created = await showCreateCollectionDialog(context, ref);
           if (created != null) {
@@ -170,6 +268,10 @@ class BookActionsButton extends ConsumerWidget {
         await controller.toggleInCollection(value, documentId);
       },
       itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'edit-identity',
+          child: Text(l10n.editBookIdentity),
+        ),
         for (final collection in controller.collections)
           PopupMenuItem(
             value: collection.id,

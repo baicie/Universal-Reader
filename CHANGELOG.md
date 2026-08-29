@@ -3,6 +3,8 @@
 ## Unreleased
 
 - Reading settings for line height, body font, and paper (match app / light / dark) reach the Foliate host and the text fallback.
+- Imported GBK/GB18030 TXT and Markdown decode as Chinese instead of replacement characters. Bytes that are neither UTF-8 nor GB18030 stay corrupt.
+- Shelf titles and authors can be renamed in the catalog. An empty title keeps the previous name; a missing book is not invented.
 
 ## 0.0.1-dev.11 - 2026-08-29
 

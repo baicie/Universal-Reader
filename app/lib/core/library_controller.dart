@@ -332,6 +332,27 @@ class PersistedLibraryController extends ChangeNotifier {
     } catch (_) {}
     notifyListeners();
   }
+
+  Future<void> writeIdentity({
+    required String id,
+    required String title,
+    required String author,
+  }) async {
+    final index = _documents.indexWhere((item) => item.metadata.id == id);
+    if (index < 0) return;
+    try {
+      await repository.writeIdentity(id: id, title: title, author: author);
+    } catch (_) {
+      // 写失败则保留原书名，不拿种子书顶上。
+      return;
+    }
+    _documents[index] = documentWithWrittenIdentity(
+      _documents[index],
+      title: title,
+      author: author,
+    );
+    notifyListeners();
+  }
 }
 
 class ImportOutcome {

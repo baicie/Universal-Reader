@@ -116,6 +116,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bookActions => '书籍操作';
 
   @override
+  String get editBookIdentity => '编辑书名';
+
+  @override
+  String get bookTitleLabel => '书名';
+
+  @override
+  String get bookAuthorLabel => '作者';
+
+  @override
+  String get saveAction => '保存';
+
+  @override
   String get noCollections => '还没有收藏夹';
 
   @override
