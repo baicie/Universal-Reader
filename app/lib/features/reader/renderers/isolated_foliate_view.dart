@@ -66,11 +66,10 @@ class _IsolatedFoliateViewState extends State<IsolatedFoliateView> {
   @override
   void didUpdateWidget(IsolatedFoliateView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Compare href only; href change implies chapter change without expensive HTML comparison.
     final chapterChanged =
         oldWidget.document.currentChapterHref !=
-            widget.document.currentChapterHref ||
-        oldWidget.document.currentChapterHtml !=
-            widget.document.currentChapterHtml;
+            widget.document.currentChapterHref;
     final pageChanged = oldWidget.pageIndex != widget.pageIndex;
     final surfaceChanged = oldWidget.surface != widget.surface;
     final quotesChanged = !listEquals(oldWidget.quotes, widget.quotes);
