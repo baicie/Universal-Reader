@@ -605,7 +605,7 @@ final _cssUrl = RegExp(
   caseSensitive: false,
 );
 
-final _cssImport = RegExp(
+final _cssImportNoMedia = RegExp(
   r'''@import\s+(?:url\(\s*(['"]?)([^)'"]+)\1\s*\)|(['"])([^'"]+)\3)\s*;''',
   caseSensitive: false,
 );
@@ -817,7 +817,7 @@ String _inlineCssImports(
   Set<String>? seen,
 ]) {
   final visited = seen ?? <String>{};
-  return css.replaceAllMapped(_cssImport, (match) {
+  return css.replaceAllMapped(_cssImportNoMedia, (match) {
     final href = (match.group(2) ?? match.group(4) ?? '').trim();
     if (href.isEmpty || href.startsWith('data:') || _isExternalHref(href)) {
       return match.group(0)!;

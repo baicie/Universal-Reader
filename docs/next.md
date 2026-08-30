@@ -1,8 +1,26 @@
 # Spec: 已完成
 
-> NCX 嵌套已支持。外部链接保留已完成。**应用内打开外链已完成**。下一刀：Ask first：`view.js` / `overlayer.js` / 去掉 `<iframe>`。
+> NCX 嵌套已支持。外部链接保留已完成。**应用内打开外链已完成**。**CSS @import media query 保留已完成**。下一刀：Ask first：`view.js` / `overlayer.js` / 去掉 `<iframe>`。
 
-## 应用内打开外链（最新完成）
+## CSS @import media query 保留（最新完成）
+
+章节 CSS 中的 `@import` 语句现在正确处理 media query：无 media query 的会展开内联，带 media query 的会保留。
+
+成功标准：
+
+- ✅ `@import url("theme.css");` 会被展开内联。
+- ✅ `@import url("print.css") print;` 会被保留（不展开）。
+- ✅ `@import url('screen.css') screen;` 会被保留（不展开）。
+- ✅ 外部或 data URI 的 `@import` 保持不变。
+
+实现结果：
+
+- 修改 `epub_document.dart` 中的 CSS 处理逻辑，添加 `_cssImportNoMedia` 正则表达式。
+- `_inlineCssImports` 函数现在只展开无 media query 的 `@import`。
+- 添加测试用例验证带 media query 的 `@import` 被正确保留。
+- 所有 438 个测试通过，静态分析无问题。
+
+## 应用内打开外链（之前完成）
 
 EPUB 和 FB2 文档中的外部链接（`http://`、`https://`、`mailto:` 等）现在可以在系统浏览器中打开。
 
@@ -12,12 +30,6 @@ EPUB 和 FB2 文档中的外部链接（`http://`、`https://`、`mailto:` 等�
 - ✅ 使用 `LaunchMode.externalApplication` 确保在外部应用打开，不在应用内嵌 WebView。
 - ✅ 无效 URL 或启动失败时静默忽略，不影响阅读体验。
 - ✅ 内部链接（`#id` 和相对路径）保持原有行为。
-
-实现结果：
-
-- 修改 `reader_page.dart` 中的 `_onReflowLink` 函数，检测外部链接并使用 `url_launcher` 打开。
-- 在 `pubspec.yaml` 中显式添加 `url_launcher: ^6.3.1` 依赖。
-- 更新 CHANGELOG.md、README.md 和 epub-reader.md 文档。
 - 所有 33 个 widget 测试通过，静态分析无问题。
 
 ## FB2 外部链接保留（之前完成）

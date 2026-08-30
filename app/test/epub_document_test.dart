@@ -444,4 +444,14 @@ void main() {
       isNot(contains('url(../fonts/body.ttf)')),
     );
   });
+
+  test('chapter css keeps @import with media query', () {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: mediaImportCssEpubBytes(),
+    );
+    expect(document.currentChapterHtml, contains('@import url("print.css") print'));
+    expect(document.currentChapterHtml, contains('@import url(\'screen.css\') screen'));
+    expect(document.currentChapterHtml, isNot(contains('body { margin: 0; }')));
+  });
 }

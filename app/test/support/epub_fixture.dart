@@ -233,6 +233,21 @@ List<int> nestedImportedCssEpubBytes() {
   );
 }
 
+List<int> mediaImportCssEpubBytes() {
+  return minimalEpubBytes(
+    firstHead: '<link rel="stylesheet" href="styles.css"/>',
+    extraFiles: {
+      'OEBPS/styles.css': utf8.encode(
+        '@import url("print.css") print; '
+        '@import url(\'screen.css\') screen; '
+        'body { font-family: serif; }',
+      ),
+      'OEBPS/print.css': utf8.encode('body { margin: 0; }'),
+      'OEBPS/screen.css': utf8.encode('body { margin: 1em; }'),
+    },
+  );
+}
+
 List<int> nestedNcxEpubBytes() {
   final files = <String, List<int>>{
     'mimetype': utf8.encode('application/epub+zip'),
