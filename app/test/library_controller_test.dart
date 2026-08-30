@@ -136,11 +136,93 @@ void main() {
     expect(controller.documentById('missing'), isNull);
     expect(controller.documents, hasLength(1));
   });
+
+  test('opened updates lastOpened in memory even when persistence fails', () async {
+    final repository = _FailingWriteRepository();
+    await repository.importBytes('notes.txt', [1]);
+    final controller = PersistedLibraryController(repository: repository);
+    await controller.load();
+    final id = controller.documents.single.metadata.id;
+    final before = controller.documents.single.readingState.lastOpened;
+
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await controller.opened(id);
+
+    final after = controller.documents.single.readingState.lastOpened;
+    expect(after.isAfter(before), isTrue);
+    expect(controller.documents.single.readingState.progress, 0.0);
+  });
+
+  test('opened on missing book does not invent a document', () async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', [1]);
+    final controller = PersistedLibraryController(repository: repository);
+    await controller.load();
+
+    await controller.opened('missing');
+
+    expect(controller.documents, hasLength(1));
+    expect(controller.documentById('missing'), isNull);
+  });
+
+  test('updateProgress updates memory even when persistence fails', () async {
+    final repository = _FailingWriteRepository();
+    await repository.importBytes('notes.txt', [1]);
+    final controller = PersistedLibraryController(repository: repository);
+    await controller.load();
+    final id = controller.documents.single.metadata.id;
+    final before = controller.documents.single.readingState.lastOpened;
+
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await controller.updateProgress(id, 0.75);
+
+    expect(controller.documents.single.readingState.progress, 0.75);
+    final after = controller.documents.single.readingState.lastOpened;
+    expect(after.isAfter(before), isTrue);
+  });
+
+  test('updateProgress clamps out-of-range values', () async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', [1]);
+    final controller = PersistedLibraryController(repository: repository);
+    await controller.load();
+    final id = controller.documents.single.metadata.id;
+
+    await controller.updateProgress(id, 1.5);
+    expect(controller.documents.single.readingState.progress, 1.0);
+
+    await controller.updateProgress(id, -0.3);
+    expect(controller.documents.single.readingState.progress, 0.0);
+  });
+
+  test('updateProgress on missing book does not invent a document', () async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', [1]);
+    final controller = PersistedLibraryController(repository: repository);
+    await controller.load();
+
+    await controller.updateProgress('missing', 0.5);
+
+    expect(controller.documents, hasLength(1));
+    expect(controller.documentById('missing'), isNull);
+    expect(controller.documents.single.readingState.progress, 0.0);
+  });
 }
 
 class _FailingLoadRepository extends InMemoryLibraryRepository {
   @override
   Future<List<LibraryDocument>> load() async {
     throw StateError('disk unreadable');
+  }
+}
+
+class _FailingWriteRepository extends InMemoryLibraryRepository {
+  @override
+  Future<void> writeReadingState({
+    required String id,
+    required double progress,
+    required DateTime lastOpened,
+  }) async {
+    throw StateError('disk write failed');
   }
 }
