@@ -5,14 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Foliate host</title>
   <style>
+    /* Reset margins and make the view fill the WebView container */
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; }
+    
+    /* Fallback rendering when paginator.js is unavailable */
     #chapter { padding: 8px 4px; line-height: 1.7; font-family: Georgia, "Noto Serif", serif; }
+    
+    /* Paginator takes full viewport */
     foliate-paginator { display: block; width: 100%; height: 100%; }
+    
+    /* Highlight saved quotes/annotations */
     mark[data-foliate-quote] { background: rgba(196, 165, 116, 0.4); }
   </style>
 </head>
 <body>
+  <!-- Fallback container for non-paginated rendering -->
   <article id="chapter"></article>
+  
+  <!-- 
+    Pre-boot stub: queue commands sent before the module script loads.
+    This ensures Flutter can call methods immediately after WebView creation
+    without waiting for async script initialization.
+  -->
   <script>
     window.__foliateQueue = [];
     window.FoliateView = {
@@ -27,29 +41,65 @@
       prev: function () { window.__foliateQueue.push({ type: 'prev' }); }
     };
   </script>
+  
+  <!--
+    Main rendering logic:
+    - Dynamically imports paginator.js (Foliate's column-based paginator)
+    - Falls back to simple scrolling if paginator unavailable
+    - Handles Flutter → JS commands (open chapter, navigate, highlight quotes)
+    - Posts JS → Flutter events (relocate, link clicks, text selection)
+  -->
   <script type="module">
-    var currentCfi = '';
-    var lastHtml = '';
-    var lastHref = '';
-    var lastCommand = null;
-    var paginator = null;
-    var blobUrl = null;
-    var paginatorReady = false;
-    var relocateBound = false;
-
+    // ============================================================================
+    // State Management
+    // ============================================================================
+    
+    var currentCfi = '';           // Current Canonical Fragment Identifier (EPUB location)
+    var lastHtml = '';             // Last rendered chapter HTML (to skip redundant re-renders)
+    var lastHref = '';             // Last chapter href (unique chapter identifier)
+    var lastCommand = null;        // Last open command (stores quotes, pageIndex, etc.)
+    var paginator = null;          // <foliate-paginator> custom element instance
+    var blobUrl = null;            // Blob URL for current chapter (revoked on chapter change)
+    var paginatorReady = false;    // Whether paginator.js loaded successfully
+    var relocateBound = false;     // Whether paginator event listeners are bound
+    
+    // ============================================================================
+    // Flutter Bridge Communication
+    // ============================================================================
+    
+    /**
+     * Send events to Flutter via JavaScriptChannel 'FoliateHost'.
+     * Payload is JSON-serialized before posting.
+     */
     function post(payload) {
       if (window.FoliateHost && window.FoliateHost.postMessage) {
         window.FoliateHost.postMessage(JSON.stringify(payload));
       }
     }
-
+    
+    // ============================================================================
+    // Paginator Initialization
+    // ============================================================================
+    
+    /**
+     * Dynamically import paginator.js.
+     * If import fails (e.g., asset missing, CSP error), fall back to article rendering.
+     */
     try {
       await import('./paginator.js');
       paginatorReady = !!customElements.get('foliate-paginator');
     } catch (error) {
       paginatorReady = false;
     }
-
+    
+    // ============================================================================
+    // Theme Application
+    // ============================================================================
+    
+    /**
+     * Apply typography and color scheme from Flutter ReadingSurface.
+     * Updates both the fallback #chapter element and paginator styles.
+     */
     function applyTheme(command) {
       var background = command.background || '#F5F0E8';
       var color = command.color || '#2A2620';
@@ -61,6 +111,8 @@
       document.documentElement.style.background = background;
       document.body.style.background = background;
       document.body.style.color = color;
+      
+      // Inject styles into paginator shadow DOM
       if (paginator && paginator.setStyles) {
         paginator.setStyles(
           'html,body{font-size:' + (command.fontSize || 18) + 'px;line-height:' +
@@ -71,24 +123,44 @@
         );
       }
     }
-
+    
+    // ============================================================================
+    // HTML Document Wrapping
+    // ============================================================================
+    
+    /**
+     * Wrap fragment HTML into a complete XHTML document if needed.
+     * Paginator requires a full document; raw fragments cause parsing errors.
+     */
     function asDocument(html) {
       if (/<html[\s>]/i.test(html)) return html;
       return '<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="utf-8"/></head><body>' +
         html + '</body></html>';
     }
-
+    
+    // ============================================================================
+    // Viewport State Extraction
+    // ============================================================================
+    
+    /**
+     * Extract current page index and page count from paginator.
+     * Returns null if paginator not ready.
+     */
     function viewportFromPaginator() {
       if (!paginator) return null;
       var pages = paginator.pages || 0;
       var page = paginator.page || 0;
-      var pageCount = Math.max(1, pages - 2);
+      var pageCount = Math.max(1, pages - 2);  // Exclude first/last blank pages
       var pageIndex = page - 1;
       if (pageIndex < 0) pageIndex = 0;
       if (pageIndex > pageCount - 1) pageIndex = pageCount - 1;
       return { pageIndex: pageIndex, pageCount: pageCount };
     }
-
+    
+    /**
+     * Post 'relocated' event to Flutter when pagination or navigation completes.
+     * Flutter uses this to update progress slider and persist reading position.
+     */
     function postRelocated(command) {
       var view = viewportFromPaginator();
       currentCfi = (command && command.cfi) || currentCfi || '';
@@ -101,7 +173,15 @@
         pageCount: view ? view.pageCount : ((command && command.pageCount) || 1)
       });
     }
-
+    
+    // ============================================================================
+    // Link Click Interception
+    // ============================================================================
+    
+    /**
+     * Intercept all <a href> clicks and post to Flutter instead of navigating.
+     * This allows Flutter to handle internal chapter links and external URLs.
+     */
     function onLinkClick(event) {
       var target = event.target;
       if (!target || !target.closest) return;
@@ -110,13 +190,21 @@
       event.preventDefault();
       post({ type: 'link', href: anchor.getAttribute('href') || '' });
     }
-
+    
+    /**
+     * Bind link click listener to a document (paginator shadow DOM or main document).
+     * Idempotent: skips if already bound.
+     */
     function bindLinkClicks(doc) {
       if (!doc || doc.__foliateLinkBound) return;
       doc.__foliateLinkBound = true;
       doc.addEventListener('click', onLinkClick, true);
     }
-
+    
+    /**
+     * Bind link clicks for paginator-rendered content.
+     * Must be called after paginator loads the chapter.
+     */
     function bindPaginatorLinks() {
       if (!paginator || !paginator.getContents) return;
       var contents = paginator.getContents();
@@ -124,7 +212,16 @@
         bindLinkClicks(contents[0].doc);
       }
     }
-
+    
+    // ============================================================================
+    // Paginator Event Listeners
+    // ============================================================================
+    
+    /**
+     * Bind paginator 'relocate' and 'load' events.
+     * - relocate: fired when user turns pages
+     * - load: fired when new chapter finishes loading
+     */
     function bindRelocate() {
       if (!paginator || relocateBound) return;
       relocateBound = true;
@@ -136,7 +233,15 @@
         bindPaginatorLinks();
       });
     }
-
+    
+    // ============================================================================
+    // Quote Highlighting
+    // ============================================================================
+    
+    /**
+     * Get the root element containing rendered chapter content.
+     * Returns paginator shadow DOM body or fallback #chapter article.
+     */
     function chapterRoot() {
       if (paginator && paginator.getContents) {
         var contents = paginator.getContents();
@@ -146,7 +251,11 @@
       }
       return document.getElementById('chapter');
     }
-
+    
+    /**
+     * Wrap a text quote with <mark data-foliate-quote> for visual highlighting.
+     * Searches for exact text match in the DOM tree and surrounds it with a mark element.
+     */
     function wrapQuote(root, quote) {
       var doc = root.ownerDocument || document;
       var walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
@@ -163,24 +272,33 @@
         try {
           range.surroundContents(mark);
         } catch (error) {
+          // Quote spans multiple elements; skip to avoid breaking structure
           return;
         }
         return;
       }
     }
-
+    
+    /**
+     * Paint all saved quotes/annotations in the current chapter.
+     * Removes old highlights and re-applies the current quote list.
+     */
     function paintQuotes(quotes) {
       if (lastCommand) lastCommand.quotes = quotes || [];
       var root = chapterRoot();
       if (!root) return;
       var doc = root.ownerDocument || document;
       bindLinkClicks(doc);
+      
+      // Remove existing highlights
       var old = root.querySelectorAll('mark[data-foliate-quote]');
       for (var i = old.length - 1; i >= 0; i--) {
         var el = old[i];
         el.replaceWith(doc.createTextNode(el.textContent || ''));
       }
       root.normalize();
+      
+      // Paint new highlights
       if (!quotes || !quotes.length) return;
       for (var q = 0; q < quotes.length; q++) {
         var quote = (quotes[q] || '').trim();
@@ -188,7 +306,14 @@
         wrapQuote(root, quote);
       }
     }
-
+    
+    // ============================================================================
+    // Fragment Navigation
+    // ============================================================================
+    
+    /**
+     * Find an element by id or name attribute (for HTML anchor fragments).
+     */
     function findFragment(root, id) {
       if (!root || !id) return null;
       var doc = root.nodeType === 9 ? root : (root.ownerDocument || document);
@@ -198,7 +323,11 @@
       if (named && named[0]) return named[0];
       return null;
     }
-
+    
+    /**
+     * Get the document root for fragment search.
+     * Returns paginator shadow DOM or fallback #chapter.
+     */
     function fragmentRoot() {
       if (paginator && paginator.getContents) {
         var contents = paginator.getContents();
@@ -206,7 +335,11 @@
       }
       return document.getElementById('chapter') || document;
     }
-
+    
+    /**
+     * Navigate to a fragment identifier (e.g., #section-2).
+     * Used for nested TOC entries and internal chapter links.
+     */
     async function goToFragment(id) {
       if (!id) return false;
       var decoded = id;
@@ -220,7 +353,15 @@
       if (el.scrollIntoView) el.scrollIntoView();
       return true;
     }
-
+    
+    // ============================================================================
+    // Quote-based Navigation
+    // ============================================================================
+    
+    /**
+     * Find a DOM Range containing the exact quote text.
+     * Used for jumping to saved annotations.
+     */
     function quoteRange(quote) {
       if (!quote) return null;
       var root = chapterRoot();
@@ -239,7 +380,11 @@
       }
       return null;
     }
-
+    
+    /**
+     * Navigate to a quote (annotation jump target).
+     * Scrolls the quote into view and centers it in the paginator.
+     */
     async function goToQuote(quote) {
       var range = quoteRange(quote);
       if (!range) return false;
@@ -251,7 +396,15 @@
       if (el && el.scrollIntoView) el.scrollIntoView();
       return true;
     }
-
+    
+    // ============================================================================
+    // Page-based Navigation
+    // ============================================================================
+    
+    /**
+     * Jump to a specific page index (0-based).
+     * Used by progress slider and chapter jumping.
+     */
     async function goToPage(index) {
       if (!paginator) return;
       var view = viewportFromPaginator();
@@ -259,15 +412,27 @@
       var fraction = pageCount <= 1 ? 0 : index / pageCount;
       await paginator.goTo({ index: 0, anchor: fraction });
     }
-
+    
+    // ============================================================================
+    // Chapter Rendering
+    // ============================================================================
+    
+    /**
+     * Render chapter HTML using paginator.js (column-based paginated view).
+     * Creates a Blob URL to work around paginator's section loader API.
+     */
     async function openWithPaginator(command, html) {
       var article = document.getElementById('chapter');
       article.style.display = 'none';
+      
+      // Create paginator element on first use
       if (!paginator) {
         paginator = document.createElement('foliate-paginator');
         document.body.appendChild(paginator);
         bindRelocate();
       }
+      
+      // Only reload if HTML changed (avoid redundant re-renders)
       if (html !== lastHtml) {
         lastHtml = html;
         if (blobUrl) URL.revokeObjectURL(blobUrl);
@@ -278,15 +443,22 @@
           sections: [{ load: function () { return blobUrl; } }]
         });
       }
+      
+      // Apply navigation commands
       var pageIndex = command.pageIndex || 0;
       await goToPage(pageIndex);
       if (command.fragment) await goToFragment(command.fragment);
       if (command.scrollQuote) await goToQuote(command.scrollQuote);
+      
       applyTheme(command);
       paintQuotes(command.quotes || []);
       bindPaginatorLinks();
     }
-
+    
+    /**
+     * Render chapter HTML using fallback scrolling article.
+     * Used when paginator.js unavailable or on error.
+     */
     function openWithArticle(command, html) {
       var article = document.getElementById('chapter');
       article.style.display = '';
@@ -297,7 +469,11 @@
       if (command.scrollQuote) goToQuote(command.scrollQuote);
       postRelocated(command);
     }
-
+    
+    /**
+     * Main entry point: open a chapter with given HTML and navigation hints.
+     * Tries paginator, falls back to article on error.
+     */
     async function open(command) {
       lastCommand = command;
       var html = command.html || '';
@@ -311,10 +487,14 @@
         openWithArticle(command, html);
       }
     }
-
+    
+    // ============================================================================
+    // Public API (called from Flutter via runJavaScript)
+    // ============================================================================
+    
     window.FoliateView = {
       open: open,
-      openChapter: open,
+      openChapter: open,  // Alias for backward compatibility
       goToPage: goToPage,
       goToFragment: goToFragment,
       goToQuote: goToQuote,
@@ -329,13 +509,21 @@
         else post({ type: 'prev' });
       }
     };
-
+    
+    // ============================================================================
+    // Event Handlers
+    // ============================================================================
+    
+    // Bind link clicks on main document (for fallback article rendering)
     bindLinkClicks(document);
-
+    
+    // Post text selection events to Flutter (for annotation creation)
     document.addEventListener('selectionchange', function () {
       var text = (window.getSelection && window.getSelection().toString()) || '';
       post({ type: 'selection', text: text, cfi: currentCfi });
     });
+    
+    // Listen for postMessage commands (alternative to runJavaScript)
     window.addEventListener('message', function (event) {
       var data = event.data;
       if (typeof data === 'string') {
@@ -348,7 +536,11 @@
       if (data.type === 'goToQuote') goToQuote(data.quote || '');
       if (data.type === 'paintQuotes') paintQuotes(data.quotes || []);
     });
-
+    
+    // ============================================================================
+    // Boot: Drain Pre-initialization Command Queue
+    // ============================================================================
+    
     var queued = window.__foliateQueue.splice(0);
     for (var i = 0; i < queued.length; i++) {
       var item = queued[i];
