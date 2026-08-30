@@ -15,7 +15,7 @@ Rust 服务把书库做成**简单对象存储**（网盘），Flutter 只负责
 
 1. 这是个人部署的 local-first 服务，第一版不加账号、不加配额、不加分享链接。
 2. 文件在 `files/`；书目和进度在 SQLite `documents`。无 Rust 时 Flutter 自己持有 SQLite。
-3. EPUB / FB2 标题和作者来自文件元数据；没有元数据时用文件名、作者留空。有封面时显示封面，没有就用颜色块。
+3. EPUB / FB2 标题和作者来自文件元数据；没有元数据时用文件名、作者留空。FB2 封面只跟 `title-info` 的 coverpage 图片 href；对不上或没有 coverpage 就用颜色块，不拿章内插图顶上。EPUB 有封面时显示封面，没有就用颜色块。
 4. 哈希去重、封面、监视、双向 WebDAV 见 `docs/library-sync.md`。
 
 ## 存储布局

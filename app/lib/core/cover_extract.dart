@@ -5,6 +5,7 @@ import 'package:xml/xml.dart';
 
 import 'format_detector.dart';
 import 'models.dart';
+import 'text_document.dart';
 
 const _imageSuffixes = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
 
@@ -87,17 +88,49 @@ String? _manifestHref(
 }
 
 List<int>? _fb2Cover(List<int> bytes) {
-  final xml = XmlDocument.parse(String.fromCharCodes(bytes));
+  final xml = XmlDocument.parse(decodeTextBytes(bytes));
+  final href = _fb2CoverpageHref(xml);
+  if (href == null || href.isEmpty) return null;
+  final lower = href.toLowerCase();
+  if (lower.startsWith('http://') ||
+      lower.startsWith('https://') ||
+      lower.startsWith('//')) {
+    return null;
+  }
+  final id = href.startsWith('#') ? href.substring(1) : href;
+  if (id.isEmpty) return null;
   for (final binary in xml.descendants.whereType<XmlElement>()) {
     if (binary.name.local != 'binary') continue;
-    final id = (binary.getAttribute('id') ?? '').toLowerCase();
-    if (!id.contains('cover')) continue;
+    final binaryId = (binary.getAttribute('id') ?? '').trim();
+    if (binaryId != id && binaryId.toLowerCase() != id.toLowerCase()) continue;
     final text = binary.innerText.replaceAll(RegExp(r'\s+'), '');
-    if (text.isEmpty) continue;
+    if (text.isEmpty) return null;
     try {
-      return base64Decode(text);
+      final decoded = base64Decode(text);
+      return decoded.isEmpty ? null : decoded;
     } on FormatException {
       return null;
+    }
+  }
+  return null;
+}
+
+String? _fb2CoverpageHref(XmlDocument xml) {
+  for (final description in xml.descendants.whereType<XmlElement>()) {
+    if (description.name.local != 'description') continue;
+    for (final info in description.childElements) {
+      if (info.name.local != 'title-info') continue;
+      for (final child in info.childElements) {
+        if (child.name.local != 'coverpage') continue;
+        for (final image in child.childElements) {
+          if (image.name.local != 'image') continue;
+          for (final attr in image.attributes) {
+            if (attr.name.local != 'href') continue;
+            final value = attr.value.trim();
+            if (value.isNotEmpty) return value;
+          }
+        }
+      }
     }
   }
   return null;

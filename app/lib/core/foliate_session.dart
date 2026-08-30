@@ -49,8 +49,9 @@ class FoliateSession {
   final List<FoliatePage> pages;
   final String chapterHtml;
   int pageIndex = 0;
+  int? _viewportPageCount;
 
-  int get pageCount => pages.length;
+  int get pageCount => _viewportPageCount ?? pages.length;
 
   FoliatePage get currentPage => pages[pageIndex.clamp(0, pages.length - 1)];
 
@@ -84,15 +85,31 @@ class FoliateSession {
   }
 
   void goToPage(int index) {
-    if (pages.isEmpty) {
+    final count = pageCount;
+    if (count <= 0) {
       pageIndex = 0;
       return;
     }
-    pageIndex = index.clamp(0, pages.length - 1);
+    pageIndex = index.clamp(0, count - 1);
   }
 
   void goToLastPage() {
     goToPage(pageCount - 1);
+  }
+
+  bool applyRelocated(Object? raw) {
+    if (raw is! Map) return false;
+    if (raw['type'] != 'relocated') return false;
+    final count = _asInt(raw['pageCount']);
+    final index = _asInt(raw['pageIndex']);
+    if (count == null || count <= 0 || index == null) return false;
+    final nextIndex = index.clamp(0, count - 1);
+    if (_viewportPageCount == count && pageIndex == nextIndex) {
+      return false;
+    }
+    _viewportPageCount = count;
+    pageIndex = nextIndex;
+    return true;
   }
 
   FoliateSelection? selectionFromEvent(Object? raw) {
@@ -173,4 +190,11 @@ String _paragraph(String text) {
 int? _offsetFromCfi(String cfi) {
   final match = RegExp(r':(\d+)\)?$').firstMatch(cfi);
   return match == null ? null : int.tryParse(match.group(1)!);
+}
+
+int? _asInt(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.round();
+  if (value is String) return int.tryParse(value);
+  return null;
 }

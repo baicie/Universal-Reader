@@ -5,17 +5,22 @@ import '../features/library/annotation_store.dart';
 
 const annotatedQuoteKey = ValueKey('annotated-quote');
 
+List<String> quoteHighlights(List<ReaderAnnotation> notes) {
+  return [
+    for (final note in notes)
+      if (note.source != bookmarkSource && note.quote.trim().isNotEmpty)
+        note.quote.trim(),
+  ];
+}
+
 List<InlineSpan> annotatePlainText(
   String text,
   List<ReaderAnnotation> notes, {
   TextStyle? style,
   Color highlight = const Color(0x66C4A574),
 }) {
-  final quotes = [
-    for (final note in notes)
-      if (note.source != bookmarkSource && note.quote.trim().isNotEmpty)
-        note.quote.trim(),
-  ]..sort((a, b) => b.length.compareTo(a.length));
+  final quotes = [...quoteHighlights(notes)]
+    ..sort((a, b) => b.length.compareTo(a.length));
   if (quotes.isEmpty || text.isEmpty) {
     return [TextSpan(text: text, style: style)];
   }

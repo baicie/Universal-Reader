@@ -8,6 +8,7 @@
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; }
     #chapter { padding: 8px 4px; line-height: 1.7; font-family: Georgia, "Noto Serif", serif; }
     foliate-paginator { display: block; width: 100%; height: 100%; }
+    mark[data-foliate-quote] { background: rgba(196, 165, 116, 0.4); }
   </style>
 </head>
 <body>
@@ -15,8 +16,12 @@
   <script>
     window.__foliateQueue = [];
     window.FoliateView = {
-      open: function (command) { window.__foliateQueue.push(command); },
-      openChapter: function (command) { window.__foliateQueue.push(command); },
+      open: function (command) { window.__foliateQueue.push({ type: 'open', command: command }); },
+      openChapter: function (command) { window.__foliateQueue.push({ type: 'open', command: command }); },
+      goToPage: function (index) { window.__foliateQueue.push({ type: 'goToPage', index: index }); },
+      goToFragment: function (id) { window.__foliateQueue.push({ type: 'goToFragment', id: id }); },
+      goToQuote: function (quote) { window.__foliateQueue.push({ type: 'goToQuote', quote: quote }); },
+      paintQuotes: function (quotes) { window.__foliateQueue.push({ type: 'paintQuotes', quotes: quotes }); },
       goTo: function (locator) { window.__foliateQueue.push({ type: 'goTo', locator: locator }); },
       next: function () { window.__foliateQueue.push({ type: 'next' }); },
       prev: function () { window.__foliateQueue.push({ type: 'prev' }); }
@@ -25,9 +30,12 @@
   <script type="module">
     var currentCfi = '';
     var lastHtml = '';
+    var lastHref = '';
+    var lastCommand = null;
     var paginator = null;
     var blobUrl = null;
     var paginatorReady = false;
+    var relocateBound = false;
 
     function post(payload) {
       if (window.FoliateHost && window.FoliateHost.postMessage) {
@@ -58,7 +66,8 @@
           'html,body{font-size:' + (command.fontSize || 18) + 'px;line-height:' +
           (command.lineHeight || 1.7) + ';font-family:' +
           JSON.stringify(command.fontFamily || 'Georgia, "Noto Serif", serif') +
-          ';color:' + color + ';background:' + background + ';}'
+          ';color:' + color + ';background:' + background + ';}' +
+          'mark[data-foliate-quote]{background:rgba(196,165,116,0.4);}'
         );
       }
     }
@@ -69,12 +78,195 @@
         html + '</body></html>';
     }
 
+    function viewportFromPaginator() {
+      if (!paginator) return null;
+      var pages = paginator.pages || 0;
+      var page = paginator.page || 0;
+      var pageCount = Math.max(1, pages - 2);
+      var pageIndex = page - 1;
+      if (pageIndex < 0) pageIndex = 0;
+      if (pageIndex > pageCount - 1) pageIndex = pageCount - 1;
+      return { pageIndex: pageIndex, pageCount: pageCount };
+    }
+
+    function postRelocated(command) {
+      var view = viewportFromPaginator();
+      currentCfi = (command && command.cfi) || currentCfi || '';
+      lastHref = (command && command.href) || lastHref || '';
+      post({
+        type: 'relocated',
+        href: lastHref,
+        cfi: currentCfi,
+        pageIndex: view ? view.pageIndex : ((command && command.pageIndex) || 0),
+        pageCount: view ? view.pageCount : ((command && command.pageCount) || 1)
+      });
+    }
+
+    function onLinkClick(event) {
+      var target = event.target;
+      if (!target || !target.closest) return;
+      var anchor = target.closest('a[href]');
+      if (!anchor) return;
+      event.preventDefault();
+      post({ type: 'link', href: anchor.getAttribute('href') || '' });
+    }
+
+    function bindLinkClicks(doc) {
+      if (!doc || doc.__foliateLinkBound) return;
+      doc.__foliateLinkBound = true;
+      doc.addEventListener('click', onLinkClick, true);
+    }
+
+    function bindPaginatorLinks() {
+      if (!paginator || !paginator.getContents) return;
+      var contents = paginator.getContents();
+      if (contents && contents[0] && contents[0].doc) {
+        bindLinkClicks(contents[0].doc);
+      }
+    }
+
+    function bindRelocate() {
+      if (!paginator || relocateBound) return;
+      relocateBound = true;
+      paginator.addEventListener('relocate', function () {
+        postRelocated(lastCommand);
+      });
+      paginator.addEventListener('load', function () {
+        paintQuotes((lastCommand && lastCommand.quotes) || []);
+        bindPaginatorLinks();
+      });
+    }
+
+    function chapterRoot() {
+      if (paginator && paginator.getContents) {
+        var contents = paginator.getContents();
+        if (contents && contents[0] && contents[0].doc) {
+          return contents[0].doc.body || contents[0].doc.documentElement;
+        }
+      }
+      return document.getElementById('chapter');
+    }
+
+    function wrapQuote(root, quote) {
+      var doc = root.ownerDocument || document;
+      var walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+      var node;
+      while ((node = walker.nextNode())) {
+        var text = node.nodeValue || '';
+        var at = text.indexOf(quote);
+        if (at < 0) continue;
+        var range = doc.createRange();
+        range.setStart(node, at);
+        range.setEnd(node, at + quote.length);
+        var mark = doc.createElement('mark');
+        mark.setAttribute('data-foliate-quote', '1');
+        try {
+          range.surroundContents(mark);
+        } catch (error) {
+          return;
+        }
+        return;
+      }
+    }
+
+    function paintQuotes(quotes) {
+      if (lastCommand) lastCommand.quotes = quotes || [];
+      var root = chapterRoot();
+      if (!root) return;
+      var doc = root.ownerDocument || document;
+      bindLinkClicks(doc);
+      var old = root.querySelectorAll('mark[data-foliate-quote]');
+      for (var i = old.length - 1; i >= 0; i--) {
+        var el = old[i];
+        el.replaceWith(doc.createTextNode(el.textContent || ''));
+      }
+      root.normalize();
+      if (!quotes || !quotes.length) return;
+      for (var q = 0; q < quotes.length; q++) {
+        var quote = (quotes[q] || '').trim();
+        if (!quote) continue;
+        wrapQuote(root, quote);
+      }
+    }
+
+    function findFragment(root, id) {
+      if (!root || !id) return null;
+      var doc = root.nodeType === 9 ? root : (root.ownerDocument || document);
+      var el = doc.getElementById(id);
+      if (el) return el;
+      var named = doc.getElementsByName(id);
+      if (named && named[0]) return named[0];
+      return null;
+    }
+
+    function fragmentRoot() {
+      if (paginator && paginator.getContents) {
+        var contents = paginator.getContents();
+        if (contents && contents[0] && contents[0].doc) return contents[0].doc;
+      }
+      return document.getElementById('chapter') || document;
+    }
+
+    async function goToFragment(id) {
+      if (!id) return false;
+      var decoded = id;
+      try { decoded = decodeURIComponent(id); } catch (error) { decoded = id; }
+      var el = findFragment(fragmentRoot(), decoded);
+      if (!el) return false;
+      if (paginator && paginator.goTo) {
+        await paginator.goTo({ index: 0, anchor: el });
+        return true;
+      }
+      if (el.scrollIntoView) el.scrollIntoView();
+      return true;
+    }
+
+    function quoteRange(quote) {
+      if (!quote) return null;
+      var root = chapterRoot();
+      if (!root) return null;
+      var doc = root.ownerDocument || document;
+      var walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+      var node;
+      while ((node = walker.nextNode())) {
+        var text = node.nodeValue || '';
+        var at = text.indexOf(quote);
+        if (at < 0) continue;
+        var range = doc.createRange();
+        range.setStart(node, at);
+        range.setEnd(node, at + quote.length);
+        return range;
+      }
+      return null;
+    }
+
+    async function goToQuote(quote) {
+      var range = quoteRange(quote);
+      if (!range) return false;
+      if (paginator && paginator.goTo) {
+        await paginator.goTo({ index: 0, anchor: range });
+        return true;
+      }
+      var el = range.startContainer && range.startContainer.parentElement;
+      if (el && el.scrollIntoView) el.scrollIntoView();
+      return true;
+    }
+
+    async function goToPage(index) {
+      if (!paginator) return;
+      var view = viewportFromPaginator();
+      var pageCount = view ? view.pageCount : 1;
+      var fraction = pageCount <= 1 ? 0 : index / pageCount;
+      await paginator.goTo({ index: 0, anchor: fraction });
+    }
+
     async function openWithPaginator(command, html) {
       var article = document.getElementById('chapter');
       article.style.display = 'none';
       if (!paginator) {
         paginator = document.createElement('foliate-paginator');
         document.body.appendChild(paginator);
+        bindRelocate();
       }
       if (html !== lastHtml) {
         lastHtml = html;
@@ -87,10 +279,12 @@
         });
       }
       var pageIndex = command.pageIndex || 0;
-      var pageCount = command.pageCount || 1;
-      var fraction = pageCount <= 1 ? 0 : pageIndex / pageCount;
-      await paginator.goTo({ index: 0, anchor: fraction });
+      await goToPage(pageIndex);
+      if (command.fragment) await goToFragment(command.fragment);
+      if (command.scrollQuote) await goToQuote(command.scrollQuote);
       applyTheme(command);
+      paintQuotes(command.quotes || []);
+      bindPaginatorLinks();
     }
 
     function openWithArticle(command, html) {
@@ -98,9 +292,14 @@
       article.style.display = '';
       article.innerHTML = html;
       applyTheme(command);
+      paintQuotes(command.quotes || []);
+      if (command.fragment) goToFragment(command.fragment);
+      if (command.scrollQuote) goToQuote(command.scrollQuote);
+      postRelocated(command);
     }
 
     async function open(command) {
+      lastCommand = command;
       var html = command.html || '';
       if (paginatorReady) {
         try {
@@ -111,23 +310,27 @@
       } else {
         openWithArticle(command, html);
       }
-      currentCfi = command.cfi || '';
-      post({
-        type: 'relocated',
-        href: command.href || '',
-        cfi: currentCfi,
-        pageIndex: command.pageIndex || 0,
-        pageCount: command.pageCount || 1
-      });
     }
 
     window.FoliateView = {
       open: open,
       openChapter: open,
+      goToPage: goToPage,
+      goToFragment: goToFragment,
+      goToQuote: goToQuote,
+      paintQuotes: paintQuotes,
       goTo: function (locator) { post({ type: 'goTo', locator: locator }); },
-      next: function () { post({ type: 'next' }); },
-      prev: function () { post({ type: 'prev' }); }
+      next: function () {
+        if (paginator) paginator.next();
+        else post({ type: 'next' });
+      },
+      prev: function () {
+        if (paginator) paginator.prev();
+        else post({ type: 'prev' });
+      }
     };
+
+    bindLinkClicks(document);
 
     document.addEventListener('selectionchange', function () {
       var text = (window.getSelection && window.getSelection().toString()) || '';
@@ -140,14 +343,22 @@
       }
       if (!data || !data.type) return;
       if (data.type === 'open' || data.type === 'openChapter') open(data);
+      if (data.type === 'goToPage') goToPage(data.index || 0);
+      if (data.type === 'goToFragment') goToFragment(data.id || '');
+      if (data.type === 'goToQuote') goToQuote(data.quote || '');
+      if (data.type === 'paintQuotes') paintQuotes(data.quotes || []);
     });
 
     var queued = window.__foliateQueue.splice(0);
     for (var i = 0; i < queued.length; i++) {
       var item = queued[i];
-      if (item && (item.type === 'open' || item.type === 'openChapter' || item.html)) {
-        open(item);
-      }
+      if (!item) continue;
+      if (item.type === 'open') open(item.command || item);
+      else if (item.type === 'goToPage') goToPage(item.index || 0);
+      else if (item.type === 'goToFragment') goToFragment(item.id || '');
+      else if (item.type === 'goToQuote') goToQuote(item.quote || '');
+      else if (item.type === 'paintQuotes') paintQuotes(item.quotes || []);
+      else if (item.html) open(item);
     }
   </script>
 </body>

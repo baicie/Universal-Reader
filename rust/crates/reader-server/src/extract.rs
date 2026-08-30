@@ -1,5 +1,6 @@
 use std::io::{Cursor, Read};
 
+use base64::Engine;
 use zip::ZipArchive;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -46,6 +47,7 @@ pub fn extract_cover(file_name: &str, bytes: &[u8]) -> Option<Vec<u8>> {
     let ext = file_name.rsplit_once('.')?.1.to_ascii_lowercase();
     match ext.as_str() {
         "epub" | "cbz" | "cbr" => zip_cover(bytes, ext == "epub"),
+        "fb2" => fb2_cover(bytes),
         _ => None,
     }
 }
@@ -89,6 +91,91 @@ fn extract_plain_xml(bytes: &[u8], file_name: &str) -> Option<Vec<TextUnit>> {
         title: title_from_name(file_name),
         body: text,
     }])
+}
+
+fn fb2_cover(bytes: &[u8]) -> Option<Vec<u8>> {
+    let xml = decode_text(bytes);
+    let href = fb2_coverpage_href(&xml)?;
+    let lower = href.to_ascii_lowercase();
+    if lower.starts_with("http://") || lower.starts_with("https://") || lower.starts_with("//") {
+        return None;
+    }
+    let id = href.strip_prefix('#').unwrap_or(href.as_str());
+    if id.is_empty() {
+        return None;
+    }
+    let raw = fb2_binary_by_id(&xml, id)?;
+    let compact: String = raw.chars().filter(|ch| !ch.is_whitespace()).collect();
+    if compact.is_empty() {
+        return None;
+    }
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(compact)
+        .ok()?;
+    if decoded.is_empty() {
+        None
+    } else {
+        Some(decoded)
+    }
+}
+
+fn fb2_coverpage_href(xml: &str) -> Option<String> {
+    let title_info = xml_element_inner(xml, "title-info")?;
+    let coverpage = xml_element_inner(title_info, "coverpage")?;
+    let at = coverpage.find("<image")?;
+    let tag = &coverpage[at..];
+    let end = tag.find('>')?;
+    let href = attr_in(&tag[..end], "href")?.trim().to_string();
+    if href.is_empty() { None } else { Some(href) }
+}
+
+fn fb2_binary_by_id(xml: &str, id: &str) -> Option<String> {
+    let mut rest = xml;
+    while let Some(at) = rest.find("<binary") {
+        let slice = &rest[at..];
+        let Some(gt) = slice.find('>') else {
+            break;
+        };
+        let tag = &slice[..gt];
+        let after = &slice[gt + 1..];
+        let Some(close) = after.find("</binary>") else {
+            rest = &slice[gt + 1..];
+            continue;
+        };
+        rest = &after[close + "</binary>".len()..];
+        let Some(binary_id) = attr_in(tag, "id") else {
+            continue;
+        };
+        if binary_id.eq_ignore_ascii_case(id) {
+            return Some(after[..close].to_string());
+        }
+    }
+    None
+}
+
+fn xml_element_inner<'a>(xml: &'a str, local: &str) -> Option<&'a str> {
+    let open = format!("<{local}");
+    let mut from = 0;
+    while let Some(rel) = xml[from..].find(&open) {
+        let start = from + rel;
+        let after_name = start + open.len();
+        let next = xml[after_name..].chars().next().unwrap_or('\0');
+        if next.is_ascii_alphanumeric() || next == '-' {
+            from = after_name;
+            continue;
+        }
+        let gt = xml[start..].find('>')? + start;
+        let tag = &xml[start..gt];
+        if tag[1..].starts_with('/') || tag.ends_with('/') {
+            from = gt + 1;
+            continue;
+        }
+        let inner_start = gt + 1;
+        let close = format!("</{local}");
+        let close_at = xml[inner_start..].find(&close)? + inner_start;
+        return Some(&xml[inner_start..close_at]);
+    }
+    None
 }
 
 fn zip_cover(bytes: &[u8], prefer_named_cover: bool) -> Option<Vec<u8>> {
@@ -515,6 +602,57 @@ mod tests {
     #[test]
     fn extracts_a_named_epub_cover() {
         assert!(extract_cover("notes.txt", b"hi").is_none());
+    }
+
+    #[test]
+    fn extracts_fb2_cover_from_coverpage() {
+        let cover = extract_cover("book.fb2", &fb2_coverpage(Some("#spot.png"), "spot.png"));
+        assert_eq!(cover.as_deref(), Some(TINY_PNG));
+    }
+
+    #[test]
+    fn fb2_coverpage_with_missing_binary_stays_without_cover() {
+        assert!(
+            extract_cover(
+                "book.fb2",
+                &fb2_coverpage(Some("#missing.png"), "cover.png"),
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn fb2_binary_named_cover_is_not_a_cover_without_coverpage() {
+        assert!(extract_cover("book.fb2", &fb2_coverpage(None, "cover.png")).is_none());
+    }
+
+    const TINY_PNG: &[u8] = &[
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44,
+        0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90,
+        0x77, 0x53, 0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, 0x08, 0xD7, 0x63, 0xF8,
+        0xCF, 0xC0, 0x00, 0x00, 0x03, 0x01, 0x01, 0x00, 0x18, 0xDD, 0x8D, 0xB0, 0x00, 0x00, 0x00,
+        0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+    ];
+
+    fn fb2_coverpage(cover_href: Option<&str>, binary_id: &str) -> Vec<u8> {
+        let coverpage = match cover_href {
+            Some(href) => format!(r#"<coverpage><image l:href="{href}"/></coverpage>"#),
+            None => String::new(),
+        };
+        format!(
+            r#"<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+  <description>
+    <title-info>
+      <book-title>FB2 Book</book-title>
+      {coverpage}
+    </title-info>
+  </description>
+  <body><section><p>hello from fb2</p></section></body>
+  <binary id="{binary_id}" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVQI12P4z8AAAAMBAQAY3Y2wAAAAAElFTkSuQmCC</binary>
+</FictionBook>"#
+        )
+        .into_bytes()
     }
 
     #[test]

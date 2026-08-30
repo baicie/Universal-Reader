@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -19,6 +20,12 @@ class IsolatedFoliateView extends StatefulWidget {
     this.onHostEvent,
     this.onNext,
     this.onPrevious,
+    this.quotes = const [],
+    this.fragment,
+    this.fragmentEpoch = 0,
+    this.scrollQuote,
+    this.scrollQuoteEpoch = 0,
+    this.pageIndex = 0,
     super.key,
   });
 
@@ -30,6 +37,12 @@ class IsolatedFoliateView extends StatefulWidget {
   final ValueChanged<Map<String, Object?>>? onHostEvent;
   final VoidCallback? onNext;
   final VoidCallback? onPrevious;
+  final List<String> quotes;
+  final String? fragment;
+  final int fragmentEpoch;
+  final String? scrollQuote;
+  final int scrollQuoteEpoch;
+  final int pageIndex;
 
   @override
   State<IsolatedFoliateView> createState() => _IsolatedFoliateViewState();
@@ -58,11 +71,22 @@ class _IsolatedFoliateViewState extends State<IsolatedFoliateView> {
             widget.document.currentChapterHref ||
         oldWidget.document.currentChapterHtml !=
             widget.document.currentChapterHtml;
-    final pageChanged =
-        oldWidget.session?.pageIndex != widget.session?.pageIndex ||
-        oldWidget.session?.currentCfi != widget.session?.currentCfi;
-    if (chapterChanged || pageChanged || oldWidget.surface != widget.surface) {
+    final pageChanged = oldWidget.pageIndex != widget.pageIndex;
+    final surfaceChanged = oldWidget.surface != widget.surface;
+    final quotesChanged = !listEquals(oldWidget.quotes, widget.quotes);
+    final fragmentChanged = oldWidget.fragmentEpoch != widget.fragmentEpoch;
+    final scrollQuoteChanged =
+        oldWidget.scrollQuoteEpoch != widget.scrollQuoteEpoch;
+    if (chapterChanged || surfaceChanged) {
       _pushSession();
+    } else if (fragmentChanged) {
+      _pushFragment();
+    } else if (scrollQuoteChanged) {
+      _pushScrollQuote();
+    } else if (pageChanged) {
+      _pushPage();
+    } else if (quotesChanged) {
+      _pushQuotes();
     }
   }
 
@@ -90,15 +114,54 @@ class _IsolatedFoliateViewState extends State<IsolatedFoliateView> {
               widget.session!,
               fontSize: widget.surface.fontSize,
               typography: typography,
+              quotes: widget.quotes,
+              fragment: widget.fragment,
+              scrollQuote: widget.scrollQuote,
             )
           : FoliateBridge.openCurrent(
               widget.document,
               fontSize: widget.surface.fontSize,
               typography: typography,
+              quotes: widget.quotes,
             ),
     );
     await controller.runJavaScript(
       'window.FoliateView && window.FoliateView.open($command)',
+    );
+  }
+
+  Future<void> _pushPage() async {
+    final controller = _controller;
+    final session = widget.session;
+    if (controller == null || session == null) return;
+    await controller.runJavaScript(
+      'window.FoliateView && window.FoliateView.goToPage(${widget.pageIndex})',
+    );
+  }
+
+  Future<void> _pushQuotes() async {
+    final controller = _controller;
+    if (controller == null) return;
+    await controller.runJavaScript(
+      'window.FoliateView && window.FoliateView.paintQuotes(${jsonEncode(widget.quotes)})',
+    );
+  }
+
+  Future<void> _pushFragment() async {
+    final controller = _controller;
+    final fragment = widget.fragment;
+    if (controller == null || fragment == null || fragment.isEmpty) return;
+    await controller.runJavaScript(
+      'window.FoliateView && window.FoliateView.goToFragment(${jsonEncode(fragment)})',
+    );
+  }
+
+  Future<void> _pushScrollQuote() async {
+    final controller = _controller;
+    final quote = widget.scrollQuote;
+    if (controller == null || quote == null || quote.isEmpty) return;
+    await controller.runJavaScript(
+      'window.FoliateView && window.FoliateView.goToQuote(${jsonEncode(quote)})',
     );
   }
 

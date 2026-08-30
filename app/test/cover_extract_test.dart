@@ -2,6 +2,7 @@ import 'package:app/core/cover_extract.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/epub_fixture.dart';
+import 'support/fb2_fixture.dart';
 import 'support/image_fixture.dart';
 
 void main() {
@@ -9,6 +10,37 @@ void main() {
     final bytes = zipNamedFiles({..._minimalCoverEpub()});
     final cover = extractCover(fileName: 'book.epub', bytes: bytes);
     expect(cover, tinyPngBytes());
+  });
+
+  test('pulls the cover image from an fb2 coverpage', () {
+    final cover = extractCover(
+      fileName: 'book.fb2',
+      bytes: fb2CoverpageBytes(),
+    );
+    expect(cover, tinyPngBytes());
+  });
+
+  test('an fb2 coverpage with a missing binary stays without a cover', () {
+    expect(
+      extractCover(
+        fileName: 'book.fb2',
+        bytes: fb2CoverpageBytes(
+          coverHref: '#missing.png',
+          binaryId: 'cover.png',
+        ),
+      ),
+      isNull,
+    );
+  });
+
+  test('an fb2 binary named cover is not a cover without coverpage', () {
+    expect(
+      extractCover(
+        fileName: 'book.fb2',
+        bytes: fb2CoverpageBytes(coverHref: null, binaryId: 'cover.png'),
+      ),
+      isNull,
+    );
   });
 
   test('missing cover stays missing', () {

@@ -73,4 +73,41 @@ void main() {
     expect(hit!.quote, 'hello from epub');
     expect(hit.cfi, session.currentCfi);
   });
+
+  test('relocated from the host replaces character pages', () {
+    final session = FoliateSession.open(document(), pageCharLimit: 40);
+    expect(session.pageCount, greaterThan(1));
+    final charCount = session.pageCount;
+    expect(
+      session.applyRelocated({
+        'type': 'relocated',
+        'pageIndex': 2,
+        'pageCount': 5,
+      }),
+      isTrue,
+    );
+    expect(session.pageCount, 5);
+    expect(session.pageIndex, 2);
+    expect(session.next(), isTrue);
+    expect(session.pageIndex, 3);
+    session.goToLastPage();
+    expect(session.pageIndex, 4);
+    expect(session.next(), isFalse);
+    expect(session.pageCount, isNot(charCount));
+  });
+
+  test('a relocated event without page count keeps character pages', () {
+    final session = FoliateSession.open(document(), pageCharLimit: 40);
+    final charCount = session.pageCount;
+    expect(
+      session.applyRelocated({'type': 'relocated', 'pageIndex': 1}),
+      isFalse,
+    );
+    expect(
+      session.applyRelocated({'type': 'selection', 'pageCount': 9}),
+      isFalse,
+    );
+    expect(session.pageCount, charCount);
+    expect(session.pageIndex, 0);
+  });
 }

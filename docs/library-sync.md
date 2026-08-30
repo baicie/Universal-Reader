@@ -5,7 +5,7 @@
 服务端书库支持：
 
 - 按内容 SHA-256 去重
-- 从 EPUB/FB2 抽封面，写入 `covers/`
+- 从 EPUB/FB2 抽封面，写入 `covers/`。FB2 只跟 `title-info` coverpage 的图片 href，不靠 binary id 是否含 `cover`。
 - 监视已配置文件夹，新文件只追加
 - WebDAV 双向：拉缺失的书，推本地有、远端没有的书
 
