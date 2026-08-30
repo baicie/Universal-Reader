@@ -1,8 +1,32 @@
 # Spec: 已完成
 
-> NCX 嵌套已支持。外部链接保留已完成。**应用内打开外链已完成**。**CSS @import media query 保留已完成**。**渲染架构文档已完成**。下一刀：代码健康优化或测试增强。
+> NCX 嵌套已支持。外部链接保留已完成。**应用内打开外链已完成**。**CSS @import media query 保留已完成**。**渲染架构文档已完成**。**代码健康优化已完成（空 catch 文档化、重复代码提取）**。**测试增强已完成（边界测试覆盖）**。下一刀：性能优化或继续测试。
 
-## 渲染架构文档（最新完成）
+## 代码健康优化 + 测试增强（最新完成）
+
+完成代码健康优化和测试覆盖补充（3 个提交）。
+
+**已完成内容：**
+- ✅ 文档化所有空 `catch` 块（`library_controller.dart` 中 3 处）
+- ✅ 提取 `_callFoliateMethod` 辅助方法消除重复（5 处 → 1 处）
+- ✅ 新增 5 个边界测试覆盖 `opened` 和 `updateProgress` 方法
+- ✅ 测试持久化失败场景的正确处理
+- ✅ 测试进度值范围限制（0.0-1.0）
+- ✅ 测试缺失 ID 不创建文档的边界情况
+
+**测试结果：**
+- 所有 434 个测试通过（从 429 增加到 434）
+- 静态分析无问题
+- 代码覆盖率提升，特别是错误处理路径
+
+**提交记录：**
+```
+fd1f31c Document the last empty catch block in opened()
+ec54aa3 Add boundary tests for reading state persistence failures
+8f6291c Improve code health: document errors and reduce duplication
+```
+
+## 渲染架构文档（之前完成）
 
 完成 `docs/renderer-architecture.md`（261 行），详细说明当前 WebView + paginator.js 渲染方案。
 
