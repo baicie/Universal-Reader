@@ -134,7 +134,10 @@ void main() {
       isFalse,
     );
     expect(
-      FoliateBridge.openSession(session, scrollQuote: 'hello from epub')['scrollQuote'],
+      FoliateBridge.openSession(
+        session,
+        scrollQuote: 'hello from epub',
+      )['scrollQuote'],
       'hello from epub',
     );
   });

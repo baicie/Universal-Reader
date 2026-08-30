@@ -51,7 +51,8 @@ class FoliateBridge {
       'fontSize': fontSize,
       ...typography,
       if (fragment != null && fragment.isNotEmpty) 'fragment': fragment,
-      if (scrollQuote != null && scrollQuote.isNotEmpty) 'scrollQuote': scrollQuote,
+      if (scrollQuote != null && scrollQuote.isNotEmpty)
+        'scrollQuote': scrollQuote,
     };
   }
 }
