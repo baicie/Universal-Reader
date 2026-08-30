@@ -13,11 +13,11 @@
 
 ## Assumptions
 
-1. 笔记的 quote 画进当前章节正文（高亮），不是墨迹层。
+1. 笔记的 quote 画进当前章节正文（高亮），不是墨迹层。测试 fallback 画在文本上；真机 Foliate host 按 quote 字符串标在章 HTML 里。
 2. 服务端进 SQLite `annotations` 表；本机无服务时优先进 Flutter SQLite，否则 SharedPreferences，前缀 `universal_reader.annotations.v1.`。
 3. `source` 为 `user`、`assistant` 或 `bookmark`。用户划线是 `user`；书签是 `bookmark`，走独立 API，存同一张表。
 4. 空选区不写笔记。
-5. 删笔记不影响问答记录。找不到的 locator 不跳转。
+5. 删笔记不影响问答记录。找不到的 locator 不跳转。点笔记时用该条 quote 滚到原文；空 quote 只跳 locator。找不到该句停在章首。
 
 ## Commands
 
@@ -31,5 +31,5 @@ cargo test --workspace
 ## Boundaries
 
 - Always: 按 `documentId` 隔离。
-- Ask first: 导出、跨设备同步笔记。
+- Ask first: 导出、跨设备同步笔记、`overlayer.js`。
 - Never: Agent 自己写笔记。

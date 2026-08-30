@@ -21,6 +21,7 @@ import '../tools/reader_ai_panel.dart';
 import 'open_reader.dart';
 import 'reader_bookmarks.dart';
 import 'reader_bookmarks_pane.dart';
+import 'reader_notes.dart';
 import 'reader_notes_pane.dart';
 import 'reader_search.dart';
 import 'reader_search_pane.dart';
@@ -54,6 +55,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   List<ReaderAnnotation> notes = const [];
   String? pendingQuote;
   FoliateSession? foliateSession;
+  String? foliateFragment;
+  int foliateFragmentEpoch = 0;
+  String? foliateScrollQuote;
+  int foliateScrollQuoteEpoch = 0;
   String searchQuery = '';
   List<SearchResult> searchHits = const [];
 
@@ -133,7 +138,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     return '';
   }
 
-  Future<void> _goTo(Locator locator, {bool syncProgress = true}) async {
+  Future<void> _goTo(
+    Locator locator, {
+    bool syncProgress = true,
+    String? fragment,
+    String? scrollQuote,
+  }) async {
     final reader = opened;
     if (reader == null) return;
     await reader.goTo(locator);
@@ -144,10 +154,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         session.goToCfi(locator.cfi!);
       }
     }
+    final resolvedFragment =
+        fragment ?? (locator is EpubLocator ? locator.fragment : null);
     if (!mounted) return;
     setState(() {
       body = _bodyFor(reader);
       foliateSession = session;
+      foliateFragment = resolvedFragment;
+      if (resolvedFragment != null) foliateFragmentEpoch++;
+      foliateScrollQuote = scrollQuote;
+      if (scrollQuote != null) foliateScrollQuoteEpoch++;
       if (syncProgress &&
           reader is ChapteredDocument &&
           reader.chapterCount > 0) {
@@ -157,7 +173,58 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     });
   }
 
-  Future<void> _goToToc(TocItem item) => _goTo(item.locator);
+  Future<void> _goToToc(TocItem item) async {
+    final locator = item.locator;
+    if (locator is EpubLocator) {
+      final fragment = locator.fragment;
+      final session = foliateSession;
+      if (session != null &&
+          fragment != null &&
+          reflowSameHref(session.href, locator.href)) {
+        if (!mounted) return;
+        setState(() {
+          foliateFragment = fragment;
+          foliateFragmentEpoch++;
+        });
+        return;
+      }
+    }
+    await _goTo(locator);
+  }
+
+  Future<void> _onSearchHit(SearchResult hit) async {
+    final quote = reflowScrollQuote(searchQuery);
+    final locator = hit.locator;
+    if (locator is EpubLocator &&
+        foliateSession != null &&
+        reflowSameHref(foliateSession!.href, locator.href)) {
+      if (quote == null || !mounted) return;
+      setState(() {
+        foliateScrollQuote = quote;
+        foliateScrollQuoteEpoch++;
+      });
+      return;
+    }
+    await _goTo(locator, scrollQuote: quote);
+  }
+
+  Future<void> _onNoteOpen(ReaderAnnotation note) async {
+    final jump = noteJump(note);
+    final locator = jump.locator;
+    if (locator == null) return;
+    final quote = jump.scrollQuote;
+    if (locator is EpubLocator &&
+        foliateSession != null &&
+        reflowSameHref(foliateSession!.href, locator.href)) {
+      if (quote == null || !mounted) return;
+      setState(() {
+        foliateScrollQuote = quote;
+        foliateScrollQuoteEpoch++;
+      });
+      return;
+    }
+    await _goTo(locator, scrollQuote: quote);
+  }
 
   Future<Locator> _bookmarkLocator() async {
     final reader = opened;
@@ -234,12 +301,37 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   void _onFoliateHostEvent(Map<String, Object?> event) {
+    final session = foliateSession;
+    if (session != null && session.applyRelocated(event)) {
+      if (!mounted) return;
+      setState(() {});
+      _syncReflowProgress();
+      return;
+    }
     final type = event['type'];
     if (type == 'next') {
       _turnReflow(next: true);
     } else if (type == 'prev' || type == 'previous') {
       _turnReflow(next: false);
+    } else if (type == 'link') {
+      if (session == null) return;
+      _onReflowLink(session, event['href'] as String? ?? '');
     }
+  }
+
+  Future<void> _onReflowLink(FoliateSession session, String raw) async {
+    final target = reflowInternalHref(currentHref: session.href, raw: raw);
+    if (target == null) return;
+    final fragment = reflowHrefFragment(raw);
+    if (reflowSameHref(session.href, target)) {
+      if (fragment == null || !mounted) return;
+      setState(() {
+        foliateFragment = fragment;
+        foliateFragmentEpoch++;
+      });
+      return;
+    }
+    await _goTo(EpubLocator(href: target), fragment: fragment);
   }
 
   Future<void> _turnReflow({required bool next}) async {
@@ -273,8 +365,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   Future<void> _goToChapter(int index, {bool lastPage = false}) async {
-    if (index < 0 || index >= tocItems.length) return;
-    await _goTo(tocItems[index].locator);
+    final reader = opened;
+    if (reader is! ChapteredDocument) return;
+    if (index < 0 || index >= reader.chapterCount) return;
+    final at = reader.chapterCount <= 1 ? 0.0 : index / reader.chapterCount;
+    await _goTo(reader.locatorForProgress(at));
     if (lastPage) {
       foliateSession?.goToLastPage();
       if (mounted) setState(() {});
@@ -301,12 +396,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     ref.read(libraryProvider).updateProgress(widget.id, value);
     final reader = opened;
     if (reader is! ChapteredDocument) return;
-    if (reader is HtmlChapteredDocument && tocItems.isNotEmpty) {
-      final chapterIndex = reflowChapterIndexForProgress(
-        value,
-        reader.chapterCount,
-      );
-      await _goTo(tocItems[chapterIndex].locator, syncProgress: false);
+    if (reader is HtmlChapteredDocument) {
+      await _goTo(reader.locatorForProgress(value), syncProgress: false);
       final session = foliateSession;
       if (session != null) {
         session.goToPage(
@@ -352,7 +443,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final currentIndex = opened is ChapteredDocument
         ? (opened as ChapteredDocument).chapterIndex
         : 0;
-    final currentTitle = tocItems.isEmpty
+    final chapterCount = opened is ChapteredDocument
+        ? (opened as ChapteredDocument).chapterCount
+        : tocItems.length;
+    final currentHref = opened is HtmlChapteredDocument
+        ? (opened as HtmlChapteredDocument).currentChapterHref
+        : '';
+    final currentTitle = opened is HtmlChapteredDocument
+        ? (opened as HtmlChapteredDocument).currentChapterTitle
+        : tocItems.isEmpty
         ? ''
         : tocItems[currentIndex.clamp(0, tocItems.length - 1)].title;
     final heading = currentTitle.trim().isEmpty
@@ -499,7 +598,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                                     query: searchQuery,
                                     hits: searchHits,
                                     onQuery: _searchBook,
-                                    onOpen: (hit) => _goTo(hit.locator),
+                                    onOpen: _onSearchHit,
                                   ),
                                   if (showNotes || bookmarks || toc)
                                     const SizedBox(height: 28),
@@ -510,12 +609,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                                     emptyLabel: l10n.noNotes,
                                     deleteLabel: l10n.deleteNote,
                                     notes: notesOf(notes),
-                                    onOpen: (note) {
-                                      final locator = decodeLocator(
-                                        note.locatorLabel,
-                                      );
-                                      if (locator != null) _goTo(locator);
-                                    },
+                                    onOpen: _onNoteOpen,
                                     onDelete: (note) => _removeMark(note.id),
                                   ),
                                   if (bookmarks || toc)
@@ -547,29 +641,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                                         color: muted,
                                         height: 1.4,
                                       ),
-                                    ),
-                                  for (var i = 0; i < tocItems.length; i++)
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 6,
-                                      ),
-                                      child: InkWell(
-                                        onTap: () => _goToToc(tocItems[i]),
-                                        child: Text(
-                                          tocItems[i].title.trim().isEmpty
-                                              ? l10n.untitledSection
-                                              : tocItems[i].title,
-                                          style: TextStyle(
-                                            fontWeight: i == currentIndex
-                                                ? FontWeight.w700
-                                                : FontWeight.w400,
-                                            color: i == currentIndex
-                                                ? accent
-                                                : ink,
-                                            height: 1.4,
-                                          ),
-                                        ),
-                                      ),
+                                    )
+                                  else
+                                    ..._tocTiles(
+                                      items: tocItems,
+                                      currentIndex: currentIndex,
+                                      currentHref: currentHref,
+                                      currentFragment: foliateFragment,
+                                      ink: ink,
+                                      accent: accent,
+                                      l10n: l10n,
                                     ),
                                 ],
                               ],
@@ -586,6 +667,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         showHeading: currentTitle.trim().isNotEmpty,
                         paragraphs: paragraphs,
                         currentIndex: currentIndex,
+                        chapterCount: chapterCount,
                         surface: surface,
                         formatLabel: formatLabel,
                       ),
@@ -646,12 +728,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                                 Row(
                                   children: [
                                     Text(
-                                      tocItems.isEmpty
-                                          ? formatLabel
-                                          : l10n.readerSection(
-                                              currentIndex + 1,
-                                              tocItems.length,
-                                            ),
+                                      _progressLabel(
+                                        l10n: l10n,
+                                        formatLabel: formatLabel,
+                                        currentIndex: currentIndex,
+                                      ),
                                       style: TextStyle(
                                         color: muted,
                                         fontSize: 12,
@@ -683,6 +764,89 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
   }
 
+  List<Widget> _tocTiles({
+    required List<TocItem> items,
+    required int currentIndex,
+    required String currentHref,
+    String? currentFragment,
+    required Color ink,
+    required Color accent,
+    required AppLocalizations l10n,
+    int depth = 0,
+  }) {
+    final tiles = <Widget>[];
+    for (var i = 0; i < items.length; i++) {
+      final item = items[i];
+      final current = currentHref.isEmpty
+          ? depth == 0 && i == currentIndex
+          : reflowTocItemCurrent(
+              item,
+              href: currentHref,
+              fragment: currentFragment,
+            );
+      tiles.add(
+        Padding(
+          padding: EdgeInsets.fromLTRB(depth * 12.0, 6, 0, 6),
+          child: InkWell(
+            onTap: () => _goToToc(item),
+            child: Text(
+              item.title.trim().isEmpty ? l10n.untitledSection : item.title,
+              style: TextStyle(
+                fontWeight: current ? FontWeight.w700 : FontWeight.w400,
+                color: current ? accent : ink,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ),
+      );
+      if (item.children.isNotEmpty) {
+        tiles.addAll(
+          _tocTiles(
+            items: item.children,
+            currentIndex: currentIndex,
+            currentHref: currentHref,
+            currentFragment: currentFragment,
+            ink: ink,
+            accent: accent,
+            l10n: l10n,
+            depth: depth + 1,
+          ),
+        );
+      }
+    }
+    return tiles;
+  }
+
+  String _progressLabel({
+    required AppLocalizations l10n,
+    required String formatLabel,
+    required int currentIndex,
+  }) {
+    final chaptered = opened is ChapteredDocument
+        ? opened as ChapteredDocument
+        : null;
+    final chapterCount = chaptered?.chapterCount ?? tocItems.length;
+    if (tocItems.isNotEmpty &&
+        chapterCount > 0 &&
+        tocItems.length != chapterCount) {
+      final index = (chaptered?.chapterIndex ?? currentIndex).clamp(
+        0,
+        chapterCount - 1,
+      );
+      return l10n.readerSection(index + 1, chapterCount);
+    }
+    final pages = reflowChromePages(
+      pageIndex: foliateSession?.pageIndex,
+      pageCount: foliateSession?.pageCount,
+    );
+    if (pages != null) {
+      return l10n.readerSection(pages.current, pages.total);
+    }
+    if (tocItems.isEmpty) return formatLabel;
+    return l10n.readerSection(currentIndex + 1, tocItems.length);
+  }
+
   Future<void> _openReadingSettings() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -703,6 +867,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     required bool showHeading,
     required List<String> paragraphs,
     required int currentIndex,
+    required int chapterCount,
     required ReadingSurface surface,
     required String formatLabel,
   }) {
@@ -745,6 +910,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
             surface: surface,
             paragraphs: _pageParagraphs(reader),
           ),
+          quotes: quoteHighlights(notes),
+          fragment: foliateFragment,
+          fragmentEpoch: foliateFragmentEpoch,
+          scrollQuote: foliateScrollQuote,
+          scrollQuoteEpoch: foliateScrollQuoteEpoch,
+          pageIndex: foliateSession?.pageIndex ?? 0,
           onSelection: _onFoliateSelection,
           onHostEvent: _onFoliateHostEvent,
           onNext: () => _turnReflow(next: true),
@@ -770,6 +941,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
             showHeading: showHeading,
             paragraphs: paragraphs,
             currentIndex: currentIndex,
+            chapterCount: chapterCount,
             surface: surface,
             formatLabel: formatLabel,
           ),
@@ -786,6 +958,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     required bool showHeading,
     required List<String> paragraphs,
     required int currentIndex,
+    required int chapterCount,
     required ReadingSurface surface,
     required String formatLabel,
   }) {
@@ -837,7 +1010,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         Text(
           tocItems.isEmpty
               ? formatLabel
-              : l10n.readerSection(currentIndex + 1, tocItems.length),
+              : l10n.readerSection(
+                  currentIndex + 1,
+                  chapterCount <= 0 ? tocItems.length : chapterCount,
+                ),
           style: TextStyle(
             color: muted,
             letterSpacing: 2,

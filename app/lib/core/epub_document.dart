@@ -5,6 +5,7 @@ import 'package:xml/xml.dart';
 
 import 'models.dart';
 import 'reader_runtime.dart';
+import 'reflow_nav.dart';
 import 'text_document.dart';
 
 const epubTextByteLimit = 2 * 1024 * 1024;
@@ -32,6 +33,7 @@ class ParsedEpub {
     required this.chapters,
     required this.fullText,
     required this.truncated,
+    this.navItems = const [],
   });
 
   final String title;
@@ -39,6 +41,7 @@ class ParsedEpub {
   final List<EpubChapter> chapters;
   final String fullText;
   final bool truncated;
+  final List<TocItem> navItems;
 }
 
 ParsedEpub parseEpub(List<int> bytes) {
@@ -78,6 +81,7 @@ ParsedEpub parseEpub(List<int> bytes) {
     throw const FormatException('corrupt epub');
   }
   final titles = _navTitles(files, manifest, opfPath);
+  final navItems = _navTocItems(files, manifest);
   final chapters = <EpubChapter>[];
   final text = StringBuffer();
   var truncated = false;
@@ -118,6 +122,7 @@ ParsedEpub parseEpub(List<int> bytes) {
     chapters: _packChapters(chapters),
     fullText: text.toString(),
     truncated: truncated,
+    navItems: navItems,
   );
 }
 
@@ -289,13 +294,7 @@ class EpubReaderDocument implements HtmlChapteredDocument {
 
   @override
   Future<List<TocItem>> getToc() async {
-    return [
-      for (final chapter in parsed.chapters)
-        TocItem(
-          title: chapter.title,
-          locator: EpubLocator(href: chapter.href),
-        ),
-    ];
+    return _tocFromSpine(parsed.chapters, parsed.navItems);
   }
 }
 
@@ -359,7 +358,7 @@ Map<String, String> _navTitles(
         final target = anchor.getAttribute('href');
         final label = anchor.innerText.trim();
         if (target == null || label.isEmpty) continue;
-        titles[_resolveHref(href, target)] = label;
+        titles.putIfAbsent(_resolveHref(href, target), () => label);
       }
     } catch (_) {
       // nav 损坏时退回章节正文标题，不让整本书打不开。
@@ -385,6 +384,128 @@ Map<String, String> _navTitles(
     // NCX 损坏时同样退回正文标题。
   }
   return titles;
+}
+
+List<TocItem> _tocFromSpine(
+  List<EpubChapter> chapters,
+  List<TocItem> navItems,
+) {
+  if (navItems.isEmpty) {
+    return [
+      for (final chapter in chapters)
+        TocItem(
+          title: chapter.title,
+          locator: EpubLocator(href: chapter.href),
+        ),
+    ];
+  }
+  final used = List<bool>.filled(navItems.length, false);
+  return [
+    for (final chapter in chapters) _tocItemForChapter(chapter, navItems, used),
+  ];
+}
+
+TocItem _tocItemForChapter(
+  EpubChapter chapter,
+  List<TocItem> navItems,
+  List<bool> used,
+) {
+  for (var i = 0; i < navItems.length; i++) {
+    if (used[i]) continue;
+    final locator = navItems[i].locator;
+    if (locator is! EpubLocator) continue;
+    if (!_sameHref(locator.href, chapter.href)) continue;
+    used[i] = true;
+    final title = navItems[i].title.isEmpty ? chapter.title : navItems[i].title;
+    return TocItem(
+      title: title,
+      locator: EpubLocator(href: chapter.href),
+      children: navItems[i].children,
+    );
+  }
+  return TocItem(
+    title: chapter.title,
+    locator: EpubLocator(href: chapter.href),
+  );
+}
+
+List<TocItem> _navTocItems(
+  Map<String, ArchiveFile> files,
+  Map<String, String> manifest,
+) {
+  for (final href in manifest.values) {
+    if (!href.endsWith('.xhtml') && !href.endsWith('.html')) continue;
+    final raw = _tryRead(files, href);
+    if (raw == null || !raw.contains('epub:type="toc"')) continue;
+    try {
+      final nav = XmlDocument.parse(raw);
+      final tocNav = _localElements(nav, 'nav').where(_isTocNav).firstOrNull;
+      final root = tocNav ?? nav.rootElement;
+      final ol = _directOl(root) ?? _localElements(root, 'ol').firstOrNull;
+      if (ol == null) continue;
+      final items = _navListItems(ol, href);
+      if (items.isNotEmpty) return items;
+    } catch (_) {
+      // nav 损坏时退回 spine 平铺，不让整本书打不开。
+    }
+  }
+  return const [];
+}
+
+bool _isTocNav(XmlElement element) {
+  const epubNs = 'http://www.idpf.org/2007/ops';
+  final type =
+      element.getAttribute('type') ??
+      element.getAttribute('epub:type') ??
+      element.getAttribute('type', namespace: epubNs);
+  return type == 'toc';
+}
+
+XmlElement? _directOl(XmlElement parent) {
+  for (final child in parent.childElements) {
+    if (child.name.local == 'ol') return child;
+  }
+  return null;
+}
+
+List<TocItem> _navListItems(XmlElement ol, String navHref) {
+  final items = <TocItem>[];
+  for (final li in ol.childElements) {
+    if (li.name.local != 'li') continue;
+    XmlElement? anchor;
+    XmlElement? nested;
+    for (final child in li.childElements) {
+      if (child.name.local == 'a' && anchor == null) {
+        anchor = child;
+      } else if (child.name.local == 'ol' && nested == null) {
+        nested = child;
+      }
+    }
+    nested ??= li.childElements
+        .expand((child) => child.childElements)
+        .where((child) => child.name.local == 'ol')
+        .firstOrNull;
+    if (anchor == null) {
+      if (nested != null) {
+        items.addAll(_navListItems(nested, navHref));
+      }
+      continue;
+    }
+    final href = anchor.getAttribute('href');
+    final title = anchor.innerText.trim();
+    if (href == null || href.isEmpty || title.isEmpty) continue;
+    items.add(
+      TocItem(
+        title: title,
+        locator: EpubLocator(
+          href: _resolveHref(navHref, href),
+          fragment: reflowHrefFragment(href),
+        ),
+        children: nested == null ? const [] : _navListItems(nested, navHref),
+      ),
+    );
+  }
+  return items;
 }
 
 String _resolveHref(String basePath, String href) {
@@ -435,12 +556,60 @@ final _linkHref = RegExp(
   caseSensitive: false,
 );
 
+final _cssUrl = RegExp(
+  r'''url\(\s*(['"]?)([^)'"]+)\1\s*\)''',
+  caseSensitive: false,
+);
+
+final _cssImport = RegExp(
+  r'''@import\s+(?:url\(\s*(['"]?)([^)'"]+)\1\s*\)|(['"])([^'"]+)\3)\s*;''',
+  caseSensitive: false,
+);
+
+final _srcsetAttr = RegExp(
+  r'''\bsrcset\s*=\s*(["'])([^"']+)\1''',
+  caseSensitive: false,
+);
+
+final _svgImageHref = RegExp(
+  r'''<image\b([^>]*?)\b((?:xlink:)?href)\s*=\s*(["'])([^"']+)\3([^>]*)>''',
+  caseSensitive: false,
+);
+
+final _objectDataAttr = RegExp(
+  r'''<object\b([^>]*?)\bdata\s*=\s*(["'])([^"']+)\2([^>]*)>''',
+  caseSensitive: false,
+);
+
+final _embedSrc = RegExp(
+  r'''<embed\b([^>]*?)\bsrc\s*=\s*(["'])([^"']+)\2([^>]*)>''',
+  caseSensitive: false,
+);
+
+final _videoPoster = RegExp(
+  r'''<video\b([^>]*?)\bposter\s*=\s*(["'])([^"']+)\2([^>]*)>''',
+  caseSensitive: false,
+);
+
+final _scriptBlock = RegExp(
+  r'<script\b[^>]*>[\s\S]*?</script>',
+  caseSensitive: false,
+);
+
+final _scriptEmpty = RegExp(r'<script\b[^>]*/>', caseSensitive: false);
+
+final _eventHandlerAttr = RegExp(
+  r'''\s+on[a-z]{3,}\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)''',
+  caseSensitive: false,
+);
+
 String _inlineChapterHtml(
   String html,
   String chapterHref,
   Map<String, ArchiveFile> files,
 ) {
-  var result = html.replaceAllMapped(_imgSrc, (match) {
+  var result = _stripChapterEventHandlers(_stripChapterScripts(html));
+  result = result.replaceAllMapped(_imgSrc, (match) {
     final src = match.group(3) ?? '';
     if (src.startsWith('data:') || _isExternalHref(src)) {
       return match.group(0)!;
@@ -449,9 +618,9 @@ String _inlineChapterHtml(
     if (dataUri == null) {
       return match.group(0)!;
     }
-    return '<img${match.group(1)}src="${match.group(2)}$dataUri${match.group(2)}${match.group(4)}>';
+    return '<img${match.group(1)}src=${match.group(2)}$dataUri${match.group(2)}${match.group(4)}>';
   });
-  return result.replaceAllMapped(_linkHref, (match) {
+  result = result.replaceAllMapped(_linkHref, (match) {
     final tag = match.group(0)!;
     if (!tag.toLowerCase().contains('stylesheet')) {
       return tag;
@@ -460,11 +629,187 @@ String _inlineChapterHtml(
     if (href.startsWith('data:') || _isExternalHref(href)) {
       return tag;
     }
-    final css = _tryRead(files, _resolveHref(chapterHref, href));
+    final cssPath = _resolveHref(chapterHref, href);
+    final css = _tryRead(files, cssPath);
     if (css == null) {
       return tag;
     }
-    return '<style>$css</style>';
+    final seen = <String>{cssPath};
+    return '<style>${_inlineCssUrls(_inlineCssImports(css, cssPath, files, seen), cssPath, files)}</style>';
+  });
+  result = _inlineSrcset(result, chapterHref, files);
+  result = _inlineSvgImages(result, chapterHref, files);
+  result = _inlineObjectData(result, chapterHref, files);
+  result = _inlineEmbedSrc(result, chapterHref, files);
+  result = _inlineVideoPoster(result, chapterHref, files);
+  return _inlineCssUrls(
+    _inlineCssImports(result, chapterHref, files),
+    chapterHref,
+    files,
+  );
+}
+
+String _stripChapterScripts(String html) {
+  return html.replaceAll(_scriptBlock, '').replaceAll(_scriptEmpty, '');
+}
+
+String _stripChapterEventHandlers(String html) {
+  return html.replaceAll(_eventHandlerAttr, '');
+}
+
+String _inlineSrcset(
+  String html,
+  String chapterHref,
+  Map<String, ArchiveFile> files,
+) {
+  return html.replaceAllMapped(_srcsetAttr, (match) {
+    final quote = match.group(1)!;
+    final next = _inlineSrcsetValue(match.group(2) ?? '', chapterHref, files);
+    return 'srcset=$quote$next$quote';
+  });
+}
+
+String _inlineSvgImages(
+  String html,
+  String chapterHref,
+  Map<String, ArchiveFile> files,
+) {
+  return html.replaceAllMapped(_svgImageHref, (match) {
+    final src = match.group(4) ?? '';
+    if (src.startsWith('data:') || _isExternalHref(src)) {
+      return match.group(0)!;
+    }
+    final dataUri = _dataUriFor(files, _resolveHref(chapterHref, src));
+    if (dataUri == null) {
+      return match.group(0)!;
+    }
+    return '<image${match.group(1)}${match.group(2)}=${match.group(3)}$dataUri${match.group(3)}${match.group(5)}>';
+  });
+}
+
+String _inlineObjectData(
+  String html,
+  String chapterHref,
+  Map<String, ArchiveFile> files,
+) {
+  return html.replaceAllMapped(_objectDataAttr, (match) {
+    final src = match.group(3) ?? '';
+    if (src.startsWith('data:') || _isExternalHref(src)) {
+      return match.group(0)!;
+    }
+    final dataUri = _dataUriFor(files, _resolveHref(chapterHref, src));
+    if (dataUri == null || !dataUri.startsWith('data:image/')) {
+      return match.group(0)!;
+    }
+    return '<object${match.group(1)}data=${match.group(2)}$dataUri${match.group(2)}${match.group(4)}>';
+  });
+}
+
+String _inlineEmbedSrc(
+  String html,
+  String chapterHref,
+  Map<String, ArchiveFile> files,
+) {
+  return html.replaceAllMapped(_embedSrc, (match) {
+    final src = match.group(3) ?? '';
+    if (src.startsWith('data:') || _isExternalHref(src)) {
+      return match.group(0)!;
+    }
+    final dataUri = _dataUriFor(files, _resolveHref(chapterHref, src));
+    if (dataUri == null || !dataUri.startsWith('data:image/')) {
+      return match.group(0)!;
+    }
+    return '<embed${match.group(1)}src=${match.group(2)}$dataUri${match.group(2)}${match.group(4)}>';
+  });
+}
+
+String _inlineVideoPoster(
+  String html,
+  String chapterHref,
+  Map<String, ArchiveFile> files,
+) {
+  return html.replaceAllMapped(_videoPoster, (match) {
+    final src = match.group(3) ?? '';
+    if (src.startsWith('data:') || _isExternalHref(src)) {
+      return match.group(0)!;
+    }
+    final dataUri = _dataUriFor(files, _resolveHref(chapterHref, src));
+    if (dataUri == null || !dataUri.startsWith('data:image/')) {
+      return match.group(0)!;
+    }
+    return '<video${match.group(1)}poster=${match.group(2)}$dataUri${match.group(2)}${match.group(4)}>';
+  });
+}
+
+String _inlineSrcsetValue(
+  String value,
+  String chapterHref,
+  Map<String, ArchiveFile> files,
+) {
+  return value
+      .split(',')
+      .map((part) {
+        final trimmed = part.trim();
+        if (trimmed.isEmpty) return part;
+        final bits = trimmed.split(RegExp(r'\s+'));
+        final url = bits.first;
+        final rest = bits.skip(1).join(' ');
+        if (url.startsWith('data:') || _isExternalHref(url)) {
+          return trimmed;
+        }
+        final dataUri = _dataUriFor(files, _resolveHref(chapterHref, url));
+        if (dataUri == null) {
+          return trimmed;
+        }
+        return rest.isEmpty ? dataUri : '$dataUri $rest';
+      })
+      .join(', ');
+}
+
+String _inlineCssImports(
+  String css,
+  String baseHref,
+  Map<String, ArchiveFile> files, [
+  Set<String>? seen,
+]) {
+  final visited = seen ?? <String>{};
+  return css.replaceAllMapped(_cssImport, (match) {
+    final href = (match.group(2) ?? match.group(4) ?? '').trim();
+    if (href.isEmpty || href.startsWith('data:') || _isExternalHref(href)) {
+      return match.group(0)!;
+    }
+    final path = _resolveHref(baseHref, href);
+    if (!visited.add(path)) {
+      return '';
+    }
+    final imported = _tryRead(files, path);
+    if (imported == null) {
+      visited.remove(path);
+      return match.group(0)!;
+    }
+    return _inlineCssUrls(
+      _inlineCssImports(imported, path, files, visited),
+      path,
+      files,
+    );
+  });
+}
+
+String _inlineCssUrls(
+  String css,
+  String baseHref,
+  Map<String, ArchiveFile> files,
+) {
+  return css.replaceAllMapped(_cssUrl, (match) {
+    final href = (match.group(2) ?? '').trim();
+    if (href.isEmpty || href.startsWith('data:') || _isExternalHref(href)) {
+      return match.group(0)!;
+    }
+    final dataUri = _dataUriFor(files, _resolveHref(baseHref, href));
+    if (dataUri == null) {
+      return match.group(0)!;
+    }
+    return 'url($dataUri)';
   });
 }
 
@@ -511,6 +856,18 @@ String? _mimeFor(String path) {
   }
   if (lower.endsWith('.svg')) {
     return 'image/svg+xml';
+  }
+  if (lower.endsWith('.ttf')) {
+    return 'font/ttf';
+  }
+  if (lower.endsWith('.otf')) {
+    return 'font/otf';
+  }
+  if (lower.endsWith('.woff2')) {
+    return 'font/woff2';
+  }
+  if (lower.endsWith('.woff')) {
+    return 'font/woff';
   }
   return null;
 }

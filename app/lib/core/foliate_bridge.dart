@@ -19,11 +19,13 @@ class FoliateBridge {
     HtmlChapteredDocument document, {
     double fontSize = 18,
     Map<String, Object?> typography = const {},
+    List<String> quotes = const [],
   }) {
     return openSession(
       FoliateSession.open(document),
       fontSize: fontSize,
       typography: typography,
+      quotes: quotes,
     );
   }
 
@@ -31,6 +33,9 @@ class FoliateBridge {
     FoliateSession session, {
     double fontSize = 18,
     Map<String, Object?> typography = const {},
+    List<String> quotes = const [],
+    String? fragment,
+    String? scrollQuote,
   }) {
     return {
       'type': 'open',
@@ -41,9 +46,12 @@ class FoliateBridge {
       'progression': session.progression,
       'pageIndex': session.pageIndex,
       'pageCount': session.pageCount,
+      'quotes': quotes,
       ...ReadingSurface.lightDefaults.toFoliateCommand(),
       'fontSize': fontSize,
       ...typography,
+      if (fragment != null && fragment.isNotEmpty) 'fragment': fragment,
+      if (scrollQuote != null && scrollQuote.isNotEmpty) 'scrollQuote': scrollQuote,
     };
   }
 }

@@ -81,6 +81,158 @@ List<int> illustratedEpubBytes({
   );
 }
 
+List<int> svgImageEpubBytes({
+  bool includeImage = true,
+  bool xlink = false,
+  bool remote = false,
+}) {
+  final attr = xlink ? 'xlink:href' : 'href';
+  final url = remote ? 'https://example.com/spot.png' : 'images/spot.png';
+  final ns = xlink ? ' xmlns:xlink="http://www.w3.org/1999/xlink"' : '';
+  return minimalEpubBytes(
+    firstMarkup: '<svg$ns><image $attr="$url" width="1" height="1"/></svg>',
+    extraFiles: {if (includeImage) 'OEBPS/images/spot.png': tinyPngBytes()},
+  );
+}
+
+List<int> srcsetEpubBytes({bool includeImage = true, bool remote = false}) {
+  if (remote) {
+    return minimalEpubBytes(
+      firstMarkup: '<img src="images/spot.png" srcset="https://example.com/spot.png 1x" alt="spot"/>',
+      extraFiles: {if (includeImage) 'OEBPS/images/spot.png': tinyPngBytes()},
+    );
+  }
+  return minimalEpubBytes(
+    firstMarkup: '<picture><source srcset="images/spot.png 1x, images/spot.png 2x"/><img src="images/spot.png" alt="spot"/></picture>',
+    extraFiles: {if (includeImage) 'OEBPS/images/spot.png': tinyPngBytes()},
+  );
+}
+
+List<int> objectImageEpubBytes({
+  bool includeImage = true,
+  bool remote = false,
+}) {
+  final url = remote ? 'https://example.invalid/spot.png' : 'images/spot.png';
+  return minimalEpubBytes(
+    firstMarkup: '<object data="$url" type="image/png">spot</object>',
+    extraFiles: {if (includeImage) 'OEBPS/images/spot.png': tinyPngBytes()},
+  );
+}
+
+List<int> embedImageEpubBytes({bool includeImage = true, bool remote = false}) {
+  final url = remote ? 'https://example.invalid/spot.png' : 'images/spot.png';
+  return minimalEpubBytes(
+    firstMarkup: '<embed src="$url" type="image/png"/>',
+    extraFiles: {if (includeImage) 'OEBPS/images/spot.png': tinyPngBytes()},
+  );
+}
+
+List<int> videoPosterEpubBytes({
+  bool includeImage = true,
+  bool remote = false,
+}) {
+  final url = remote ? 'https://example.invalid/spot.png' : 'images/spot.png';
+  return minimalEpubBytes(
+    firstMarkup: '<video poster="$url" src="clip.mp4"></video>',
+    extraFiles: {if (includeImage) 'OEBPS/images/spot.png': tinyPngBytes()},
+  );
+}
+
+List<int> nestedNavEpubBytes() {
+  return minimalEpubBytes(
+    firstMarkup: '<p id="note">footnote target</p>',
+    extraFiles: {
+      'OEBPS/nav.xhtml': utf8.encode('''<?xml version="1.0"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <body>
+    <nav epub:type="toc">
+      <ol>
+        <li>
+          <a href="ch1.xhtml">第一章</a>
+          <ol>
+            <li><a href="ch1.xhtml#note">注释</a></li>
+          </ol>
+        </li>
+        <li><a href="ch2.xhtml">第二章</a></li>
+        <li><a href="ghost.xhtml">幽灵章</a></li>
+      </ol>
+    </nav>
+  </body>
+</html>
+'''),
+    },
+  );
+}
+
+List<int> tinyTtfBytes() => [0x00, 0x01, 0x00, 0x00];
+
+List<int> fontedEpubBytes({bool includeFont = true}) {
+  return minimalEpubBytes(
+    firstHead: '<link rel="stylesheet" href="styles.css"/>',
+    extraFiles: {
+      'OEBPS/styles.css': utf8.encode(
+        '@font-face { font-family: Body; src: url(fonts/body.ttf); } '
+        'body { font-family: Body, serif; }',
+      ),
+      if (includeFont) 'OEBPS/fonts/body.ttf': tinyTtfBytes(),
+    },
+  );
+}
+
+List<int> importedCssEpubBytes({
+  bool includeImported = true,
+  bool circular = false,
+  bool remoteImport = false,
+}) {
+  if (circular) {
+    return minimalEpubBytes(
+      firstHead: '<link rel="stylesheet" href="styles.css"/>',
+      extraFiles: {
+        'OEBPS/styles.css': utf8.encode(
+          '@import url(styles.css); p { color: red; }',
+        ),
+      },
+    );
+  }
+  if (remoteImport) {
+    return minimalEpubBytes(
+      firstHead: '<link rel="stylesheet" href="styles.css"/>',
+      extraFiles: {
+        'OEBPS/styles.css': utf8.encode(
+          '@import url(https://example.com/theme.css); '
+          'body { font-family: serif; }',
+        ),
+      },
+    );
+  }
+  return minimalEpubBytes(
+    firstHead: '<link rel="stylesheet" href="styles.css"/>',
+    extraFiles: {
+      'OEBPS/styles.css': utf8.encode(
+        '@import url(theme.css); body { font-family: Body, serif; }',
+      ),
+      if (includeImported)
+        'OEBPS/theme.css': utf8.encode(
+          '@font-face { font-family: Body; src: url(fonts/body.ttf); }',
+        ),
+      if (includeImported) 'OEBPS/fonts/body.ttf': tinyTtfBytes(),
+    },
+  );
+}
+
+List<int> nestedImportedCssEpubBytes() {
+  return minimalEpubBytes(
+    firstHead: '<link rel="stylesheet" href="styles.css"/>',
+    extraFiles: {
+      'OEBPS/styles.css': utf8.encode('@import url(css/theme.css);'),
+      'OEBPS/css/theme.css': utf8.encode(
+        '@font-face { font-family: Body; src: url(../fonts/body.ttf); }',
+      ),
+      'OEBPS/fonts/body.ttf': tinyTtfBytes(),
+    },
+  );
+}
+
 List<int> zipNamedFiles(
   Map<String, List<int>> files, {
   Set<String> uncompressed = const {},

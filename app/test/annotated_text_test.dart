@@ -44,4 +44,31 @@ void main() {
     expect(spans, hasLength(1));
     expect((spans.single as TextSpan).text, 'no match here');
   });
+
+  test('quote highlights skip bookmarks and empty quotes', () {
+    expect(
+      quoteHighlights([
+        ReaderAnnotation(
+          id: 'n1',
+          note: 'keep',
+          quote: 'hello from notes',
+          createdAt: DateTime.utc(2026, 1, 1),
+        ),
+        ReaderAnnotation(
+          id: 'bm1',
+          note: '',
+          quote: 'hello from notes',
+          source: bookmarkSource,
+          createdAt: DateTime.utc(2026, 1, 1),
+        ),
+        ReaderAnnotation(
+          id: 'n2',
+          note: 'empty',
+          quote: '   ',
+          createdAt: DateTime.utc(2026, 1, 1),
+        ),
+      ]),
+      ['hello from notes'],
+    );
+  });
 }

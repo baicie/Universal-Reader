@@ -122,10 +122,16 @@ class PdfLocator extends Locator {
 }
 
 class EpubLocator extends Locator {
-  const EpubLocator({required this.href, this.cfi, this.progression});
+  const EpubLocator({
+    required this.href,
+    this.cfi,
+    this.progression,
+    this.fragment,
+  });
   final String href;
   final String? cfi;
   final double? progression;
+  final String? fragment;
 }
 
 class TextLocator extends Locator {

@@ -1,12 +1,17 @@
 import 'dart:convert';
 
 import 'package:app/core/annotated_text.dart';
+import 'package:app/core/epub_document.dart';
+import 'package:app/core/foliate_session.dart';
 import 'package:app/core/library_repository.dart';
 import 'package:app/core/locale_controller.dart';
+import 'package:app/core/locator_codec.dart';
+import 'package:app/core/models.dart';
 import 'package:app/features/library/annotation_store.dart';
 import 'package:app/features/reader/reader_bookmarks_pane.dart';
 import 'package:app/features/reader/reader_notes_pane.dart';
 import 'package:app/features/reader/reader_search_pane.dart';
+import 'package:app/features/reader/renderers/isolated_foliate_view.dart';
 import 'package:app/features/reader/selection_confirm_bar.dart';
 import 'package:app/features/tools/ai/ai_runtime.dart';
 import 'package:app/features/tools/ai/ai_settings.dart';
@@ -20,6 +25,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'support/epub_fixture.dart';
+import 'support/fb2_fixture.dart';
 import 'support/image_fixture.dart';
 import 'support/pdf_fixture.dart';
 
@@ -111,6 +117,93 @@ void main() {
     expect(find.text('Reading assistant'), findsOneWidget);
   });
 
+  testWidgets('epub nested toc entry scrolls to the chapter fragment', (
+    tester,
+  ) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('story.epub', nestedNavEpubBytes());
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('Fixture Book').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('目录'));
+    await tester.pumpAndSettle();
+    expect(find.text('注释'), findsOneWidget);
+    expect(find.text('幽灵章'), findsNothing);
+    await tester.tap(find.text('注释'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<IsolatedFoliateView>(find.byType(IsolatedFoliateView))
+          .fragment,
+      'note',
+    );
+    expect(find.textContaining('hello from epub'), findsOneWidget);
+    expect(find.text('设计中的设计'), findsNothing);
+  });
+
+  testWidgets('fb2 nested toc child is current and uses chapter count', (
+    tester,
+  ) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('book.fb2', fb2NestedSectionBytes());
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('FB2 Book').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('目录'));
+    await tester.pumpAndSettle();
+    expect(find.text('Part I'), findsWidgets);
+    expect(find.widgetWithText(InkWell, 'Chapter One'), findsOneWidget);
+    await tester.tap(find.widgetWithText(InkWell, 'Chapter One'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<Text>(
+            find.descendant(
+              of: find.widgetWithText(InkWell, 'Chapter One'),
+              matching: find.byType(Text),
+            ),
+          )
+          .style
+          ?.fontWeight,
+      FontWeight.w700,
+    );
+    expect(
+      tester
+          .widget<Text>(
+            find.descendant(
+              of: find.widgetWithText(InkWell, 'Part I'),
+              matching: find.byType(Text),
+            ),
+          )
+          .style
+          ?.fontWeight,
+      FontWeight.w400,
+    );
+    expect(find.text('2 / 2'), findsOneWidget);
+  });
+
   testWidgets('opens imported epub chapters in the reader', (tester) async {
     final repository = InMemoryLibraryRepository();
     await repository.importBytes('story.epub', minimalEpubBytes());
@@ -159,11 +252,42 @@ void main() {
     expect(find.textContaining('alpha-page'), findsOneWidget);
     expect(find.textContaining('beta-page'), findsNothing);
     expect(find.textContaining('omega-chapter'), findsNothing);
+    final pages = FoliateSession.open(
+      EpubReaderDocument.parse(
+        metadata: const DocumentMetadata(
+          id: 'story',
+          title: 'Fixture Book',
+          author: '',
+          format: DocumentFormat.epub,
+          type: DocumentType.reflow,
+        ),
+        bytes: minimalEpubBytes(
+          firstBody:
+              '${List.filled(170, 'alpha-page').join(' ')} ${List.filled(50, 'beta-page').join(' ')}',
+          secondBody: 'omega-chapter',
+        ),
+      ),
+    );
+    expect(pages.pageCount, greaterThan(1));
+    expect(find.text('1 / ${pages.pageCount}'), findsOneWidget);
+    expect(
+      tester
+          .widget<IsolatedFoliateView>(find.byType(IsolatedFoliateView))
+          .pageIndex,
+      0,
+    );
     final surface = tester.getRect(find.byKey(const Key('foliate-surface')));
     await tester.tapAt(Offset(surface.right - 8, surface.center.dy));
     await tester.pumpAndSettle();
     expect(find.textContaining('beta-page'), findsOneWidget);
     expect(find.textContaining('omega-chapter'), findsNothing);
+    expect(find.text('2 / ${pages.pageCount}'), findsOneWidget);
+    expect(
+      tester
+          .widget<IsolatedFoliateView>(find.byType(IsolatedFoliateView))
+          .pageIndex,
+      1,
+    );
     await tester.tapAt(Offset(surface.right - 8, surface.center.dy));
     await tester.pumpAndSettle();
     expect(find.textContaining('omega-chapter'), findsOneWidget);
@@ -636,6 +760,60 @@ void main() {
     expect(find.text('hello from notes'), findsOneWidget);
     await tester.tap(find.text('保存选区'));
     expect(saved, isTrue);
+  });
+
+  testWidgets('epub note jumps to the quote in that chapter', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes(
+      'story.epub',
+      minimalEpubBytes(secondBody: 'unique-needle-in-chapter-two'),
+    );
+    final notes = InMemoryAnnotationRepository();
+    await notes.save('story.epub', [
+      ReaderAnnotation(
+        id: 'n1',
+        note: 'keep',
+        quote: 'unique-needle-in-chapter-two',
+        locatorLabel: encodeLocator(const EpubLocator(href: 'OEBPS/ch2.xhtml')),
+        source: userNoteSource,
+        createdAt: DateTime.utc(2026, 1, 1),
+      ),
+    ]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+          aiRuntimeProvider.overrideWithValue(
+            AiRuntime.local(
+              InMemoryConversationRepository(),
+              annotations: notes,
+            ),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('Fixture Book').first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('hello from epub'), findsOneWidget);
+    expect(find.textContaining('unique-needle-in-chapter-two'), findsNothing);
+    await tester.tap(find.byTooltip('笔记'));
+    await tester.pump();
+    expect(find.byKey(notesPanelKey), findsOneWidget);
+    await tester.tap(find.text('unique-needle-in-chapter-two').last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('unique-needle-in-chapter-two'), findsWidgets);
+    expect(
+      tester
+          .widget<IsolatedFoliateView>(find.byType(IsolatedFoliateView))
+          .scrollQuote,
+      'unique-needle-in-chapter-two',
+    );
+    expect(find.text('设计中的设计'), findsNothing);
   });
 
   testWidgets('opens a saved note and can delete it without leaving the book', (

@@ -60,6 +60,17 @@ void main() {
       ) as PdfLocator).page,
       3,
     );
+    final withFragment = decodeLocator(
+      encodeLocator(const EpubLocator(href: 'ch1.xhtml', fragment: 'note')),
+    );
+    expect(withFragment, isA<EpubLocator>());
+    expect((withFragment as EpubLocator).fragment, 'note');
+    expect(
+      (decodeLocator(
+        encodeLocator(const EpubLocator(href: 'ch1.xhtml')),
+      ) as EpubLocator).fragment,
+      isNull,
+    );
   });
 
   test('removing a bookmark leaves the notes on that book', () async {
