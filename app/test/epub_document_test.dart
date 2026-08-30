@@ -61,6 +61,27 @@ void main() {
     expect(toc.last.children, isEmpty);
   });
 
+  test('ncx nested navPoints keep fragments on subsections', () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: nestedNcxEpubBytes(),
+    );
+
+    final toc = await document.getToc();
+    expect(toc.map((item) => item.title), ['第一章', '第二章']);
+    expect(toc.first.children, hasLength(2));
+    expect(toc.first.children.first.title, '第一节');
+    expect(toc.first.children.last.title, '第二节');
+    final firstChild = toc.first.children.first.locator;
+    expect(firstChild, isA<EpubLocator>());
+    expect((firstChild as EpubLocator).fragment, 'section1');
+    final secondChild = toc.first.children.last.locator;
+    expect(secondChild, isA<EpubLocator>());
+    expect((secondChild as EpubLocator).fragment, 'section2');
+    expect((toc.first.locator as EpubLocator).fragment, isNull);
+    expect(toc.last.children, isEmpty);
+  });
+
   test('a missing chapter href stays on the current chapter', () async {
     final document = EpubReaderDocument.parse(
       metadata: metadata,

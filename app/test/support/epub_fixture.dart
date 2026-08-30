@@ -233,6 +233,71 @@ List<int> nestedImportedCssEpubBytes() {
   );
 }
 
+List<int> nestedNcxEpubBytes() {
+  final files = <String, List<int>>{
+    'mimetype': utf8.encode('application/epub+zip'),
+    'META-INF/container.xml': utf8.encode('''<?xml version="1.0"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>
+'''),
+    'OEBPS/content.opf': utf8.encode('''<?xml version="1.0"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="2.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>NCX Book</dc:title>
+    <dc:creator>NCX Author</dc:creator>
+    <dc:language>zh</dc:language>
+    <dc:identifier id="bookid">urn:uuid:ncx-fixture</dc:identifier>
+  </metadata>
+  <manifest>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    <item id="ch1" href="ch1.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ch2" href="ch2.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine toc="ncx">
+    <itemref idref="ch1"/>
+    <itemref idref="ch2"/>
+  </spine>
+</package>
+'''),
+    'OEBPS/toc.ncx': utf8.encode('''<?xml version="1.0"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="urn:uuid:ncx-fixture"/>
+  </head>
+  <docTitle><text>NCX Book</text></docTitle>
+  <navMap>
+    <navPoint id="np1">
+      <navLabel><text>第一章</text></navLabel>
+      <content src="ch1.xhtml"/>
+      <navPoint id="np1-1">
+        <navLabel><text>第一节</text></navLabel>
+        <content src="ch1.xhtml#section1"/>
+      </navPoint>
+      <navPoint id="np1-2">
+        <navLabel><text>第二节</text></navLabel>
+        <content src="ch1.xhtml#section2"/>
+      </navPoint>
+    </navPoint>
+    <navPoint id="np2">
+      <navLabel><text>第二章</text></navLabel>
+      <content src="ch2.xhtml"/>
+    </navPoint>
+  </navMap>
+</ncx>
+'''),
+    'OEBPS/ch1.xhtml': utf8.encode(
+      '<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><body><h1>第一章</h1><p>first chapter</p><h2 id="section1">第一节</h2><p>section one</p><h2 id="section2">第二节</h2><p>section two</p></body></html>',
+    ),
+    'OEBPS/ch2.xhtml': utf8.encode(
+      '<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><body><h1>第二章</h1><p>second chapter</p></body></html>',
+    ),
+  };
+  return zipNamedFiles(files, uncompressed: const {'mimetype'});
+}
+
 List<int> zipNamedFiles(
   Map<String, List<int>> files, {
   Set<String> uncompressed = const {},

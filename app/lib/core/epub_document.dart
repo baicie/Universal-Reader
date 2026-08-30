@@ -449,6 +449,27 @@ List<TocItem> _navTocItems(
       // nav 损坏时退回 spine 平铺，不让整本书打不开。
     }
   }
+  final ncxHref = manifest.values
+      .where((href) => href.endsWith('.ncx'))
+      .firstOrNull;
+  if (ncxHref != null) {
+    final ncxRaw = _tryRead(files, ncxHref);
+    if (ncxRaw != null) {
+      try {
+        final ncx = XmlDocument.parse(ncxRaw);
+        final navMap = _localElements(ncx, 'navMap').firstOrNull;
+        if (navMap != null) {
+          final points = navMap.childElements
+              .where((e) => e.name.local == 'navPoint')
+              .toList();
+          final items = _ncxNavPoints(points, ncxHref);
+          if (items.isNotEmpty) return items;
+        }
+      } catch (_) {
+        // NCX 损坏时同样退回 spine 平铺。
+      }
+    }
+  }
   return const [];
 }
 
@@ -502,6 +523,29 @@ List<TocItem> _navListItems(XmlElement ol, String navHref) {
           fragment: reflowHrefFragment(href),
         ),
         children: nested == null ? const [] : _navListItems(nested, navHref),
+      ),
+    );
+  }
+  return items;
+}
+
+List<TocItem> _ncxNavPoints(List<XmlElement> points, String ncxHref) {
+  final items = <TocItem>[];
+  for (final point in points) {
+    final label = _firstLocalText(point, 'text') ?? '';
+    final src = _firstAttribute(point, 'content', 'src');
+    if (src == null || label.isEmpty) continue;
+    final nested = point.childElements
+        .where((e) => e.name.local == 'navPoint')
+        .toList();
+    items.add(
+      TocItem(
+        title: label,
+        locator: EpubLocator(
+          href: _resolveHref(ncxHref, src),
+          fragment: reflowHrefFragment(src),
+        ),
+        children: nested.isEmpty ? const [] : _ncxNavPoints(nested, ncxHref),
       ),
     );
   }
