@@ -1,8 +1,28 @@
 # Spec: 已完成
 
-> NCX 嵌套已支持。外部链接保留已完成。**应用内打开外链已完成**。**CSS @import media query 保留已完成**。下一刀：Ask first：`view.js` / `overlayer.js` / 去掉 `<iframe>`。
+> NCX 嵌套已支持。外部链接保留已完成。**应用内打开外链已完成**。**CSS @import media query 保留已完成**。**渲染架构文档已完成**。下一刀：代码健康优化或测试增强。
 
-## CSS @import media query 保留（最新完成）
+## 渲染架构文档（最新完成）
+
+完成 `docs/renderer-architecture.md`（261 行），详细说明当前 WebView + paginator.js 渲染方案。
+
+**内容概览：**
+- ✅ 核心组件说明（`IsolatedFoliateView`、`host.html`、`paginator.js`、`FoliateBridge`）
+- ✅ 数据流图解（打开章节、翻页、笔记高亮）
+- ✅ 架构优势（关注点分离、可测试性、降级策略）
+- ✅ 已知限制与缓解方案
+- ✅ 重构方案对比分析（为什么保持现有架构）
+- ✅ 后续优化方向（性能、测试、文档、代码健康）
+
+**决策：**
+暂不重构渲染引擎（`view.js` / 移除 iframe / 纯 Flutter 渲染），当前架构已验证可行，重构成本高、收益低。
+
+**推荐下一步：**
+1. **代码健康优化**：提取重复代码、统一错误处理
+2. **测试增强**：补充边界情况测试、WebView 集成测试
+3. **性能优化**：减少 JavaScript 桥接调用、预加载下一章
+
+## CSS @import media query 保留（之前完成）
 
 章节 CSS 中的 `@import` 语句现在正确处理 media query：无 media query 的会展开内联，带 media query 的会保留。
 

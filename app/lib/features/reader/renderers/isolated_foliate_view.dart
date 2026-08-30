@@ -104,6 +104,15 @@ class _IsolatedFoliateViewState extends State<IsolatedFoliateView> {
     widget.onHostEvent?.call(payload);
   }
 
+  Future<void> _callFoliateMethod(String method, [String? arg]) async {
+    final controller = _controller;
+    if (controller == null) return;
+    final call = arg != null
+        ? 'window.FoliateView.$method($arg)'
+        : 'window.FoliateView.$method()';
+    await controller.runJavaScript('window.FoliateView && $call');
+  }
+
   Future<void> _pushSession() async {
     final controller = _controller;
     if (controller == null) return;
@@ -125,44 +134,29 @@ class _IsolatedFoliateViewState extends State<IsolatedFoliateView> {
               quotes: widget.quotes,
             ),
     );
-    await controller.runJavaScript(
-      'window.FoliateView && window.FoliateView.open($command)',
-    );
+    await _callFoliateMethod('open', command);
   }
 
   Future<void> _pushPage() async {
-    final controller = _controller;
     final session = widget.session;
-    if (controller == null || session == null) return;
-    await controller.runJavaScript(
-      'window.FoliateView && window.FoliateView.goToPage(${widget.pageIndex})',
-    );
+    if (session == null) return;
+    await _callFoliateMethod('goToPage', '${widget.pageIndex}');
   }
 
   Future<void> _pushQuotes() async {
-    final controller = _controller;
-    if (controller == null) return;
-    await controller.runJavaScript(
-      'window.FoliateView && window.FoliateView.paintQuotes(${jsonEncode(widget.quotes)})',
-    );
+    await _callFoliateMethod('paintQuotes', jsonEncode(widget.quotes));
   }
 
   Future<void> _pushFragment() async {
-    final controller = _controller;
     final fragment = widget.fragment;
-    if (controller == null || fragment == null || fragment.isEmpty) return;
-    await controller.runJavaScript(
-      'window.FoliateView && window.FoliateView.goToFragment(${jsonEncode(fragment)})',
-    );
+    if (fragment == null || fragment.isEmpty) return;
+    await _callFoliateMethod('goToFragment', jsonEncode(fragment));
   }
 
   Future<void> _pushScrollQuote() async {
-    final controller = _controller;
     final quote = widget.scrollQuote;
-    if (controller == null || quote == null || quote.isEmpty) return;
-    await controller.runJavaScript(
-      'window.FoliateView && window.FoliateView.goToQuote(${jsonEncode(quote)})',
-    );
+    if (quote == null || quote.isEmpty) return;
+    await _callFoliateMethod('goToQuote', jsonEncode(quote));
   }
 
   Widget _page() {

@@ -329,7 +329,9 @@ class PersistedLibraryController extends ChangeNotifier {
         progress: next.readingState.progress,
         lastOpened: next.readingState.lastOpened,
       );
-    } catch (_) {}
+    } catch (_) {
+      // 持久化失败不阻塞 UI：内存状态已更新，下次打开时重新记录。
+    }
     notifyListeners();
   }
 
