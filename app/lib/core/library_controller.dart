@@ -308,7 +308,9 @@ class PersistedLibraryController extends ChangeNotifier {
         progress: next.readingState.progress,
         lastOpened: next.readingState.lastOpened,
       );
-    } catch (_) {}
+    } catch (_) {
+      // Persistence failure does not block UI. Memory state is already updated.
+    }
     notifyListeners();
   }
 
