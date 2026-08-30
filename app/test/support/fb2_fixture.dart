@@ -48,13 +48,26 @@ List<int> minimalFb2Bytes({
 List<int> illustratedFb2Bytes({
   bool includeBinary = true,
   bool includeParagraph = true,
+  String? imageStyle,
+  String? imageAlt,
+  String? imageTitle,
+  String? imageId,
+  String stylesheet = '',
 }) {
   final binary = includeBinary
       ? '<binary id="spot.png" content-type="image/png">${base64Encode(tinyPngBytes())}</binary>'
       : '';
   final paragraph = includeParagraph ? '<p>hello from fb2</p>' : '';
+  final styleAttr = imageStyle == null ? '' : ' style="$imageStyle"';
+  final altAttr = imageAlt == null ? '' : ' alt="$imageAlt"';
+  final titleAttr = imageTitle == null ? '' : ' title="$imageTitle"';
+  final idAttr = imageId == null ? '' : ' id="$imageId"';
+  final sheet = stylesheet.isEmpty
+      ? ''
+      : '<stylesheet type="text/css">$stylesheet</stylesheet>';
   return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
 <FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+  $sheet
   <description>
     <title-info>
       <book-title>FB2 Book</book-title>
@@ -65,7 +78,7 @@ List<int> illustratedFb2Bytes({
     <section>
       <title><p>Chapter One</p></title>
       $paragraph
-      <image l:href="#spot.png"/>
+      <image$styleAttr$altAttr$titleAttr$idAttr l:href="#spot.png"/>
     </section>
   </body>
   $binary
@@ -175,6 +188,65 @@ List<int> fb2ParagraphNoteLinkBytes() {
       <title><p>Notes</p></title>
       <p id="n1">footnote</p>
     </section>
+  </body>
+</FictionBook>
+''');
+}
+
+List<int> fb2ImageNoteLinkBytes({bool includeTarget = true}) {
+  final notes = includeTarget
+      ? '''
+    <section>
+      <title><p>Notes</p></title>
+      <image id="n1" l:href="#spot.png"/>
+    </section>'''
+      : '';
+  final binary = includeTarget
+      ? '<binary id="spot.png" content-type="image/png">${base64Encode(tinyPngBytes())}</binary>'
+      : '';
+  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+  <description>
+    <title-info>
+      <book-title>FB2 Book</book-title>
+      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
+    </title-info>
+  </description>
+  <body>
+    <section>
+      <title><p>Chapter One</p></title>
+      <p>see <a l:href="#n1">world</a></p>
+    </section>
+    $notes
+  </body>
+  $binary
+</FictionBook>
+''');
+}
+
+List<int> fb2SubtitleNoteLinkBytes({bool includeTarget = true}) {
+  final notes = includeTarget
+      ? '''
+    <section>
+      <title><p>Notes</p></title>
+      <subtitle id="n1">A break</subtitle>
+      <p>footnote</p>
+    </section>'''
+      : '';
+  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+  <description>
+    <title-info>
+      <book-title>FB2 Book</book-title>
+      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
+    </title-info>
+  </description>
+  <body>
+    <section>
+      <title><p>Chapter One</p></title>
+      <p>see <a l:href="#n1">world</a></p>
+    </section>
+    $notes
   </body>
 </FictionBook>
 ''');

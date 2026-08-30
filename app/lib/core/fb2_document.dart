@@ -523,7 +523,8 @@ String _sectionHtml(
       if (inner.trim().isNotEmpty) {
         final style = (child.getAttribute('style') ?? '').trim();
         final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
-        parts.add('<h2$classAttr>$inner</h2>');
+        final idAttr = _fb2IdAttr(child);
+        parts.add('<h2$classAttr$idAttr>$inner</h2>');
       }
       continue;
     }
@@ -584,7 +585,8 @@ String? _fb2PoemHtml(XmlElement poem, Map<String, String> binaries) {
       if (inner.isNotEmpty) {
         final style = (child.getAttribute('style') ?? '').trim();
         final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
-        parts.add('<h4$classAttr>$inner</h4>');
+        final idAttr = _fb2IdAttr(child);
+        parts.add('<h4$classAttr$idAttr>$inner</h4>');
       }
       continue;
     }
@@ -644,7 +646,8 @@ String? _fb2StanzaHtml(XmlElement stanza, Map<String, String> binaries) {
       if (inner.isNotEmpty) {
         final style = (child.getAttribute('style') ?? '').trim();
         final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
-        parts.add('<h5$classAttr>$inner</h5>');
+        final idAttr = _fb2IdAttr(child);
+        parts.add('<h5$classAttr$idAttr>$inner</h5>');
       }
       continue;
     }
@@ -678,7 +681,8 @@ String? _fb2QuoteHtml(XmlElement quote, Map<String, String> binaries) {
       if (inner.trim().isNotEmpty) {
         final style = (child.getAttribute('style') ?? '').trim();
         final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
-        parts.add('<h2$classAttr>$inner</h2>');
+        final idAttr = _fb2IdAttr(child);
+        parts.add('<h2$classAttr$idAttr>$inner</h2>');
       }
       continue;
     }
@@ -759,7 +763,11 @@ String? _fb2TableHtml(XmlElement table, Map<String, String> binaries) {
     final name = child.name.local;
     if (name == 'title') {
       final inner = _fb2Inlines(child, binaries).trim();
-      if (inner.isNotEmpty) caption = '<caption>$inner</caption>';
+      if (inner.isNotEmpty) {
+        final style = (child.getAttribute('style') ?? '').trim();
+        final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+        caption = '<caption$classAttr>$inner</caption>';
+      }
       continue;
     }
     if (name != 'tr') continue;
@@ -771,10 +779,16 @@ String? _fb2TableHtml(XmlElement table, Map<String, String> binaries) {
         '<$cellName${_fb2TableCellAttrs(cell)}>${_fb2TableCellInner(cell, binaries)}</$cellName>',
       );
     }
-    if (cells.isNotEmpty) rows.add('<tr>${cells.join()}</tr>');
+    if (cells.isNotEmpty) {
+      final style = (child.getAttribute('style') ?? '').trim();
+      final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+      rows.add('<tr$classAttr>${cells.join()}</tr>');
+    }
   }
   if (rows.isEmpty) return null;
-  return '<table>${caption ?? ''}${rows.join()}</table>';
+  final style = (table.getAttribute('style') ?? '').trim();
+  final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+  return '<table$classAttr>${caption ?? ''}${rows.join()}</table>';
 }
 
 String _fb2TableCellInner(XmlElement cell, Map<String, String> binaries) {
@@ -871,10 +885,17 @@ void _collectFb2Ids(
   add(section.getAttribute('id'));
   for (final child in section.childElements) {
     if (child.name.local == 'section') continue;
-    if (child.name.local == 'p') add(child.getAttribute('id'));
+    if (child.name.local == 'p' ||
+        child.name.local == 'image' ||
+        child.name.local == 'subtitle') {
+      add(child.getAttribute('id'));
+    }
     for (final node in child.descendants.whereType<XmlElement>()) {
       if (node.name.local == 'section') continue;
-      if (node.name.local == 'a' || node.name.local == 'p') {
+      if (node.name.local == 'a' ||
+          node.name.local == 'p' ||
+          node.name.local == 'image' ||
+          node.name.local == 'subtitle') {
         add(node.getAttribute('id'));
       }
     }
@@ -903,7 +924,14 @@ String? _fb2Img(XmlElement image, Map<String, String> binaries) {
   final id = href.startsWith('#') ? href.substring(1) : href;
   final uri = binaries[id] ?? binaries[id.toLowerCase()];
   if (uri == null) return null;
-  return '<img src="$uri"/>';
+  final style = (image.getAttribute('style') ?? '').trim();
+  final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+  final alt = (image.getAttribute('alt') ?? '').trim();
+  final altAttr = alt.isEmpty ? '' : ' alt="${_escapeAttr(alt)}"';
+  final title = (image.getAttribute('title') ?? '').trim();
+  final titleAttr = title.isEmpty ? '' : ' title="${_escapeAttr(title)}"';
+  final idAttr = _fb2IdAttr(image);
+  return '<img$classAttr$altAttr$titleAttr$idAttr src="$uri"/>';
 }
 
 Map<String, String> _fb2BinaryUris(XmlDocument xml) {

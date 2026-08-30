@@ -1093,6 +1093,197 @@ void main() {
     expect(document.currentChapterText, contains('Chapter One'));
   });
 
+  test('chapter html copies an image style', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-img-style',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: illustratedFb2Bytes(
+        imageStyle: 'foreign',
+        stylesheet: '.foreign { color: red; }',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<img class="foreign"'));
+    expect(document.currentChapterHtml, contains('data:image/png'));
+    expect(document.currentChapterHtml, isNot(contains('color: red')));
+  });
+
+  test('an empty image style does not invent a class', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-empty-img-style',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: illustratedFb2Bytes(imageStyle: ''),
+    );
+    expect(document.currentChapterHtml, contains('<img'));
+    expect(document.currentChapterHtml, isNot(contains('class=')));
+  });
+
+  test('an image style without a binary does not invent a figure', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-missing-img-style',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: illustratedFb2Bytes(includeBinary: false, imageStyle: 'foreign'),
+    );
+    expect(document.currentChapterHtml, isNot(contains('<img')));
+    expect(document.currentChapterHtml, isNot(contains('class=')));
+    expect(document.currentChapterText, contains('hello from fb2'));
+  });
+
+  test('chapter html copies an image alt', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-img-alt',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: illustratedFb2Bytes(imageAlt: 'spot'),
+    );
+    expect(document.currentChapterHtml, contains('alt="spot"'));
+    expect(document.currentChapterHtml, contains('<img'));
+    expect(document.currentChapterHtml, contains('data:image/png'));
+  });
+
+  test('an empty image alt does not invent a description', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-empty-img-alt',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: illustratedFb2Bytes(imageAlt: ''),
+    );
+    expect(document.currentChapterHtml, contains('<img'));
+    expect(document.currentChapterHtml, isNot(contains('alt=')));
+  });
+
+  test('an image alt without a binary does not invent a figure', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-missing-img-alt',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: illustratedFb2Bytes(includeBinary: false, imageAlt: 'spot'),
+    );
+    expect(document.currentChapterHtml, isNot(contains('<img')));
+    expect(document.currentChapterHtml, isNot(contains('alt=')));
+    expect(document.currentChapterText, contains('hello from fb2'));
+  });
+
+  test('chapter html copies an image title', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-img-title',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: illustratedFb2Bytes(imageTitle: 'spot'),
+    );
+    expect(document.currentChapterHtml, contains('title="spot"'));
+    expect(document.currentChapterHtml, contains('<img'));
+    expect(document.currentChapterHtml, contains('data:image/png'));
+  });
+
+  test('an empty image title does not invent a tooltip', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-empty-img-title',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: illustratedFb2Bytes(imageTitle: ''),
+    );
+    expect(document.currentChapterHtml, contains('<img'));
+    expect(document.currentChapterHtml, isNot(contains('title=')));
+  });
+
+  test('an image title without a binary does not invent a figure', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-missing-img-title',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: illustratedFb2Bytes(includeBinary: false, imageTitle: 'spot'),
+    );
+    expect(document.currentChapterHtml, isNot(contains('<img')));
+    expect(document.currentChapterHtml, isNot(contains('title=')));
+    expect(document.currentChapterText, contains('hello from fb2'));
+  });
+
+  test('chapter html copies an image id', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-img-id',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: illustratedFb2Bytes(imageId: 'spot'),
+    );
+    expect(document.currentChapterHtml, contains('id="spot"'));
+    expect(document.currentChapterHtml, contains('<img'));
+    expect(document.currentChapterHtml, contains('data:image/png'));
+  });
+
+  test('an empty image id does not invent an anchor', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-empty-img-id',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: illustratedFb2Bytes(imageId: ''),
+    );
+    expect(document.currentChapterHtml, contains('<img'));
+    expect(document.currentChapterHtml, isNot(contains('id=')));
+  });
+
+  test('an image id without a binary does not invent a figure', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-missing-img-id',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: illustratedFb2Bytes(includeBinary: false, imageId: 'spot'),
+    );
+    expect(document.currentChapterHtml, isNot(contains('<img')));
+    expect(document.currentChapterHtml, isNot(contains('id=')));
+    expect(document.currentChapterText, contains('hello from fb2'));
+  });
+
   test('chapter html keeps emphasis', () {
     final document = Fb2ReaderDocument.parse(
       metadata: const DocumentMetadata(
@@ -1507,6 +1698,80 @@ void main() {
     expect(document.parsed.chapters.last.text, contains('footnote'));
   });
 
+  test('a hash link to an image id points at that chapter', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-img-note-link',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2ImageNoteLinkBytes(),
+    );
+    expect(document.chapterCount, 2);
+    expect(
+      document.parsed.chapters.first.html,
+      contains('<a href="section-1#n1">world</a>'),
+    );
+    expect(document.parsed.chapters.last.html, contains('id="n1"'));
+    expect(document.parsed.chapters.last.html, contains('<img'));
+    expect(document.parsed.chapters.last.html, isNot(contains('<section id=')));
+  });
+
+  test('a hash link to a missing image id points at a fragment', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-missing-img-note',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2ImageNoteLinkBytes(includeTarget: false),
+    );
+    expect(document.chapterCount, 1);
+    expect(document.currentChapterHtml, contains('<a href="#n1">world</a>'));
+    expect(document.currentChapterHtml, isNot(contains('section-1')));
+  });
+
+  test('a hash link to a subtitle id points at that chapter', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-subtitle-note-link',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SubtitleNoteLinkBytes(),
+    );
+    expect(document.chapterCount, 2);
+    expect(
+      document.parsed.chapters.first.html,
+      contains('<a href="section-1#n1">world</a>'),
+    );
+    expect(document.parsed.chapters.last.html, contains('<h2 id="n1">'));
+    expect(document.parsed.chapters.last.html, isNot(contains('<section id=')));
+    expect(document.parsed.chapters.last.text, contains('A break'));
+  });
+
+  test('a hash link to a missing subtitle id points at a fragment', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-missing-subtitle-note',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SubtitleNoteLinkBytes(includeTarget: false),
+    );
+    expect(document.chapterCount, 1);
+    expect(document.currentChapterHtml, contains('<a href="#n1">world</a>'));
+    expect(document.currentChapterHtml, isNot(contains('section-1')));
+  });
+
   test('chapter html keeps an empty line between paragraphs', () {
     final document = Fb2ReaderDocument.parse(
       metadata: const DocumentMetadata(
@@ -1597,6 +1862,58 @@ void main() {
       ),
     );
     expect(document.currentChapterHtml, isNot(contains('<h2>')));
+    expect(document.currentChapterHtml, contains('hello from fb2'));
+  });
+
+  test('chapter html copies a subtitle id', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-subtitle-id',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<subtitle id="spot">A break</subtitle><p>hello from fb2</p>',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<h2 id="spot">A break</h2>'));
+    expect(document.currentChapterHtml, contains('hello from fb2'));
+  });
+
+  test('an empty subtitle id does not invent an anchor', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-empty-subtitle-id',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<subtitle id="">Part Two</subtitle><p>hello from fb2</p>',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<h2>Part Two</h2>'));
+    expect(document.currentChapterHtml, isNot(contains('id=')));
+  });
+
+  test('a subtitle id on an empty subtitle does not invent a heading', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-empty-subtitle-with-id',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<subtitle id="spot"></subtitle><p>hello from fb2</p>',
+      ),
+    );
+    expect(document.currentChapterHtml, isNot(contains('<h2')));
+    expect(document.currentChapterHtml, isNot(contains('id=')));
     expect(document.currentChapterHtml, contains('hello from fb2'));
   });
 
@@ -1793,6 +2110,58 @@ void main() {
       expect(document.currentChapterHtml, isNot(contains('<h4>')));
     },
   );
+
+  test('chapter html copies a poem subtitle id', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-poem-subtitle-id',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<poem><subtitle id="spot"><p>a lyric</p></subtitle><stanza><v>line one</v></stanza></poem>',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<h4 id="spot">a lyric</h4>'));
+    expect(document.currentChapterHtml, contains('line one'));
+  });
+
+  test('an empty poem subtitle id does not invent an anchor', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-empty-poem-subtitle-id',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<poem><subtitle id=""><p>a lyric</p></subtitle><stanza><v>line one</v></stanza></poem>',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<h4>a lyric</h4>'));
+    expect(document.currentChapterHtml, isNot(contains('id=')));
+  });
+
+  test('a poem subtitle id on an empty subtitle does not invent a heading', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-empty-poem-subtitle-with-id',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<poem><subtitle id="spot"></subtitle><stanza><v>line one</v></stanza></poem>',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('line one'));
+    expect(document.currentChapterHtml, isNot(contains('<h4')));
+    expect(document.currentChapterHtml, isNot(contains('id=')));
+  });
 
   test('chapter html keeps an epigraph inside a poem', () {
     final document = Fb2ReaderDocument.parse(
@@ -2209,6 +2578,61 @@ void main() {
     },
   );
 
+  test('chapter html copies a stanza subtitle id', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-stanza-subtitle-id',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<poem><stanza><subtitle id="spot"><p>softly</p></subtitle><v>line one</v></stanza></poem>',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<h5 id="spot">softly</h5>'));
+    expect(document.currentChapterHtml, contains('line one'));
+  });
+
+  test('an empty stanza subtitle id does not invent an anchor', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-empty-stanza-subtitle-id',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<poem><stanza><subtitle id=""><p>softly</p></subtitle><v>line one</v></stanza></poem>',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<h5>softly</h5>'));
+    expect(document.currentChapterHtml, isNot(contains('id=')));
+  });
+
+  test(
+    'a stanza subtitle id on an empty subtitle does not invent a heading',
+    () {
+      final document = Fb2ReaderDocument.parse(
+        metadata: const DocumentMetadata(
+          id: 'fb2-empty-stanza-subtitle-with-id',
+          title: 'Local',
+          author: 'Local',
+          format: DocumentFormat.fb2,
+          type: DocumentType.reflow,
+        ),
+        bytes: fb2SectionMarkupBytes(
+          '<poem><stanza><subtitle id="spot"></subtitle><v>line one</v></stanza></poem>',
+        ),
+      );
+      expect(document.currentChapterHtml, contains('line one'));
+      expect(document.currentChapterHtml, isNot(contains('<h5')));
+      expect(document.currentChapterHtml, isNot(contains('id=')));
+    },
+  );
+
   test('an empty stanza title does not invent a heading', () {
     final document = Fb2ReaderDocument.parse(
       metadata: const DocumentMetadata(
@@ -2511,6 +2935,114 @@ void main() {
         ),
         bytes: fb2SectionMarkupBytes(
           '<cite><subtitle style="foreign"></subtitle><p>quoted</p></cite>',
+        ),
+      );
+      expect(document.currentChapterHtml, contains('<p>quoted</p>'));
+      expect(document.currentChapterHtml, isNot(contains('<h2>')));
+    },
+  );
+
+  test('chapter html copies a cite subtitle id', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-cite-subtitle-id',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<cite><subtitle id="ref"><p>note</p></subtitle><p>quoted</p></cite>',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<h2 id="ref">note</h2>'));
+    expect(document.currentChapterHtml, contains('<p>quoted</p>'));
+  });
+
+  test('an empty cite subtitle id does not invent an anchor', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-empty-cite-subtitle-id',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<cite><subtitle id=""><p>note</p></subtitle><p>quoted</p></cite>',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<h2>note</h2>'));
+    expect(document.currentChapterHtml, isNot(contains('id=')));
+  });
+
+  test(
+    'a cite subtitle id on an empty subtitle does not invent a heading',
+    () {
+      final document = Fb2ReaderDocument.parse(
+        metadata: const DocumentMetadata(
+          id: 'fb2-empty-cite-subtitle-with-id',
+          title: 'Local',
+          author: 'Local',
+          format: DocumentFormat.fb2,
+          type: DocumentType.reflow,
+        ),
+        bytes: fb2SectionMarkupBytes(
+          '<cite><subtitle id="ref"></subtitle><p>quoted</p></cite>',
+        ),
+      );
+      expect(document.currentChapterHtml, contains('<p>quoted</p>'));
+      expect(document.currentChapterHtml, isNot(contains('<h2>')));
+    },
+  );
+
+  test('chapter html copies an epigraph subtitle id', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-epigraph-subtitle-id',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<epigraph><subtitle id="spot"><p>softly</p></subtitle><p>quoted</p></epigraph>',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<h2 id="spot">softly</h2>'));
+    expect(document.currentChapterHtml, contains('<p>quoted</p>'));
+  });
+
+  test('an empty epigraph subtitle id does not invent an anchor', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-empty-epigraph-subtitle-id',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<epigraph><subtitle id=""><p>softly</p></subtitle><p>quoted</p></epigraph>',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<h2>softly</h2>'));
+    expect(document.currentChapterHtml, isNot(contains('id=')));
+  });
+
+  test(
+    'an epigraph subtitle id on an empty subtitle does not invent a heading',
+    () {
+      final document = Fb2ReaderDocument.parse(
+        metadata: const DocumentMetadata(
+          id: 'fb2-empty-epigraph-subtitle-with-id',
+          title: 'Local',
+          author: 'Local',
+          format: DocumentFormat.fb2,
+          type: DocumentType.reflow,
+        ),
+        bytes: fb2SectionMarkupBytes(
+          '<epigraph><subtitle id="spot"></subtitle><p>quoted</p></epigraph>',
         ),
       );
       expect(document.currentChapterHtml, contains('<p>quoted</p>'));
@@ -2919,6 +3451,169 @@ void main() {
     );
     expect(document.currentChapterHtml, contains('<td>alpha</td>'));
     expect(document.currentChapterHtml, isNot(contains('<caption>')));
+  });
+
+  test('chapter html copies a table caption style', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-table-caption-style',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<table><title style="foreign"><p>Rates</p></title><tr><td><p>alpha</p></td></tr></table>',
+        stylesheet: '.foreign { color: red; }',
+      ),
+    );
+    expect(
+      document.currentChapterHtml,
+      contains('<caption class="foreign">Rates</caption>'),
+    );
+    expect(document.currentChapterHtml, isNot(contains('color: red')));
+    expect(document.currentChapterText, contains('Rates'));
+  });
+
+  test('an empty table caption style does not invent a class', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-empty-table-caption-style',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<table><title style=""><p>Rates</p></title><tr><td><p>alpha</p></td></tr></table>',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<caption>Rates</caption>'));
+    expect(document.currentChapterHtml, isNot(contains('class=')));
+  });
+
+  test('a table caption style on an empty title does not invent a caption', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-empty-table-caption-with-style',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<table><title style="foreign"></title><tr><td><p>alpha</p></td></tr></table>',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<td>alpha</td>'));
+    expect(document.currentChapterHtml, isNot(contains('<caption>')));
+  });
+
+  test('chapter html copies a table element style', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-table-element-style',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<table style="foreign"><tr><td><p>alpha</p></td></tr></table>',
+        stylesheet: '.foreign { color: red; }',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<table class="foreign">'));
+    expect(document.currentChapterHtml, isNot(contains('color: red')));
+    expect(document.currentChapterText, contains('alpha'));
+  });
+
+  test('an empty table element style does not invent a class', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-empty-table-element-style',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<table style=""><tr><td><p>alpha</p></td></tr></table>',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<table>'));
+    expect(document.currentChapterHtml, isNot(contains('class=')));
+  });
+
+  test('a table element style on an empty table does not invent a grid', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-empty-table-with-style',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<table style="foreign"></table><p>hello from fb2</p>',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('hello from fb2'));
+    expect(document.currentChapterHtml, isNot(contains('<table>')));
+  });
+
+  test('chapter html copies a table row style', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-table-row-style',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<table><tr style="foreign"><td><p>alpha</p></td></tr></table>',
+        stylesheet: '.foreign { color: red; }',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<tr class="foreign">'));
+    expect(document.currentChapterHtml, isNot(contains('color: red')));
+    expect(document.currentChapterText, contains('alpha'));
+  });
+
+  test('an empty table row style does not invent a class', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-empty-table-row-style',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<table><tr style=""><td><p>alpha</p></td></tr></table>',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<tr>'));
+    expect(document.currentChapterHtml, isNot(contains('class=')));
+  });
+
+  test('a table row style on an empty row does not invent a row', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-empty-table-row-with-style',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2SectionMarkupBytes(
+        '<table><tr style="foreign"></tr><tr><td><p>alpha</p></td></tr></table>',
+      ),
+    );
+    expect(document.currentChapterHtml, contains('<td>alpha</td>'));
+    expect(document.currentChapterHtml, isNot(contains('<tr></tr>')));
+    expect(document.currentChapterHtml, isNot(contains('class=')));
   });
 
   test('chapter html keeps table colspan', () {
