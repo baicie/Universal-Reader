@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/annotated_text.dart';
 import '../../core/comic_document.dart';
@@ -321,7 +322,21 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   Future<void> _onReflowLink(FoliateSession session, String raw) async {
     final target = reflowInternalHref(currentHref: session.href, raw: raw);
-    if (target == null) return;
+    if (target == null) {
+      // External link - try to launch it
+      final trimmed = raw.trim();
+      if (trimmed.isNotEmpty) {
+        try {
+          final uri = Uri.parse(trimmed);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        } catch (_) {
+          // Invalid URL or launch failed - ignore
+        }
+      }
+      return;
+    }
     final fragment = reflowHrefFragment(raw);
     if (reflowSameHref(session.href, target)) {
       if (fragment == null || !mounted) return;

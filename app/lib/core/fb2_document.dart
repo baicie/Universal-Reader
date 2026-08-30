@@ -859,8 +859,15 @@ String _fb2InlineHtml(XmlNode node, Map<String, String> binaries) {
       final inner = _fb2Inlines(node, binaries);
       final href = (_hrefOf(node) ?? '').trim();
       final idAttr = _fb2IdAttr(node);
-      if (inner.isNotEmpty && href.startsWith('#') && href.length > 1) {
+      if (inner.isEmpty) {
+        return idAttr.isNotEmpty ? '<span$idAttr></span>' : '';
+      }
+      if (href.startsWith('#') && href.length > 1) {
         return '<a href="${_escapeAttr(href)}"$idAttr>$inner</a>';
+      }
+      if (_isFb2ExternalHref(href)) {
+        final classAttr = idAttr.isEmpty ? ' class="external-link"' : '';
+        return '<a href="${_escapeAttr(href)}"$classAttr$idAttr>$inner</a>';
       }
       if (idAttr.isNotEmpty) return '<span$idAttr>$inner</span>';
       return inner;
@@ -900,6 +907,15 @@ void _collectFb2Ids(
       }
     }
   }
+}
+
+bool _isFb2ExternalHref(String href) {
+  if (href.isEmpty) return false;
+  final lower = href.toLowerCase();
+  return lower.startsWith('http://') ||
+      lower.startsWith('https://') ||
+      lower.startsWith('mailto:') ||
+      lower.startsWith('//');
 }
 
 String _rewriteFb2HashHrefs(String html, Map<String, String> idToHref) {

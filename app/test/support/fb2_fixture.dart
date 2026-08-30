@@ -564,3 +564,27 @@ List<int> fb2BodyEpigraphBytes({
 </FictionBook>
 ''');
 }
+
+List<int> fb2WithExternalLinksBytes() {
+  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+  <description>
+    <title-info>
+      <book-title>FB2 Book</book-title>
+      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
+    </title-info>
+  </description>
+  <body>
+    <section>
+      <title><p>Links Chapter</p></title>
+      <p>Visit <a l:href="https://example.com">example website</a> for more.</p>
+      <p>Send <a l:href="mailto:test@example.com">email</a> to contact us.</p>
+      <p>Read <a l:href="http://books.example.org/page">this book</a> online.</p>
+      <p>Internal <a l:href="#note1">footnote link</a> stays.</p>
+      <p id="note1">This is the footnote.</p>
+    </section>
+  </body>
+</FictionBook>
+''');
+}
+

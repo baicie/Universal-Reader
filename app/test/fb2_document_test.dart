@@ -1560,7 +1560,7 @@ void main() {
     expect(document.currentChapterText, contains('world'));
   });
 
-  test('chapter html drops an external link href', () {
+  test('chapter html keeps external links as clickable a tags', () {
     final document = Fb2ReaderDocument.parse(
       metadata: const DocumentMetadata(
         id: 'fb2-ext-link',
@@ -1574,8 +1574,7 @@ void main() {
       ),
     );
     expect(document.currentChapterHtml, contains('world'));
-    expect(document.currentChapterHtml, isNot(contains('href="https')));
-    expect(document.currentChapterHtml, isNot(contains('example.invalid')));
+    expect(document.currentChapterHtml, contains('<a href="https://example.invalid/x" class="external-link">world</a>'));
     expect(document.currentChapterText, contains('world'));
   });
 
@@ -3781,6 +3780,37 @@ void main() {
     );
     expect(document.currentChapterHtml, contains('<td>alpha</td>'));
     expect(document.currentChapterHtml, isNot(contains('class=')));
+  });
+
+  test('external links become clickable a tags with external-link class', () {
+    final document = Fb2ReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'fb2-external-links',
+        title: 'Local',
+        author: 'Local',
+        format: DocumentFormat.fb2,
+        type: DocumentType.reflow,
+      ),
+      bytes: fb2WithExternalLinksBytes(),
+    );
+    expect(
+      document.currentChapterHtml,
+      contains('<a href="https://example.com" class="external-link">example website</a>'),
+    );
+    expect(
+      document.currentChapterHtml,
+      contains('<a href="mailto:test@example.com" class="external-link">email</a>'),
+    );
+    expect(
+      document.currentChapterHtml,
+      contains('<a href="http://books.example.org/page" class="external-link">this book</a>'),
+    );
+    expect(
+      document.currentChapterHtml,
+      contains('<a href="section-0#note1">footnote link</a>'),
+    );
+    expect(document.currentChapterText, contains('example website'));
+    expect(document.currentChapterText, contains('email'));
   });
 
   test('rejects xml that is not a fictionbook', () {

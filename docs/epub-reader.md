@@ -14,7 +14,7 @@
 - 章内图片内联为 `data:`，`srcset`（含 `<picture><source>`）、SVG `<image href>` / `xlink:href`、`<object data>`、`<embed src>` 和 `<video poster>` 同样内联；缺图或 `https` srcset/href/data 保持原样。章 CSS 内联进 HTML。嵌入字体的 `@font-face` `url()` 也变成 `data:`。无 media 的 `@import` 换成该文件内容后再内联 `url()`；缺文件、外链、带 media 的 `@import` 保持原样。章 HTML 去掉 `<script>` 和 `onclick` / `onerror` 等事件属性，不执行、不内联书里的 JS。WebView host 用本地 `paginator.js` 排版；测试不加载 WebView。缺失图片或字体保持缺失。
 - 真机翻页和进度跟 host 上报的视口页；没有 WebView 时仍按字符页。
 - 当前书的笔记 quote 随打开命令交给 host 标在章 HTML 里。找不到的 quote 不画。书签不画成高亮。
-- 章内 `<a href>` 由 host 截获后走当前书的 `goTo`。相对路径相对当前章解析；`https` / `mailto` 等外链不跳转；缺章停在当前章。`#id` 滚到该元素所在页；找不到锚点就停在当前页。
+- 章内 `<a href>` 由 host 截获后走当前书的 `goTo`。相对路径相对当前章解析；`https` / `mailto` 等外链在系统浏览器中打开；缺章停在当前章。`#id` 滚到该元素所在页；找不到锚点就停在当前页。
 - 书内搜索点命中后滚到查询词所在页。找不到该句停在章首。
 - 点笔记滚到该条 quote。空 quote 只跳 locator；缺 locator 不跳。
 

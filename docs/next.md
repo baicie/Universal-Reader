@@ -1,8 +1,47 @@
 # Spec: 已完成
 
-> NCX 嵌套已支持。下一刀：Ask first：`view.js` / 应用内打开外链 / `overlayer.js` / 去掉 `<iframe>`。
+> NCX 嵌套已支持。外部链接保留已完成。**应用内打开外链已完成**。下一刀：Ask first：`view.js` / `overlayer.js` / 去掉 `<iframe>`。
 
-## NCX 嵌套（最新完成）
+## 应用内打开外链（最新完成）
+
+EPUB 和 FB2 文档中的外部链接（`http://`、`https://`、`mailto:` 等）现在可以在系统浏览器中打开。
+
+成功标准：
+
+- ✅ 点击外部链接时使用 `url_launcher` 在系统默认浏览器中打开。
+- ✅ 使用 `LaunchMode.externalApplication` 确保在外部应用打开，不在应用内嵌 WebView。
+- ✅ 无效 URL 或启动失败时静默忽略，不影响阅读体验。
+- ✅ 内部链接（`#id` 和相对路径）保持原有行为。
+
+实现结果：
+
+- 修改 `reader_page.dart` 中的 `_onReflowLink` 函数，检测外部链接并使用 `url_launcher` 打开。
+- 在 `pubspec.yaml` 中显式添加 `url_launcher: ^6.3.1` 依赖。
+- 更新 CHANGELOG.md、README.md 和 epub-reader.md 文档。
+- 所有 33 个 widget 测试通过，静态分析无问题。
+
+## FB2 外部链接保留（之前完成）
+
+FB2 文档中的外部链接（`http://`、`https://`、`mailto:` 等）现在保留为可点击的 `<a>` 标签，标记 `class="external-link"`，为后续实现"应用内打开"功能打下基础。
+
+成功标准：
+
+- ✅ `<a l:href="https://example.com">text</a>` 生成 `<a href="https://example.com" class="external-link">text</a>`。
+- ✅ `<a l:href="mailto:test@example.com">email</a>` 生成 `<a href="mailto:test@example.com" class="external-link">email</a>`。
+- ✅ `<a l:href="http://site.org/page">link</a>` 生成 `<a href="http://site.org/page" class="external-link">link</a>`。
+- ✅ 内部 `#id` 链接保持原有行为，不添加 `external-link` class。
+- ✅ 空链接和空内容正确处理。
+
+实现结果：
+
+- 修改 `fb2_document.dart` 中 `_fb2Inline` 的 `case 'a'` 处理逻辑，识别外部链接并保留。
+- 新增 `_isFb2ExternalHref` 辅助函数，识别 `http://`、`https://`、`mailto:` 和 `//` 开头的链接。
+- 更新旧测试"chapter html drops an external link href"为"chapter html keeps external links as clickable a tags"。
+- 添加新测试用例 `fb2WithExternalLinksBytes()` 和完整测试，验证各种外部链接场景。
+- 更新 CHANGELOG.md、README.md 和 epub-reader.md 文档。
+- 所有 437 个测试通过，静态分析无问题。
+
+## NCX 嵌套（之前完成）
 
 EPUB2 的 NCX 目录现在支持嵌套 navPoint，与 EPUB3 nav 行为一致。
 
