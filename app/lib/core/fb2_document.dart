@@ -80,12 +80,17 @@ ParsedFb2 parseFb2(List<int> bytes) {
   }
   var index = 0;
   final emitted = <XmlElement, String>{};
-  void emitChapter(XmlElement node) {
+  bool emitChapter(
+    XmlElement node, {
+    List<String> prefixHtml = const [],
+    List<String> prefixText = const [],
+    List<XmlElement> prefixNodes = const [],
+  }) {
     if (node.name.local == 'section' &&
         node.childElements.every((child) => child.name.local == 'section')) {
-      return;
+      return false;
     }
-    final heading = _sectionTitle(node);
+    final heading = node.name.local == 'body' ? '' : _sectionTitle(node);
     final blocks = [
       for (final child in node.childElements)
         if (child.name.local == 'p' ||
@@ -97,14 +102,22 @@ ParsedFb2 parseFb2(List<int> bytes) {
             child.name.local == 'annotation')
           child.innerText.trim(),
     ].where((text) => text.isNotEmpty).toList();
-    final html = _sectionHtml(node, heading, binaries);
-    if (html == '<section></section>') return;
-    final text = [if (heading.isNotEmpty) heading, ...blocks].join('\n\n');
+    var html = _sectionHtml(node, heading, binaries);
+    if (html == '<section></section>') return false;
+    html = _fb2PrependSectionHtml(html, prefixHtml);
+    final text = [
+      ...prefixText.where((part) => part.isNotEmpty),
+      if (heading.isNotEmpty) heading,
+      ...blocks,
+    ].join('\n\n');
     final start = full.length;
     if (full.isNotEmpty) full.write('\n\n');
     full.write(text);
     final href = 'section-$index';
     _collectFb2Ids(node, href, idToHref);
+    for (final prefix in prefixNodes) {
+      _collectFb2Ids(prefix, href, idToHref);
+    }
     final group = _fb2BodyGroup(node);
     chapters.add(
       Fb2Chapter(
@@ -120,20 +133,59 @@ ParsedFb2 parseFb2(List<int> bytes) {
     );
     emitted[node] = href;
     index += 1;
+    return true;
   }
 
+  final deferred = <XmlElement>[];
   for (final body in xml.rootElement.childElements) {
     if (body.name.local != 'body') continue;
     if (_fb2ContainsSection(body)) {
+      final name = (body.getAttribute('name') ?? '').trim().toLowerCase();
+      final lead = (name == 'notes' || name == 'comments')
+          ? const <XmlElement>[]
+          : _fb2BodyLeadNodes(body);
+      var prefixHtml = [
+        for (final node in lead) ?_fb2BodyLeadHtml(node, binaries),
+      ];
+      var prefixText = [
+        for (final node in lead)
+          if (node.name.local == 'epigraph' ||
+              node.name.local == 'cite' ||
+              node.name.local == 'subtitle' ||
+              node.name.local == 'poem' ||
+              node.name.local == 'table' ||
+              node.name.local == 'annotation' ||
+              node.name.local == 'title' ||
+              node.name.local == 'p')
+            if (node.innerText.trim().isNotEmpty) node.innerText.trim(),
+      ];
+      var prefixNodes = lead;
       for (final section in body.descendants.whereType<XmlElement>()) {
         if (section.name.local != 'section') continue;
-        emitChapter(section);
+        if (emitChapter(
+          section,
+          prefixHtml: prefixHtml,
+          prefixText: prefixText,
+          prefixNodes: prefixNodes,
+        )) {
+          prefixHtml = const [];
+          prefixText = const [];
+          prefixNodes = const [];
+        }
       }
       continue;
     }
     final name = (body.getAttribute('name') ?? '').trim().toLowerCase();
-    if (name == 'notes' || name == 'comments') continue;
+    if (name == 'notes' || name == 'comments') {
+      deferred.add(body);
+      continue;
+    }
     emitChapter(body);
+  }
+  if (index > 0) {
+    for (final body in deferred) {
+      emitChapter(body);
+    }
   }
   if (index == 0) {
     throw const FormatException('corrupt fb2');
@@ -294,8 +346,70 @@ bool _fb2ContainsSection(XmlElement node) {
   );
 }
 
+List<XmlElement> _fb2BodyLeadNodes(XmlElement body) {
+  const names = {
+    'epigraph',
+    'cite',
+    'image',
+    'empty-line',
+    'subtitle',
+    'poem',
+    'table',
+    'annotation',
+    'title',
+    'p',
+  };
+  final nodes = <XmlElement>[];
+  for (final child in body.childElements) {
+    if (child.name.local == 'section') break;
+    if (names.contains(child.name.local)) nodes.add(child);
+  }
+  return nodes;
+}
+
+String? _fb2BodyLeadHtml(XmlElement node, Map<String, String> binaries) {
+  switch (node.name.local) {
+    case 'epigraph':
+    case 'cite':
+      return _fb2QuoteHtml(node, binaries);
+    case 'image':
+      return _fb2Img(node, binaries);
+    case 'empty-line':
+      return '<p><br/></p>';
+    case 'subtitle':
+      final inner = _fb2Inlines(node, binaries);
+      if (inner.trim().isEmpty) return null;
+      final style = (node.getAttribute('style') ?? '').trim();
+      final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+      return '<h2$classAttr>$inner</h2>';
+    case 'poem':
+      return _fb2PoemHtml(node, binaries);
+    case 'table':
+      return _fb2TableHtml(node, binaries);
+    case 'annotation':
+      return _fb2AnnotationHtml(node, binaries);
+    case 'title':
+      final inner = _fb2Inlines(node, binaries).trim();
+      if (inner.isEmpty) return null;
+      final style = (node.getAttribute('style') ?? '').trim();
+      final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+      return '<h1$classAttr>$inner</h1>';
+    case 'p':
+      return _fb2ParagraphHtml(node, binaries);
+    default:
+      return null;
+  }
+}
+
+String _fb2PrependSectionHtml(String html, List<String> prefix) {
+  if (prefix.isEmpty) return html;
+  final gt = html.indexOf('>');
+  if (gt < 0) return html;
+  return '${html.substring(0, gt + 1)}${prefix.join()}${html.substring(gt + 1)}';
+}
+
 ({String? name, String title}) _fb2BodyGroup(XmlElement section) {
-  XmlNode? ancestor = section.parent;
+  XmlNode? ancestor = section;
   while (ancestor is XmlElement) {
     if (ancestor.name.local == 'body') {
       final name = (ancestor.getAttribute('name') ?? '').trim().toLowerCase();
@@ -382,8 +496,15 @@ String _sectionHtml(
 ) {
   final id = (section.getAttribute('id') ?? '').trim();
   final idAttr = id.isEmpty ? '' : ' id="${_escapeAttr(id)}"';
+  var classAttr = '';
+  for (final child in section.childElements) {
+    if (child.name.local != 'title') continue;
+    final style = (child.getAttribute('style') ?? '').trim();
+    if (style.isNotEmpty) classAttr = ' class="${_escapeAttr(style)}"';
+    break;
+  }
   final parts = <String>[
-    if (heading.isNotEmpty) '<h1>${_escapeHtml(heading)}</h1>',
+    if (heading.isNotEmpty) '<h1$classAttr>${_escapeHtml(heading)}</h1>',
   ];
   for (final child in section.childElements) {
     final name = child.name.local;
@@ -399,7 +520,11 @@ String _sectionHtml(
     }
     if (name == 'subtitle') {
       final inner = _fb2Inlines(child, binaries);
-      if (inner.trim().isNotEmpty) parts.add('<h2>$inner</h2>');
+      if (inner.trim().isNotEmpty) {
+        final style = (child.getAttribute('style') ?? '').trim();
+        final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+        parts.add('<h2$classAttr>$inner</h2>');
+      }
       continue;
     }
     if (name == 'poem') {
@@ -436,7 +561,9 @@ String? _fb2ParagraphHtml(XmlElement paragraph, Map<String, String> binaries) {
   if (inner.trim().isEmpty && !inner.contains('<img') && idAttr.isEmpty) {
     return null;
   }
-  return '<p$idAttr>$inner</p>';
+  final style = (paragraph.getAttribute('style') ?? '').trim();
+  final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+  return '<p$idAttr$classAttr>$inner</p>';
 }
 
 String? _fb2PoemHtml(XmlElement poem, Map<String, String> binaries) {
@@ -445,12 +572,20 @@ String? _fb2PoemHtml(XmlElement poem, Map<String, String> binaries) {
     final name = child.name.local;
     if (name == 'title') {
       final inner = _fb2Inlines(child, binaries).trim();
-      if (inner.isNotEmpty) parts.add('<h3>$inner</h3>');
+      if (inner.isNotEmpty) {
+        final style = (child.getAttribute('style') ?? '').trim();
+        final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+        parts.add('<h3$classAttr>$inner</h3>');
+      }
       continue;
     }
     if (name == 'subtitle') {
       final inner = _fb2Inlines(child, binaries).trim();
-      if (inner.isNotEmpty) parts.add('<h4>$inner</h4>');
+      if (inner.isNotEmpty) {
+        final style = (child.getAttribute('style') ?? '').trim();
+        final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+        parts.add('<h4$classAttr>$inner</h4>');
+      }
       continue;
     }
     if (name == 'epigraph' || name == 'cite') {
@@ -460,7 +595,11 @@ String? _fb2PoemHtml(XmlElement poem, Map<String, String> binaries) {
     }
     if (name == 'text-author') {
       final inner = _fb2Inlines(child, binaries).trim();
-      if (inner.isNotEmpty) parts.add('<p>$inner</p>');
+      if (inner.isNotEmpty) {
+        final style = (child.getAttribute('style') ?? '').trim();
+        final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+        parts.add('<p$classAttr>$inner</p>');
+      }
       continue;
     }
     if (name == 'date') {
@@ -477,11 +616,13 @@ String? _fb2PoemHtml(XmlElement poem, Map<String, String> binaries) {
 }
 
 String? _fb2DateHtml(XmlElement date, Map<String, String> binaries) {
+  final style = (date.getAttribute('style') ?? '').trim();
+  final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
   final inner = _fb2Inlines(date, binaries).trim();
-  if (inner.isNotEmpty) return '<p>$inner</p>';
+  if (inner.isNotEmpty) return '<p$classAttr>$inner</p>';
   final value = _escapeHtml((date.getAttribute('value') ?? '').trim());
   if (value.isEmpty) return null;
-  return '<p>$value</p>';
+  return '<p$classAttr>$value</p>';
 }
 
 String? _fb2StanzaHtml(XmlElement stanza, Map<String, String> binaries) {
@@ -491,17 +632,28 @@ String? _fb2StanzaHtml(XmlElement stanza, Map<String, String> binaries) {
     final name = child.name.local;
     if (name == 'title') {
       final inner = _fb2Inlines(child, binaries).trim();
-      if (inner.isNotEmpty) parts.add('<h4>$inner</h4>');
+      if (inner.isNotEmpty) {
+        final style = (child.getAttribute('style') ?? '').trim();
+        final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+        parts.add('<h4$classAttr>$inner</h4>');
+      }
       continue;
     }
     if (name == 'subtitle') {
       final inner = _fb2Inlines(child, binaries).trim();
-      if (inner.isNotEmpty) parts.add('<h5>$inner</h5>');
+      if (inner.isNotEmpty) {
+        final style = (child.getAttribute('style') ?? '').trim();
+        final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+        parts.add('<h5$classAttr>$inner</h5>');
+      }
       continue;
     }
     if (name != 'v') continue;
     final inner = _fb2Inlines(child, binaries);
-    if (inner.trim().isNotEmpty) lines.add(inner);
+    if (inner.trim().isEmpty) continue;
+    final style = (child.getAttribute('style') ?? '').trim();
+    final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+    lines.add(classAttr.isEmpty ? inner : '<span$classAttr>$inner</span>');
   }
   if (lines.isNotEmpty) parts.add('<p>${lines.join('<br/>')}</p>');
   if (parts.isEmpty) return null;
@@ -523,7 +675,11 @@ String? _fb2QuoteHtml(XmlElement quote, Map<String, String> binaries) {
     }
     if (name == 'subtitle') {
       final inner = _fb2Inlines(child, binaries);
-      if (inner.trim().isNotEmpty) parts.add('<h2>$inner</h2>');
+      if (inner.trim().isNotEmpty) {
+        final style = (child.getAttribute('style') ?? '').trim();
+        final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+        parts.add('<h2$classAttr>$inner</h2>');
+      }
       continue;
     }
     if (name == 'poem') {
@@ -543,7 +699,11 @@ String? _fb2QuoteHtml(XmlElement quote, Map<String, String> binaries) {
     }
     if (name != 'text-author') continue;
     final inner = _fb2Inlines(child, binaries).trim();
-    if (inner.isNotEmpty) parts.add('<p>$inner</p>');
+    if (inner.isNotEmpty) {
+      final style = (child.getAttribute('style') ?? '').trim();
+      final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+      parts.add('<p$classAttr>$inner</p>');
+    }
   }
   if (parts.isEmpty) return null;
   return '<blockquote>${parts.join()}</blockquote>';
@@ -562,7 +722,11 @@ String? _fb2AnnotationHtml(
     }
     if (name == 'subtitle') {
       final inner = _fb2Inlines(child, binaries);
-      if (inner.trim().isNotEmpty) parts.add('<h2>$inner</h2>');
+      if (inner.trim().isNotEmpty) {
+        final style = (child.getAttribute('style') ?? '').trim();
+        final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+        parts.add('<h2$classAttr>$inner</h2>');
+      }
       continue;
     }
     if (name == 'cite') {
@@ -637,6 +801,8 @@ String _fb2TableCellAttrs(XmlElement cell) {
   if (const {'top', 'middle', 'bottom'}.contains(valign)) {
     parts.add(' valign="$valign"');
   }
+  final style = (cell.getAttribute('style') ?? '').trim();
+  if (style.isNotEmpty) parts.add(' class="${_escapeAttr(style)}"');
   return parts.join();
 }
 
@@ -669,6 +835,12 @@ String _fb2InlineHtml(XmlNode node, Map<String, String> binaries) {
     case 'code':
       final inner = _fb2Inlines(node, binaries);
       return inner.isEmpty ? '' : '<code>$inner</code>';
+    case 'style':
+      final inner = _fb2Inlines(node, binaries);
+      final name = (node.getAttribute('name') ?? '').trim();
+      if (inner.isEmpty) return '';
+      if (name.isEmpty) return inner;
+      return '<span class="${_escapeAttr(name)}">$inner</span>';
     case 'a':
       final inner = _fb2Inlines(node, binaries);
       final href = (_hrefOf(node) ?? '').trim();

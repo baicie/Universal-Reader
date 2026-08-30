@@ -1,20 +1,20 @@
-# Spec: notes/comments body 无 section 的块进对应目录组
+# Spec: FB2 表题的 style 属性抄到 class
 
-> 上一刀已落地（无 section 的 FB2 正文 body 编成一章），未提交。Ask first：`view.js` / NCX 嵌套 / 应用内打开外链 / `overlayer.js` / 去掉 `<iframe>`。
+> 上一刀已落地（节 `<title style>` 抄到章首 h1 class），未提交。Ask first：`view.js` / NCX 嵌套 / 应用内打开外链 / `overlayer.js` / 去掉 `<iframe>`。
 
 ## Objective
 
-正文 body 没有 `<section>` 时已经能成章。`body name="notes"` / `comments` 若只有 `<p>` / `<poem>` / `<cite>`、没有 section，这些块仍被丢掉；只有 notes 的书仍是损坏。这一刀：有正文时，notes/comments 的无 section 块编成该组下的章；仍然只有 notes、没有任何正文时保持损坏。不发明注释。不 vendor `view.js`。不改 EPUB。
+节标题的 `style` 已经抄到 `<h1>`。表格 `<title style="…">` 仍丢掉 name，caption 没有 class。这一刀：有 name 的表题 `style` 抄到该 `<caption>` 的 class。不发明 class。不加载 stylesheet。不 vendor `view.js`。不改 EPUB。
 
 成功标准：
 
-- 正文节 + `body name="notes"` 下直接 `<p>`（无 section）时，notes 组出现在目录末尾，点进去是该段，href 为下一个 `section-N`。
-- `comments` 同样单独成组，不和 notes 合并。
-- 只有 notes body、没有正文节，仍是 `corrupt fb2`。
+- `<table><title style="foreign"><p>Rates</p></title>…` 的章 HTML 含 `<caption class="foreign">Rates</caption>`。
+- 空 style 不抄；空表题仍不编 caption。
+- stylesheet 里的 CSS 仍不进章 HTML。
 
 ## Assumptions
 
-1. 只改 FB2 对无 section 的 notes/comments body 的扫描，不改已有 section 的分组。
+1. 只处理 `_fb2TableHtml` 里表 `<title>` 上的 `style` 属性，值抄到 `<caption>`。格子 style 上一刀已做。
 2. 测试用 fixture，不加载真实 WebView。
 3. 不引入 `view.js` / `overlayer.js` / `flutter_rust_bridge`。不发版，除非另说。
 
@@ -24,7 +24,7 @@
 
 ```powershell
 cd app
-flutter test test/fb2_document_test.dart --name "notes body without a section"
+flutter test test/fb2_document_test.dart --name "table caption style"
 flutter analyze
 ```
 
@@ -40,19 +40,19 @@ app/test/support/fb2_fixture.dart
 ## Code Style
 
 ```dart
-if (name == 'notes' || name == 'comments') {
-  emitChapter(body);
-}
+final style = (child.getAttribute('style') ?? '').trim();
+final classAttr = style.isEmpty ? '' : ' class="${_escapeAttr(style)}"';
+if (inner.isNotEmpty) caption = '<caption$classAttr>$inner</caption>';
 ```
 
 ## Testing Strategy
 
-- 先失败：正文 + notes body 只有 p 时没有 notes 组。
-- 单元：notes 组成章；comments 单独；仅 notes 仍损坏。
-- 回归：无 section 的正文 body、带 section 的 notes 组。
+- 先失败：caption HTML 没有 `class="foreign"`。
+- 单元：有 style 抄到 class；空的不抄；空表题不编 caption。
+- 回归：section title style、空 caption、格子 style。
 
 ## Boundaries
 
-- Always: 缺正文就是损坏；不把另一本书的注释补进来。
+- Always: 缺 style 就是缺；不把另一本书的 class 补进来。
 - Ask first: `view.js` / NCX 嵌套 / 应用内打开外链。
 - Never: jsDelivr / unpkg；Agent 自己写笔记。
