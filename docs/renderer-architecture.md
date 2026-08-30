@@ -253,6 +253,10 @@ if (paginatorReady) {
    - 提取重复的 JavaScript 通信代码
    - 统一错误处理策略
 
+## 相关文档
+
+- [CFI 计算逻辑说明](cfi-logic.md)：详细说明 CFI 生成、存储、恢复流程以及当前设计决策
+
 ## 参考资料
 
 - [Foliate 项目](https://github.com/johnfactotum/foliate)：桌面 EPUB 阅读器，`paginator.js` 的来源
