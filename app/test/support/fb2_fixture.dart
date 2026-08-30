@@ -73,9 +73,13 @@ List<int> illustratedFb2Bytes({
 ''');
 }
 
-List<int> markedFb2Bytes(String paragraphInner) {
+List<int> markedFb2Bytes(String paragraphInner, {String stylesheet = ''}) {
+  final sheet = stylesheet.isEmpty
+      ? ''
+      : '<stylesheet type="text/css">$stylesheet</stylesheet>';
   return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
 <FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+  $sheet
   <description>
     <title-info>
       <book-title>FB2 Book</book-title>
@@ -95,14 +99,21 @@ List<int> markedFb2Bytes(String paragraphInner) {
 List<int> fb2SectionMarkupBytes(
   String markup, {
   String chapterTitle = 'Chapter One',
+  String titleStyle = '',
   String id = '',
+  String stylesheet = '',
 }) {
+  final styleAttr = titleStyle.isEmpty ? '' : ' style="$titleStyle"';
   final title = chapterTitle.isEmpty
       ? ''
-      : '<title><p>$chapterTitle</p></title>';
+      : '<title$styleAttr><p>$chapterTitle</p></title>';
   final idAttr = id.isEmpty ? '' : ' id="$id"';
+  final sheet = stylesheet.isEmpty
+      ? ''
+      : '<stylesheet type="text/css">$stylesheet</stylesheet>';
   return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
 <FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+  $sheet
   <description>
     <title-info>
       <book-title>FB2 Book</book-title>
@@ -253,17 +264,28 @@ List<int> fb2NestedSectionBytes({bool parentTitle = true}) {
 List<int> fb2NotesBodyBytes({
   bool notesBody = true,
   bool notesSection = true,
+  bool notesLoose = false,
   String? notesTitle = 'Notes',
   bool commentsBody = false,
+  bool commentsLoose = false,
   String? commentsTitle = 'Comments',
   bool unnamedSecondBody = false,
 }) {
+  final notesTitleXml = notesTitle == null
+      ? ''
+      : '<title><p>$notesTitle</p></title>';
   final notes = !notesBody
       ? ''
+      : notesLoose
+      ? '''
+  <body name="notes">
+    $notesTitleXml
+    <p id="n1">footnote</p>
+  </body>'''
       : notesSection
       ? '''
   <body name="notes">
-    ${notesTitle == null ? '' : '<title><p>$notesTitle</p></title>'}
+    $notesTitleXml
     <section id="n1">
       <title><p>1</p></title>
       <p>footnote</p>
@@ -271,11 +293,20 @@ List<int> fb2NotesBodyBytes({
   </body>'''
       : '''
   <body name="notes"></body>''';
-  final comments = !commentsBody
+  final commentsTitleXml = commentsTitle == null
+      ? ''
+      : '<title><p>$commentsTitle</p></title>';
+  final comments = commentsLoose
+      ? '''
+  <body name="comments">
+    $commentsTitleXml
+    <p>a comment</p>
+  </body>'''
+      : !commentsBody
       ? ''
       : '''
   <body name="comments">
-    ${commentsTitle == null ? '' : '<title><p>$commentsTitle</p></title>'}
+    $commentsTitleXml
     <section>
       <title><p>Remark</p></title>
       <p>a comment</p>
@@ -345,6 +376,119 @@ List<int> fb2BodyWithoutSectionBytes({
   $main
   $notes
   $second
+</FictionBook>
+''');
+}
+
+List<int> fb2BodyEpigraphBytes({
+  String lead =
+      '<epigraph><p>quoted line</p><text-author>Ann</text-author></epigraph>',
+  bool notesLead = false,
+  bool notesImage = false,
+  bool notesPoem = false,
+  bool notesTable = false,
+  bool notesTitle = false,
+  bool notesParagraph = false,
+  bool secondSection = false,
+  bool includeBinary = false,
+  String stylesheet = '',
+}) {
+  final extra = secondSection
+      ? '''
+    <section>
+      <title><p>Chapter Two</p></title>
+      <p>later</p>
+    </section>'''
+      : '';
+  final notes = notesImage
+      ? '''
+  <body name="notes">
+    <image l:href="#spot.png"/>
+    <section>
+      <title><p>1</p></title>
+      <p>footnote</p>
+    </section>
+  </body>'''
+      : notesPoem
+      ? '''
+  <body name="notes">
+    <poem><stanza><v>note verse</v></stanza></poem>
+    <section>
+      <title><p>1</p></title>
+      <p>footnote</p>
+    </section>
+  </body>'''
+      : notesTable
+      ? '''
+  <body name="notes">
+    <table><tr><td><p>note cell</p></td></tr></table>
+    <section>
+      <title><p>1</p></title>
+      <p>footnote</p>
+    </section>
+  </body>'''
+      : notesTitle
+      ? '''
+  <body name="notes">
+    <title><p>Notes Volume</p></title>
+    <section>
+      <title><p>1</p></title>
+      <p>footnote</p>
+    </section>
+  </body>'''
+      : notesParagraph
+      ? '''
+  <body name="notes">
+    <p>note intro</p>
+    <section>
+      <title><p>1</p></title>
+      <p>footnote</p>
+    </section>
+  </body>'''
+      : !notesLead
+      ? ''
+      : '''
+  <body name="notes">
+    <epigraph><p>note motto</p></epigraph>
+    <section>
+      <title><p>1</p></title>
+      <p>footnote</p>
+    </section>
+  </body>''';
+  final mainLead =
+      (notesLead ||
+          notesImage ||
+          notesPoem ||
+          notesTable ||
+          notesTitle ||
+          notesParagraph)
+      ? ''
+      : lead;
+  final binary = includeBinary || notesImage
+      ? '<binary id="spot.png" content-type="image/png">${base64Encode(tinyPngBytes())}</binary>'
+      : '';
+  final sheet = stylesheet.isEmpty
+      ? ''
+      : '<stylesheet type="text/css">$stylesheet</stylesheet>';
+  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+  $sheet
+  <description>
+    <title-info>
+      <book-title>FB2 Book</book-title>
+      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
+    </title-info>
+  </description>
+  <body>
+    $mainLead
+    <section>
+      <title><p>Chapter One</p></title>
+      <p>hello from fb2</p>
+    </section>
+    $extra
+  </body>
+  $notes
+  $binary
 </FictionBook>
 ''');
 }
