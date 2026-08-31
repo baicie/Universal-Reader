@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.0.1-dev.12 - 2026-08-31
+
+### Test Coverage Improvements
+- Enhanced MOBI document test coverage from 50% to 100% (42/84 → 84/84 lines)
+  - Added comprehensive API tests for chapter navigation, locators, text extraction, search, and TOC
+  - Added boundary tests for unknown hrefs, empty queries, single chapter progress, and index limits
+  - Added format-specific tests for ZIP offset detection, HTML entity escaping, and readable text filtering
+- Enhanced Comic document test coverage from 57.7% to 100% (30/52 → 52/52 lines)
+  - Added comprehensive API tests for page navigation, locators, text extraction, search, and TOC
+  - Added boundary tests for progress clamping, page range validation, and unsupported locator types
+  - Added format-specific tests for case-insensitive sorting, nested directory handling, non-image filtering, and empty archive detection
+- Total test count increased from 443 to 483 tests (+40 tests)
+
+### Documentation
+- Added comprehensive inline comments to `host.html` explaining Foliate integration, message protocol, and CFI calculation
+- Documented CFI calculation logic and current usage in `docs/cfi-logic.md`
+- Created `docs/README.md` as documentation index linking all technical documentation
+- Enhanced renderer architecture documentation with detailed component descriptions
+
+### Code Health
+- Documented empty catch blocks with reasons (EOF on stream close, missing binary fallback, circular import break)
+- Extracted duplicate "create and persist document" logic to `_createAndPersist` helper
+- Added boundary tests for library controller (duplicate IDs, missing documents, corrupt files)
+- Optimized `didUpdateWidget` to compare href only instead of full HTML content
+
+### Performance
+- Reduced unnecessary widget rebuilds in `IsolatedFoliateView` by avoiding expensive HTML string comparison
+
 ## Unreleased
 
 - Reading settings for line height, body font, and paper (match app / light / dark) reach the Foliate host and the text fallback.
