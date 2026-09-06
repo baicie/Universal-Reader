@@ -1,12 +1,110 @@
 # Spec: 已完成
 
-> NCX 嵌套已支持。外部链接保留已完成。**应用内打开外链已完成**。**CSS @import media query 保留已完成**。**渲染架构文档已完成**。**代码健康优化已完成（空 catch 文档化、重复代码提取）**。**测试增强已完成（边界测试覆盖）**。**性能优化已完成（避免昂贵的 HTML 比较）**。**文档完善已完成（host.html 详细注释、CFI 计算逻辑说明、文档索引）**。**MOBI 文档测试覆盖率提升至 100%**。**Comic 文档测试覆盖率提升至 100%**。下一刀：继续优化或功能开发。
+> NCX 嵌套已支持。外部链接保留已完成。**应用内打开外链已完成**。**CSS @import media query 保留已完成**。**渲染架构文档已完成**。**代码健康优化已完成（空 catch 文档化、重复代码提取）**。**测试增强已完成（边界测试覆盖）**。**性能优化已完成（避免昂贵的 HTML 比较）**。**文档完善已完成（host.html 详细注释、CFI 计算逻辑说明、文档索引）**。**MOBI 文档测试覆盖率提升至 100%**。**Comic 文档测试覆盖率提升至 100%**。**PDF 文档测试覆盖率提升至 100%**。**Text / Markdown / HTML 文档测试覆盖率提升至 100%**。**全库搜索（metadata + 笔记）已完成**。下一刀：继续优化或功能开发。
 
-## Comic 测试覆盖提升（最新完成）
+## PDF 测试覆盖提升（最新完成）
 
-将 Comic 文档测试覆盖率从 57.7% 提升至 100%（1 个提交）。
+将 PDF 文档测试覆盖率从基线提升至 100%（1 个提交）。
 
 **改进内容：**
+- ✅ 扩展 `pdf_document_test.dart`，从 2 个测试增加到 41 个测试
+- ✅ 新增完整 API 测试组（页导航、定位器、文本提取、搜索、目录）
+- ✅ 新增边界测试（页索引裁剪、跨文档范围、TextLocator 边界、EOF 行为）
+- ✅ 新增解析边界测试（BOM 容错、case-sensitive magic、escape 反解析、多字符串分布、空字符串过滤）
+- ✅ 新增 fixture：`stringsPerPage` 路径与前导空白注入工具
+
+**覆盖的 API：**
+- 页面导航（`chapterIndex`、`chapterCount`、`currentChapterText`、`goTo`）
+- 定位器（`locatorForProgress`、`currentLocator`、`TextLocator` / `PdfLocator` / `EpubLocator` / `ComicLocator`）
+- 文本操作（`extractText`、`search`、`progress`）
+- 目录（`getToc`）
+- 格式特性（`truncated`、header sniff）
+
+**格式边界覆盖：**
+- BOM 容错（前导空白被跳过）
+- 高/小写 magic 区分
+- `\n` / `\r` / `\t` / `\\` / `(` / `)` 反解析
+- 多字符串页的分布策略
+- 单页 PDF 不进 split path
+
+**测试结果：**
+- 所有 563 个测试通过（483 → 563）
+- `pdf_document.dart` 覆盖率：**100%**
+
+**提交记录：**
+```
+待提交
+```
+
+## Text / Markdown / HTML 测试覆盖提升
+
+将 Text / Markdown / HTML 文档测试覆盖率从基线提升至 100%（1 个提交）。
+
+**改进内容：**
+- ✅ 扩展 `text_document_test.dart`，从 9 个测试增加到 50 个测试
+- ✅ 新增完整 API 测试组（章节索引、定位器、文本提取、搜索、目录、truncation flag）
+- ✅ 新增 byte decoder 单测（UTF-16 LE/BE BOM、UTF-8 BOM 剥离、GB18030 fallback、异常输入）
+- ✅ 新增解析边界测试（truncation 触发、CRLF 归一化、Markdown preface、HTML 标签剥离、chunked sections）
+
+**覆盖的 API：**
+- 章节导航（`chapterIndex`、`chapterCount`、`currentSection`、`currentChapterText`、`goTo`）
+- 定位器（`locatorForProgress`、`currentLocator`、跨 locator 类型的 goTo 行为）
+- 文本操作（`extractText`、`search`、`progress`）
+- 目录（`getToc`）
+- 格式特性（`truncated`、startOffset 推进）
+
+**格式边界覆盖：**
+- CRLF / CR 归一化
+- Markdown 无 heading 时回退 plain split
+- Markdown preface 起新 section
+- 短 title block 拆分为 title + body
+- 长 title (>40 runes) 不会误判为 title
+- HTML script / style / br / p 处理
+- 连续空行折叠为双换行
+- 切分 section 的 body 拼接回原内容
+- BOM 剥离（UTF-8）
+- GB18030 fallback（仅在 UTF-8 fail 时触发）
+
+**测试结果：**
+- 所有 579 个测试通过（563 → 579）
+- `text_document.dart` 覆盖率：**100%**
+
+**提交记录：**
+```
+待提交
+```
+
+## 全库搜索（metadata + 笔记）
+
+新增 `librarySearchAll` / `librarySearchAllAsync` 函数以支持跨文档搜索（1 个提交）。
+
+**改进内容：**
+- ✅ 新增 `lib/features/library/library_search.dart`：`LibrarySearchHit` 与两种 API（同步 / 异步）
+- ✅ 同步 API 在 `annotationsFor == null` 时只扫 metadata
+- ✅ 异步 API 依次扫 metadata 与笔记，且 metadata 命中的 doc 会提升并 demote 重复的 note hit
+- ✅ 注释存储读取异常被吞掉（仅当 doc 没有 metadata 命中时才丢失）
+- ✅ 16 个新测试覆盖空查询、case-insensitive、metadata-hit 顺序、跨字段去重、annotation 抛错等情况
+
+**覆盖的场景：**
+- metadata 命中（title / author / id）
+- annotation 命中（quote / note / locatorLabel）
+- metadata 命中在 annotation 命中之前
+- 同 doc metadata + annotation 不重复
+- annotation store 抛错仍返回 metadata hits
+- 空查询跳过 annotation 扫描
+
+**测试结果：**
+- 所有 579 个测试通过
+- `dart analyze`：零警告
+
+**提交记录：**
+```
+待提交
+```
+
+## Comic 测试覆盖提升（之前完成）
+
+将 Comic 文档测试覆盖率从 57.7% 提升至 100%（1 个提交）。
 - ✅ 扩展 `comic_document_test.dart`，从 2 个测试增加到 25 个测试
 - ✅ 新增完整 API 测试组（页面导航、定位器、文本提取、搜索、目录）
 - ✅ 新增边界测试（进度限制、页面范围、不支持的定位器类型）

@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
+import '../features/library/annotation_store.dart';
+import '../features/library/library_search.dart';
 import '../features/library/shelf_store.dart' as shelf;
 import 'library_repository.dart';
 import 'models.dart';
@@ -11,12 +13,16 @@ class PersistedLibraryController extends ChangeNotifier {
   PersistedLibraryController({
     required this.repository,
     shelf.ShelfRepository? shelfRepository,
+    this.annotationRepository,
   }) : shelfRepository = shelfRepository ?? shelf.InMemoryShelfRepository();
 
   final LibraryRepository repository;
   final shelf.ShelfRepository shelfRepository;
+  final AnnotationRepository? annotationRepository;
   List<LibraryDocument> _documents = [];
   shelf.LibraryShelves _shelves = const shelf.LibraryShelves();
+  Set<String> _noteOnlyHits = const {};
+  Completer<void>? _pendingSearch;
   String query = '';
   String section = 'all';
   String formatType = 'all';
@@ -91,7 +97,39 @@ class PersistedLibraryController extends ChangeNotifier {
         _ => b.readingState.lastOpened.compareTo(a.readingState.lastOpened),
       },
     );
-    return result;
+    if (_noteOnlyHits.isEmpty) return result;
+    final extra = <LibraryDocument>[
+      for (final document in _documents)
+        if (_noteOnlyHits.contains(document.metadata.id) &&
+            !result.any((item) => item.metadata.id == document.metadata.id) &&
+            _passesTypeAndSection(document))
+          document,
+    ];
+    if (extra.isEmpty) return result;
+    final combined = [...result, ...extra];
+    combined.sort(
+      (a, b) => switch (sort) {
+        'title' => a.metadata.title.compareTo(b.metadata.title),
+        'progress' => b.readingState.progress.compareTo(
+          a.readingState.progress,
+        ),
+        _ => b.readingState.lastOpened.compareTo(a.readingState.lastOpened),
+      },
+    );
+    return combined;
+  }
+
+  bool _passesTypeAndSection(LibraryDocument document) {
+    final metadata = document.metadata;
+    final typeMatches =
+        formatType == 'all' || metadata.type.name == formatType;
+    final sectionMatches = shelf.documentMatchesSection(
+      section: section,
+      documentId: metadata.id,
+      progress: document.readingState.progress,
+      shelves: _shelves,
+    );
+    return typeMatches && sectionMatches;
   }
 
   LibraryDocument? documentById(String id) {
@@ -207,6 +245,47 @@ class PersistedLibraryController extends ChangeNotifier {
 
   void search(String value) {
     query = value;
+    _noteOnlyHits = const {};
+    _refreshSearchHits();
+    notifyListeners();
+  }
+
+  void _refreshSearchHits() {
+    final repository = annotationRepository;
+    if (repository == null || query.isEmpty) return;
+    final pending = _pendingSearch = Completer<void>();
+    () async {
+      try {
+        final hits = await librarySearchAllAsync(
+          documents: _documents,
+          query: query,
+          annotationsFor: (id) => repository.load(id),
+        );
+        if (!identical(_pendingSearch, pending)) return;
+        _noteOnlyHits = {
+          for (final hit in hits)
+            if (hit.kind == LibrarySearchHitKind.note) hit.document.metadata.id,
+        };
+        if (!pending.isCompleted) pending.complete();
+        notifyListeners();
+      } on Object {
+        if (!pending.isCompleted) pending.complete();
+      }
+    }();
+  }
+
+  Future<void> waitForSearch() async {
+    final pending = _pendingSearch;
+    if (pending == null) return;
+    await pending.future;
+  }
+
+  /// Test-only seam: pushes a [LibraryDocument] into the controller without
+  /// going through [repository]. The shelf is not adjusted because tests
+  /// assert against search results, not shelf membership.
+  @visibleForTesting
+  void addDocumentForTest(LibraryDocument document) {
+    _documents = [..._documents, document];
     notifyListeners();
   }
 

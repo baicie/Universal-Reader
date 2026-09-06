@@ -578,6 +578,124 @@ void main() {
     expect(find.text('设计中的设计'), findsNothing);
   });
 
+  testWidgets('library search field filters imported books by title',
+      (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('alpha.txt', utf8.encode('first body'));
+    await repository.importBytes('beta.txt', utf8.encode('second body'));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('alpha'), findsWidgets);
+    expect(find.text('beta'), findsWidgets);
+
+    await tester.enterText(
+      find.byKey(const Key('library-search-field')),
+      'beta',
+    );
+    await tester.pumpAndSettle();
+
+    // Search field still shows "beta" so we expect 'alpha' to vanish from
+    // the shelf (only the field itself remains with the query string).
+    expect(find.text('alpha'), findsNothing);
+    expect(find.text('beta'), findsWidgets);
+  });
+
+  testWidgets('library search field is case-insensitive', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('alpha.txt', utf8.encode('any body'));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+
+    // The file_name is also the metadata.id and surfaces in the search text.
+    await tester.enterText(
+      find.byKey(const Key('library-search-field')),
+      'ALPHA',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('alpha'), findsAtLeastNWidgets(1));
+  });
+
+  testWidgets('clearing the library search field restores every book',
+      (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('alpha.txt', utf8.encode('first body'));
+    await repository.importBytes('beta.txt', utf8.encode('second body'));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+
+    await tester.enterText(
+      find.byKey(const Key('library-search-field')),
+      'beta',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('alpha'), findsNothing);
+
+    await tester.enterText(
+      find.byKey(const Key('library-search-field')),
+      '',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('alpha'), findsWidgets);
+    expect(find.text('beta'), findsWidgets);
+  });
+
+  testWidgets('library search field hides books that match nothing',
+      (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('alpha.txt', utf8.encode('first body'));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+
+    await tester.enterText(
+      find.byKey(const Key('library-search-field')),
+      'zzz-no-such-book',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('alpha'), findsNothing);
+  });
+
   testWidgets('pdf reading settings zoom the current page', (tester) async {
     final repository = InMemoryLibraryRepository();
     await repository.importBytes(

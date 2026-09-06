@@ -282,6 +282,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               child: SizedBox(
                 width: 280,
                 child: SearchField(
+                  key: const Key('library-search-field'),
                   controller: searchController,
                   hintText: l10n.searchHint,
                   onChanged: controller.search,
@@ -332,6 +333,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                   if (!wide) ...[
                     const SizedBox(height: 16),
                     SearchField(
+                      key: const Key('library-search-field'),
                       controller: searchController,
                       hintText: AppLocalizations.of(context).searchHint,
                       onChanged: controller.search,

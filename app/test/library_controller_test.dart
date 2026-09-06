@@ -2,7 +2,90 @@ import 'package:app/core/library_controller.dart';
 import 'package:app/core/library_repository.dart';
 import 'package:app/core/models.dart';
 import 'package:app/core/seed_documents.dart';
+import 'package:app/features/library/annotation_store.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+class _StubAnnotationRepository implements AnnotationRepository {
+  _StubAnnotationRepository(this._byId);
+
+  final Map<String, List<ReaderAnnotation>> _byId;
+
+  @override
+  Future<List<ReaderAnnotation>> load(String documentId) async {
+    return List.of(_byId[documentId] ?? const []);
+  }
+
+  @override
+  Future<void> save(String documentId, List<ReaderAnnotation> notes) async {
+    _byId[documentId] = List.of(notes);
+  }
+}
+
+class _ThrowingAnnotationRepository implements AnnotationRepository {
+  @override
+  Future<List<ReaderAnnotation>> load(String documentId) async {
+    throw StateError('disk unreadable');
+  }
+
+  @override
+  Future<void> save(String documentId, List<ReaderAnnotation> notes) async {
+    throw StateError('disk unreadable');
+  }
+}
+
+LibraryDocument _stubDoc({
+  required String id,
+  required String title,
+  DateTime? lastOpened,
+}) {
+  return LibraryDocument(
+    metadata: DocumentMetadata(
+      id: id,
+      title: title,
+      author: '',
+      format: DocumentFormat.txt,
+      type: DocumentType.reflow,
+      coverColor: 0xFF527882,
+      contentHash: 'hash-$id',
+    ),
+    readingState: ReadingState(
+      progress: 0,
+      lastOpened: lastOpened ?? DateTime.utc(2026, 1, 1),
+    ),
+  );
+}
+
+ReaderAnnotation _stubNote({
+  required String id,
+  String quote = '',
+  String note = '',
+}) {
+  return ReaderAnnotation(
+    id: id,
+    note: note,
+    quote: quote,
+    source: userNoteSource,
+    createdAt: DateTime.utc(2026, 1, 1),
+  );
+}
+
+class _FailingLoadRepository extends InMemoryLibraryRepository {
+  @override
+  Future<List<LibraryDocument>> load() async {
+    throw StateError('disk unreadable');
+  }
+}
+
+class _FailingWriteRepository extends InMemoryLibraryRepository {
+  @override
+  Future<void> writeReadingState({
+    required String id,
+    required double progress,
+    required DateTime lastOpened,
+  }) async {
+    throw StateError('disk write failed');
+  }
+}
 
 void main() {
   test('waitUntilReady completes after load and is later a no-op', () async {
@@ -66,7 +149,7 @@ void main() {
     );
     await controller.load();
 
-    final created = await controller.createCollection('今晚读');
+    final created = await controller.createCollection('shelf-A');
     expect(created, isNotNull);
     await controller.addToCollection(created!.id, 'design');
     controller.selectSection('collection:${created.id}');
@@ -110,14 +193,14 @@ void main() {
 
     await controller.writeIdentity(
       id: 'notes.txt',
-      title: '设计笔记',
-      author: '某作者',
+      title: 'Design Notes',
+      author: 'Some Author',
     );
 
-    expect(controller.documents.single.metadata.title, '设计笔记');
-    expect(controller.documents.single.metadata.author, '某作者');
+    expect(controller.documents.single.metadata.title, 'Design Notes');
+    expect(controller.documents.single.metadata.author, 'Some Author');
     expect(controller.documentById('design'), isNull);
-    expect((await repository.load()).single.metadata.title, '设计笔记');
+    expect((await repository.load()).single.metadata.title, 'Design Notes');
   });
 
   test('renaming a missing book does not invent a seed title', () async {
@@ -128,8 +211,8 @@ void main() {
 
     await controller.writeIdentity(
       id: 'missing',
-      title: '设计中的设计',
-      author: '原研哉',
+      title: 'Some New Title',
+      author: 'Original Author',
     );
 
     expect(controller.documents.single.metadata.title, 'notes');
@@ -207,22 +290,86 @@ void main() {
     expect(controller.documentById('missing'), isNull);
     expect(controller.documents.single.readingState.progress, 0.0);
   });
-}
 
-class _FailingLoadRepository extends InMemoryLibraryRepository {
-  @override
-  Future<List<LibraryDocument>> load() async {
-    throw StateError('disk unreadable');
-  }
-}
+  group('annotation-backed search', () {
+    test('includes a book whose note matches when no metadata hit exists',
+        () async {
+      final repository = _StubAnnotationRepository({
+        'note-only': [
+          _stubNote(id: 'n1', quote: 'this contains needle'),
+        ],
+      });
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+        annotationRepository: repository,
+      );
+      await controller.load();
+      controller.addDocumentForTest(
+        _stubDoc(id: 'note-only', title: 'Alpha'),
+      );
 
-class _FailingWriteRepository extends InMemoryLibraryRepository {
-  @override
-  Future<void> writeReadingState({
-    required String id,
-    required double progress,
-    required DateTime lastOpened,
-  }) async {
-    throw StateError('disk write failed');
-  }
+      controller.search('needle');
+      await controller.waitForSearch();
+      final ids = controller.documents.map((d) => d.metadata.id).toList();
+      expect(ids, contains('note-only'));
+    });
+
+    test('does not duplicate a book that already matched metadata', () async {
+      final repository = _StubAnnotationRepository({
+        'design': [
+          _stubNote(id: 'n1', quote: 'design quote'),
+        ],
+      });
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+        annotationRepository: repository,
+      );
+      await controller.load();
+      controller.addDocumentForTest(
+        _stubDoc(id: 'design', title: 'Design Notes'),
+      );
+
+      controller.search('design');
+      await controller.waitForSearch();
+
+      expect(
+        controller.documents.where((d) => d.metadata.id == 'design'),
+        hasLength(1),
+      );
+    });
+
+    test('returns metadata hits even when annotation store throws', () async {
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+        annotationRepository: _ThrowingAnnotationRepository(),
+      );
+      await controller.load();
+      controller.addDocumentForTest(
+        _stubDoc(id: 'design', title: 'Design Notes'),
+      );
+
+      controller.search('design');
+      await controller.waitForSearch();
+
+      expect(
+        controller.documents.where((d) => d.metadata.id == 'design'),
+        hasLength(1),
+      );
+    });
+
+    test('omits annotation scan when no repository is provided', () async {
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+      );
+      await controller.load();
+      controller.addDocumentForTest(
+        _stubDoc(id: 'note-only', title: 'Alpha'),
+      );
+
+      controller.search('needle');
+      await controller.waitForSearch();
+
+      expect(controller.documents, isEmpty);
+    });
+  });
 }

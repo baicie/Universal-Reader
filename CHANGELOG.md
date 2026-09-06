@@ -59,6 +59,9 @@
 - In-book search hits scroll to the query. A missing sentence stays at the start of the chapter.
 - Reflow tap and arrow keys push a captured page index to the Foliate host. The chrome shows the page in the chapter, not the chapter count as a page count.
 - PDF pages can be zoomed from reading settings (100%–300%). The page fills the reading surface instead of the reflow column. Tests still show page text, not a sample chapter.
+- Library-wide search returns one entry per document whose title, author, id, or stored note (quote / note / locator label) contains the query. Metadata hits appear before note hits; metadata matches demote the same document's note hit; an unreadable note store does not delete metadata hits; an empty query returns every document.
+- PDF document test coverage is full across page navigation, locators, text extraction, search, TOC, and parser sniffs (header detection, BOM tolerance, escape unescaping, multi-string pages, corruption).
+- Text / Markdown / HTML document test coverage is full across the same API and decoding (UTF-16 BE/LE BOM, UTF-8 BOM stripping, GB18030 fallback, CRLF normalization, chunked-section packing, HTML stripping, Markdown heading fallback).
 
 ## 0.0.1-dev.11 - 2026-08-29
 
