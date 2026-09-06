@@ -168,4 +168,64 @@ void main() {
     expect(result.unavailable, isTrue);
     expect(client.calls, 0);
   });
+
+  test('returns unavailable when the current page has no excerpt', () async {
+    final emptyDocument = SampleReaderDocument(
+      metadata: const DocumentMetadata(
+        id: 'empty',
+        title: '空白',
+        author: '匿名',
+        format: DocumentFormat.epub,
+        type: DocumentType.reflow,
+      ),
+      body: '',
+    );
+    final client = RecordingModelClient();
+    final tool = AiReaderTool(
+      settings: const AiSettings(
+        enabled: true,
+        endpoint: 'https://api.deepseek.com',
+        model: 'deepseek-chat',
+        apiKey: 'sk-test',
+      ),
+      clientFactory: (_) => client,
+    );
+
+    final result = await tool.run(
+      document: emptyDocument,
+      request: const ReaderToolRequest(kind: ReaderToolKind.summarize),
+    );
+
+    expect(result.unavailable, isTrue);
+    expect(client.calls, 0);
+    expect(result.text, isNotEmpty);
+  });
+
+  test('proposals come from search hits with EPUB locators', () async {
+    final client = RecordingModelClient(reply: 'links');
+    final tool = AiReaderTool(
+      settings: const AiSettings(
+        enabled: true,
+        endpoint: 'https://api.deepseek.com',
+        model: 'deepseek-chat',
+        apiKey: 'sk-test',
+      ),
+      clientFactory: (_) => client,
+    );
+
+    final result = await tool.run(
+      document: document,
+      request: const ReaderToolRequest(
+        kind: ReaderToolKind.ask,
+        question: '白是一种包容',
+        askDocument: true,
+      ),
+    );
+
+    expect(result.unavailable, isFalse);
+    // proposals should mirror the search hits and carry locator labels.
+    expect(result.proposals, isNotEmpty);
+    expect(result.locatorLabel, isNotNull);
+    expect(result.locatorLabel, contains('chapter-4'));
+  });
 }
