@@ -10,8 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// Minimal stub that only exposes what's needed for widget rendering
 /// plus the remote-store flag.
 class _FakeRemoteRepository implements LibraryRepository {
-  _FakeRemoteRepository({this.shouldThrow = false});
-  final bool shouldThrow;
+  const _FakeRemoteRepository();
 
   @override
   bool get usesRemoteStore => true;
