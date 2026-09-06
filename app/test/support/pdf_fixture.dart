@@ -1,7 +1,16 @@
 import 'dart:convert';
 
-/// Minimal uncompressed PDF with one text string per page.
-List<int> minimalPdfBytes({List<String> pages = const ['hello from pdf']}) {
+/// Builds a minimal uncompressed PDF with one content stream per page.
+///
+/// [stringsPerPage] lets a test put multiple `() Tj` operators in a single
+/// page so the parser exercises the per-page split path instead of the
+/// 1-string-per-page shortcut.
+List<int> minimalPdfBytes({
+  List<String> pages = const ['hello from pdf'],
+  List<List<String>>? stringsPerPage,
+}) {
+  final perPage = stringsPerPage ?? [for (final p in pages) [p]];
+  assert(perPage.length == pages.length || stringsPerPage != null);
   final objects = <String>['1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj'];
   final kids = [for (var i = 0; i < pages.length; i++) '${3 + i * 2} 0 R']
       .join(' ');
@@ -11,8 +20,15 @@ List<int> minimalPdfBytes({List<String> pages = const ['hello from pdf']}) {
   for (var i = 0; i < pages.length; i++) {
     final pageObj = 3 + i * 2;
     final contentObj = pageObj + 1;
-    final text = pages[i].replaceAll('(', '\\(').replaceAll(')', '\\)');
-    final stream = 'BT /F1 12 Tf 72 720 Td ($text) Tj ET';
+    final ops = <String>[];
+    for (final raw in perPage[i]) {
+      final text = raw
+          .replaceAll('\\', '\\\\')
+          .replaceAll('(', '\\(')
+          .replaceAll(')', '\\)');
+      ops.add('BT /F1 12 Tf 72 720 Td ($text) Tj ET');
+    }
+    final stream = ops.join('\n');
     objects.add(
       '$pageObj 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] '
       '/Contents $contentObj 0 R /Resources << /Font << /F1 ${3 + pages.length * 2} 0 R >> >> >> endobj',
@@ -44,4 +60,12 @@ List<int> minimalPdfBytes({List<String> pages = const ['hello from pdf']}) {
   buffer.writeln(xrefAt);
   buffer.write('%%EOF');
   return utf8.encode(buffer.toString());
+}
+
+/// Wraps [bytes] with [count] whitespace characters before the %PDF- header.
+List<int> pdfBytesWithLeadingWhitespace(List<int> bytes, {int count = 4}) {
+  return [
+    ...List<int>.filled(count, 0x20),
+    ...bytes,
+  ];
 }
