@@ -50,4 +50,40 @@ void main() {
     expect(jump.locator, isNull);
     expect(jump.scrollQuote, 'hello from notes');
   });
+
+  group('noteListLabel', () {
+    test('prefers the trimmed quote when present', () {
+      final note = ReaderAnnotation(
+        id: 'n1',
+        note: 'fallback body',
+        quote: '  quoted excerpt  ',
+        locatorLabel: 'chapter-4',
+        createdAt: DateTime.utc(2026, 1, 1),
+      );
+      expect(noteListLabel(note), 'quoted excerpt');
+    });
+
+    test('falls back to the body when the quote is blank', () {
+      final note = ReaderAnnotation(
+        id: 'n1',
+        note: '  fallback body  ',
+        quote: '   ',
+        locatorLabel: 'chapter-4',
+        createdAt: DateTime.utc(2026, 1, 1),
+      );
+      expect(noteListLabel(note), 'fallback body');
+    });
+
+    test('falls back to the locator label when both quote and body are empty',
+        () {
+      final note = ReaderAnnotation(
+        id: 'n1',
+        note: '',
+        quote: '',
+        locatorLabel: 'chapter-1',
+        createdAt: DateTime.utc(2026, 1, 1),
+      );
+      expect(noteListLabel(note), 'chapter-1');
+    });
+  });
 }
