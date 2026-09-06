@@ -1,4 +1,3 @@
-import 'package:app/core/epub_document.dart';
 import 'package:app/core/mobi_document.dart';
 import 'package:app/core/models.dart';
 import 'package:app/core/reader_runtime.dart';

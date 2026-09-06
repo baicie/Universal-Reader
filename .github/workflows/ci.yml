@@ -49,6 +49,10 @@ jobs:
       - name: Test
         run: flutter test
 
+      - name: Coverage
+        run: dart run tool/check_coverage.dart 70
+        working-directory: app
+
       - name: Build Web
         run: flutter build web --release
 

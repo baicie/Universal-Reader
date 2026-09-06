@@ -1,4 +1,4 @@
-import 'models.dart';
+import 'package:app/core/models.dart';
 
 final seedDocuments = <LibraryDocument>[
   _doc('design', '设计中的设计', '原研哉', DocumentFormat.epub, 0xFF314D49, .37),

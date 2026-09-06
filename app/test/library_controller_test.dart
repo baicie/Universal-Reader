@@ -1,7 +1,7 @@
 import 'package:app/core/library_controller.dart';
 import 'package:app/core/library_repository.dart';
 import 'package:app/core/models.dart';
-import 'package:app/core/seed_documents.dart';
+import 'support/seed_documents.dart';
 import 'package:app/features/library/annotation_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 

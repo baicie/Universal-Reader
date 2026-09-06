@@ -6,6 +6,7 @@ import 'library_controller.dart';
 import 'library_repository.dart';
 import 'locale_controller.dart';
 import 'reader_prefs.dart';
+import '../features/library/annotation_store.dart';
 import '../features/library/shelf_store.dart';
 import '../features/tools/ai/ai_runtime.dart';
 import '../features/tools/ai/ai_settings.dart';
@@ -20,12 +21,20 @@ final shelfRepositoryProvider = Provider<ShelfRepository>((ref) {
   return InMemoryShelfRepository();
 });
 
+/// Default annotation repository used when the host doesn't supply a
+/// persistent implementation. Notes and highlights are kept in memory only;
+/// replacing this provider at startup wires real persistence.
+final annotationRepositoryProvider = Provider<AnnotationRepository>((ref) {
+  return InMemoryAnnotationRepository();
+});
+
 final libraryProvider = ChangeNotifierProvider<PersistedLibraryController>((
   ref,
 ) {
   final controller = PersistedLibraryController(
     repository: ref.watch(libraryRepositoryProvider),
     shelfRepository: ref.watch(shelfRepositoryProvider),
+    annotationRepository: ref.watch(annotationRepositoryProvider),
   );
   controller.load();
   return controller;
