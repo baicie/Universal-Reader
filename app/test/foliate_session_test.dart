@@ -110,4 +110,67 @@ void main() {
     expect(session.pageCount, charCount);
     expect(session.pageIndex, 0);
   });
+
+  test('previous page walks back and rejects the first page', () {
+    final session = FoliateSession.open(document(), pageCharLimit: 40);
+    expect(session.pageCount, greaterThan(2));
+    expect(session.previous(), isFalse);
+    expect(session.pageIndex, 0);
+    session.next();
+    session.next();
+    final mid = session.pageIndex;
+    expect(session.previous(), isTrue);
+    expect(session.pageIndex, mid - 1);
+    session.goToPage(0);
+    expect(session.previous(), isFalse);
+    expect(session.pageIndex, 0);
+  });
+
+  test('goToCfi jumps to the page whose start offset lands first', () {
+    final session = FoliateSession.open(document(), pageCharLimit: 40);
+    expect(session.pageCount, greaterThan(2));
+    final midStart = session.pages[1].startOffset;
+    final laterStart = session.pages[2].startOffset;
+    expect(session.goToCfi('epubcfi(xhtml:$midStart)'), isTrue);
+    expect(session.pageIndex, 1);
+    expect(session.goToCfi('epubcfi(xhtml:$laterStart)'), isTrue);
+    expect(session.pageIndex, 2);
+    expect(session.goToCfi('not a cfi'), isFalse);
+    expect(session.pageIndex, 2);
+  });
+
+  test('goToPage clamps out-of-range and negative indices', () {
+    final session = FoliateSession.open(document(), pageCharLimit: 40);
+    expect(session.pageCount, greaterThan(1));
+    session.goToPage(-3);
+    expect(session.pageIndex, 0);
+    session.goToPage(session.pageCount + 5);
+    expect(session.pageIndex, session.pageCount - 1);
+    session.goToPage(1);
+    expect(session.pageIndex, 1);
+  });
+
+  test('paginateReflow keeps short text as a single page', () {
+    final pages = paginateReflow(
+      text: 'short text',
+      html: '<p>short text</p>',
+      pageCharLimit: 2000,
+    );
+    expect(pages, hasLength(1));
+    expect(pages.single.startOffset, 0);
+    expect(pages.single.endOffset, 'short text'.length);
+    expect(pages.single.html, '<p>short text</p>');
+  });
+
+  test('paginateReflow turns empty text into a single empty page', () {
+    final pages = paginateReflow(
+      text: '',
+      html: '<p></p>',
+      pageCharLimit: 2000,
+    );
+    expect(pages, hasLength(1));
+    expect(pages.single.startOffset, 0);
+    expect(pages.single.endOffset, 0);
+    expect(pages.single.html, '<p></p>');
+  });
 }
