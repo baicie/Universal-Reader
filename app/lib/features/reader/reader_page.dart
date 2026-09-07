@@ -448,17 +448,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   void _toggleAsk() {
-    setState(() {
-      ask = !ask;
-      chrome = true;
-    });
+    setState(() => ask = !ask);
   }
 
   void _toggleSearch() {
-    setState(() {
-      panels = panels.toggle(PanelKind.search);
-      chrome = true;
-    });
+    setState(() => panels = panels.toggle(PanelKind.search));
   }
 
   void _toggleNotes() {
@@ -494,6 +488,44 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       onAddBookmark: _addBookmark,
       onOpenSettings: _openReadingSettings,
       onBack: () => context.go('/'),
+    );
+  }
+
+  ReaderSidePanel _buildSidePanel({
+    required Color tocBg,
+    required Color ink,
+    required Color muted,
+    required Color accent,
+    required int currentIndex,
+    required String currentHref,
+  }) {
+    return ReaderSidePanel(
+      background: tocBg,
+      ink: ink,
+      muted: muted,
+      accent: accent,
+      showSearch: panels.showSearch,
+      showNotes: panels.showNotes,
+      showBookmarks: panels.bookmarks,
+      showToc: panels.toc,
+      searchQuery: runtime.searchQuery,
+      searchHits: runtime.searchHits,
+      notes: runtime.notes,
+      tocItems: runtime.tocItems,
+      currentHref: currentHref,
+      currentFragment: runtime.foliateFragment,
+      currentIndex: currentIndex,
+      foliateSession: runtime.foliateSession,
+      onSearchQuery: _searchBook,
+      onSearchOpen: _onSearchHit,
+      onNoteOpen: _onNoteOpen,
+      onNoteDelete: (note) => _removeMark(note.id),
+      onBookmarkOpen: (mark) {
+        final locator = decodeLocator(mark.locatorLabel);
+        if (locator != null) _goTo(locator);
+      },
+      onBookmarkDelete: (mark) => _removeMark(mark.id),
+      onTocOpen: _goToToc,
     );
   }
 
@@ -557,33 +589,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
             Row(
               children: [
                 if (sideOpen)
-                  ReaderSidePanel(
-                    background: tocBg,
+                  _buildSidePanel(
+                    tocBg: tocBg,
                     ink: ink,
                     muted: muted,
                     accent: accent,
-                    showSearch: panels.showSearch,
-                    showNotes: panels.showNotes,
-                    showBookmarks: panels.bookmarks,
-                    showToc: panels.toc,
-                    searchQuery: runtime.searchQuery,
-                    searchHits: runtime.searchHits,
-                    notes: runtime.notes,
-                    tocItems: runtime.tocItems,
-                    currentHref: currentHref,
-                    currentFragment: runtime.foliateFragment,
                     currentIndex: currentIndex,
-                    foliateSession: runtime.foliateSession,
-                    onSearchQuery: _searchBook,
-                    onSearchOpen: _onSearchHit,
-                    onNoteOpen: _onNoteOpen,
-                    onNoteDelete: (note) => _removeMark(note.id),
-                    onBookmarkOpen: (mark) {
-                      final locator = decodeLocator(mark.locatorLabel);
-                      if (locator != null) _goTo(locator);
-                    },
-                    onBookmarkDelete: (mark) => _removeMark(mark.id),
-                    onTocOpen: _goToToc,
+                    currentHref: currentHref,
                   ),
                 Expanded(
                   child: ReaderReadingPane(
