@@ -13,6 +13,7 @@ import '../../core/pdf_document.dart';
 import '../../core/providers.dart';
 import '../../core/reader_chapter_state.dart';
 import '../../core/reader_runtime.dart';
+import '../../core/reader_text.dart';
 import '../../core/reading_surface.dart';
 import '../../core/reflow_nav.dart';
 import '../../core/text_document.dart';
@@ -116,7 +117,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     setState(() {
       opened = reader;
       tocItems = items;
-      body = _bodyFor(reader);
+      body = readerCurrentBody(reader);
       fileBytes = bytes;
       notes = loadedNotes;
       foliateSession = reader is HtmlChapteredDocument
@@ -134,11 +135,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       }
       loading = false;
     });
-  }
-
-  String _bodyFor(ReaderDocument reader) {
-    if (reader is ChapteredDocument) return reader.currentChapterText;
-    return '';
   }
 
   Future<void> _goTo(
@@ -161,7 +157,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         fragment ?? (locator is EpubLocator ? locator.fragment : null);
     if (!mounted) return;
     setState(() {
-      body = _bodyFor(reader);
+      body = readerCurrentBody(reader);
       foliateSession = session;
       foliateFragment = resolvedFragment;
       if (resolvedFragment != null) foliateFragmentEpoch++;
@@ -432,7 +428,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     await reader.goTo(reader.locatorForProgress(value));
     if (!mounted) return;
     setState(() {
-      body = _bodyFor(reader);
+      body = readerCurrentBody(reader);
     });
   }
 
@@ -474,11 +470,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final heading = currentTitle.trim().isEmpty
         ? l10n.untitledSection
         : currentTitle;
-    final paragraphs = body
-        .split(RegExp(r'\n+'))
-        .map((paragraph) => paragraph.trim())
-        .where((paragraph) => paragraph.isNotEmpty)
-        .toList();
+    final paragraphs = splitTextParagraphs(body);
     final title = document?.metadata.title ?? widget.id;
     final formatLabel = document?.metadata.format.label ?? '';
     final chapterState = resolveReaderChapterState(
@@ -771,12 +763,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   List<String> _pageParagraphs(HtmlChapteredDocument reader) {
-    final text = _pageText(reader);
-    return text
-        .split(RegExp(r'\n+'))
-        .map((paragraph) => paragraph.trim())
-        .where((paragraph) => paragraph.isNotEmpty)
-        .toList();
+    return splitTextParagraphs(_pageText(reader));
   }
 
   String _pageText(HtmlChapteredDocument reader) {
