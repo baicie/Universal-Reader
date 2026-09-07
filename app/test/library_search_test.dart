@@ -268,6 +268,161 @@ void main() {
       expect(scanned, equals(0));
       expect(hits.every((hit) => hit.kind == LibrarySearchHitKind.metadata), isTrue);
     });
+
+    test(
+        'documents whose metadata AND notes both match are returned once as metadata',
+        () async {
+      final docs = [
+        _doc(id: 'a', title: 'match'),
+      ];
+
+      final hits = await librarySearchAllAsync(
+        documents: docs,
+        query: 'match',
+        annotationsFor: (id) async => [
+          _note(id: 'n1', quote: 'match too'),
+        ],
+      );
+
+      // Same document should not appear as both metadata and note hit.
+      expect(hits.where((hit) => hit.document.metadata.id == 'a'), hasLength(1));
+      expect(hits.single.kind, LibrarySearchHitKind.metadata);
+    });
+
+    test('a document is only added once when both author and title match',
+        () async {
+      final docs = [
+        _doc(id: 'book', title: 'match', author: 'match'),
+      ];
+
+      final hits = await librarySearchAllAsync(
+        documents: docs,
+        query: 'match',
+        annotationsFor: (id) async => const <ReaderAnnotation>[],
+      );
+
+      expect(hits, hasLength(1));
+      expect(hits.single.kind, LibrarySearchHitKind.metadata);
+    });
+
+    test('multiple matching notes in one document collapse to one hit',
+        () async {
+      final docs = [
+        _doc(id: 'a', title: 'Unrelated'),
+      ];
+
+      final hits = await librarySearchAllAsync(
+        documents: docs,
+        query: 'match',
+        annotationsFor: (id) async => [
+          _note(id: 'n1', quote: 'first match'),
+          _note(id: 'n2', quote: 'second match'),
+          _note(id: 'n3', note: 'match in note'),
+        ],
+      );
+
+      // Only one hit per document even when multiple annotations match.
+      expect(hits, hasLength(1));
+      expect(hits.single.kind, LibrarySearchHitKind.note);
+      // The first matching annotation wins (deterministic ordering).
+      expect(hits.single.annotation?.id, 'n1');
+    });
+
+    test('matches a note via its locator label', () async {
+      final docs = [
+        _doc(id: 'a', title: 'Unrelated'),
+      ];
+
+      final hits = await librarySearchAllAsync(
+        documents: docs,
+        query: 'chapter-7',
+        annotationsFor: (id) async => [
+          _note(
+            id: 'n1',
+            quote: 'something',
+            locatorLabel: 'chapter-7',
+          ),
+        ],
+      );
+
+      expect(hits, hasLength(1));
+      expect(hits.single.kind, LibrarySearchHitKind.note);
+      expect(hits.single.annotation?.locatorLabel, 'chapter-7');
+    });
+
+    test('empty query in the sync API returns all docs sorted by lastOpened',
+        () {
+      final docs = [
+        _doc(id: 'old', title: 'Old', lastOpened: DateTime.utc(2026, 1, 1)),
+        _doc(id: 'new', title: 'New', lastOpened: DateTime.utc(2026, 6, 1)),
+      ];
+
+      final hits = librarySearchAll(documents: docs, query: '').toList();
+
+      expect(hits.map((hit) => hit.document.metadata.id).toList(),
+          equals(['new', 'old']));
+      expect(hits.every((hit) => hit.kind == LibrarySearchHitKind.metadata),
+          isTrue);
+    });
+
+    test(
+        'sync API with non-empty query and a non-null annotationsFor returns empty',
+        () {
+      // The sync `librarySearchAll` cannot await; when the caller passes a
+      // non-null `annotationsFor`, the implementation short-circuits to an
+      // empty result rather than running either branch. Callers that want
+      // note hits must use `librarySearchAllAsync`.
+      final docs = [
+        _doc(id: 'book1', title: 'Moby Dick', author: 'Melville'),
+      ];
+
+      var scanned = 0;
+      final hits = librarySearchAll(
+        documents: docs,
+        query: 'moby',
+        annotationsFor: (id) async {
+          scanned++;
+          return const <ReaderAnnotation>[];
+        },
+      );
+
+      // Documenting current behavior: providing annotationsFor forces a no-op
+      // because the sync API cannot await it.
+      expect(hits, isEmpty);
+      expect(scanned, equals(0));
+    });
+
+    test(
+        'sync API with non-empty query and no annotationsFor scans metadata only',
+        () {
+      final docs = [
+        _doc(id: 'book1', title: 'Moby Dick', author: 'Melville'),
+        _doc(id: 'book2', title: 'Pride and Prejudice', author: 'Austen'),
+        _doc(id: 'book3', title: 'moby', author: 'unknown'),
+      ];
+
+      final hits = librarySearchAll(documents: docs, query: 'moby').toList();
+
+      expect(hits.map((hit) => hit.document.metadata.id).toSet(),
+          equals({'book1', 'book3'}));
+      expect(hits.every((hit) => hit.kind == LibrarySearchHitKind.metadata),
+          isTrue);
+    });
+
+    test('sync API deduplicates metadata hits by document id', () {
+      // Two documents sharing an id is unrealistic, but the codepath
+      // explicitly guards against it; verify the guard works.
+      final docs = [
+        _doc(id: 'dup', title: 'match'),
+        _doc(id: 'dup', title: 'match'),
+      ];
+
+      final hits =
+          librarySearchAll(documents: docs, query: 'match').toList();
+
+      expect(hits, hasLength(1));
+      expect(hits.single.document.metadata.id, 'dup');
+    });
   });
 
   group('LibrarySearchHit', () {
