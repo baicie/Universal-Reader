@@ -1,39 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../core/reader_chapter_state.dart';
 import '../../core/reading_surface.dart';
 import '../../l10n/l10n.dart';
 
-/// State of the reader's main text body.
-class ReaderChapterState {
-  const ReaderChapterState._(this.kind, this.truncated, this.missingFile,
-      this.formatLabel);
-
-  const ReaderChapterState.loading()
-      : this._(ReaderChapterKind.loading, false, false, '');
-
-  const ReaderChapterState.corrupt()
-      : this._(ReaderChapterKind.corrupt, false, false, '');
-
-  const ReaderChapterState.unavailable({
-    required bool missingFile,
-    required String formatLabel,
-  }) : this._(
-            ReaderChapterKind.unavailable,
-            false,
-            missingFile,
-            formatLabel,
-          );
-
-  const ReaderChapterState.ready({required bool truncated})
-      : this._(ReaderChapterKind.ready, truncated, false, '');
-
-  final ReaderChapterKind kind;
-  final bool truncated;
-  final bool missingFile;
-  final String formatLabel;
-}
-
-enum ReaderChapterKind { loading, corrupt, unavailable, ready }
+export '../../core/reader_chapter_state.dart' show
+    ReaderChapterState,
+    ReaderChapterKind;
 
 /// Renders the body of a plain-text reader chapter, switching between
 /// loading / corrupt / unavailable / ready states.

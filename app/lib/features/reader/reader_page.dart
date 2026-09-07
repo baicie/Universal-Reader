@@ -11,6 +11,7 @@ import '../../core/locator_codec.dart';
 import '../../core/models.dart';
 import '../../core/pdf_document.dart';
 import '../../core/providers.dart';
+import '../../core/reader_chapter_state.dart';
 import '../../core/reader_runtime.dart';
 import '../../core/reading_surface.dart';
 import '../../core/reflow_nav.dart';
@@ -480,10 +481,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         .toList();
     final title = document?.metadata.title ?? widget.id;
     final formatLabel = document?.metadata.format.label ?? '';
-    final chapterState = _chapterState(
+    final chapterState = resolveReaderChapterState(
+      loading: loading,
+      opened: opened,
       document: document,
-      isTruncated:
-          opened is ChapteredDocument && (opened as ChapteredDocument).truncated,
+      isTruncated: opened is ChapteredDocument &&
+          (opened as ChapteredDocument).truncated,
     );
 
     return Scaffold(
@@ -765,28 +768,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         ),
       ),
     );
-  }
-
-  ReaderChapterState _chapterState({
-    required LibraryDocument? document,
-    required bool isTruncated,
-  }) {
-    if (loading) {
-      return const ReaderChapterState.loading();
-    }
-    if (opened is CorruptReaderDocument) {
-      return const ReaderChapterState.corrupt();
-    }
-    if (opened is UnavailableReaderDocument) {
-      final format = document?.metadata.format;
-      final missingFile =
-          document == null || (format?.isReaderEngineFormat ?? false);
-      return ReaderChapterState.unavailable(
-        missingFile: missingFile,
-        formatLabel: document?.metadata.format.label ?? '',
-      );
-    }
-    return ReaderChapterState.ready(truncated: isTruncated);
   }
 
   List<String> _pageParagraphs(HtmlChapteredDocument reader) {
