@@ -183,4 +183,103 @@ void main() {
       expect(await store.load(notes.metadata.id), isEmpty);
     },
   );
+
+  test(
+    'sqlite readCover returns null when no cover was stored',
+    () async {
+      final repository = await SqliteLibraryRepository.memory();
+      addTearDown(repository.close);
+      final notes = await repository.importBytes(
+        'notes.txt',
+        Uint8List.fromList('hello cover'.codeUnits),
+      );
+      expect(await repository.readCover(notes.metadata.id), isNull);
+      expect(await repository.readCover('missing'), isNull);
+    },
+  );
+
+  test(
+    'sqlite writeReadingState updates progress without touching the bytes',
+    () async {
+      final repository = await SqliteLibraryRepository.memory();
+      addTearDown(repository.close);
+      final notes = await repository.importBytes(
+        'notes.txt',
+        Uint8List.fromList('hello state'.codeUnits),
+      );
+      final opened = DateTime.utc(2026, 9, 1);
+      await repository.writeReadingState(
+        id: notes.metadata.id,
+        progress: 0.42,
+        lastOpened: opened,
+      );
+      final loaded = (await repository.load()).single;
+      expect(loaded.readingState.progress, 0.42);
+      expect(loaded.readingState.lastOpened, opened);
+      expect(
+        await repository.readFile(notes.metadata.id),
+        'hello state'.codeUnits,
+      );
+    },
+  );
+
+  test(
+    'sqlite saveAnnotations then loadAnnotations round-trips each field',
+    () async {
+      final repository = await SqliteLibraryRepository.memory();
+      addTearDown(repository.close);
+      final notes = await repository.importBytes(
+        'notes.txt',
+        Uint8List.fromList('hello annotations'.codeUnits),
+      );
+      final created = DateTime.utc(2026, 8, 29, 12);
+      await repository.saveAnnotations(notes.metadata.id, [
+        ReaderAnnotation(
+          id: 'a1',
+          note: '留下批注',
+          quote: 'quote body',
+          locatorLabel: 'ch1.xhtml#frag',
+          source: 'highlight',
+          createdAt: created,
+        ),
+        ReaderAnnotation(
+          id: 'a2',
+          note: 'second note',
+          createdAt: DateTime.utc(2026, 8, 30),
+        ),
+      ]);
+      final loaded = await repository.loadAnnotations(notes.metadata.id);
+      expect(loaded, hasLength(2));
+      expect(loaded.first.id, 'a1');
+      expect(loaded.first.note, '留下批注');
+      expect(loaded.first.quote, 'quote body');
+      expect(loaded.first.locatorLabel, 'ch1.xhtml#frag');
+      expect(loaded.first.source, 'highlight');
+      expect(loaded.first.createdAt, created);
+      expect(loaded.last.id, 'a2');
+      expect(loaded.last.note, 'second note');
+    },
+  );
+
+  test(
+    'SqliteAnnotationRepository delegates load and save to the library',
+    () async {
+      final repository = await SqliteLibraryRepository.memory();
+      addTearDown(repository.close);
+      final notes = await repository.importBytes(
+        'notes.txt',
+        Uint8List.fromList('hello delegation'.codeUnits),
+      );
+      final store = SqliteAnnotationRepository(repository);
+      final created = DateTime.utc(2026, 8, 29);
+      await store.save(notes.metadata.id, [
+        ReaderAnnotation(id: 'd1', note: 'via repo', createdAt: created),
+      ]);
+      final loaded = await store.load(notes.metadata.id);
+      expect(loaded, hasLength(1));
+      expect(loaded.single.id, 'd1');
+      expect(loaded.single.note, 'via repo');
+      expect(loaded.single.createdAt, created);
+    },
+  );
 }
