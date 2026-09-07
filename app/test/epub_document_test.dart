@@ -454,4 +454,196 @@ void main() {
     expect(document.currentChapterHtml, contains('@import url(\'screen.css\') screen'));
     expect(document.currentChapterHtml, isNot(contains('body { margin: 0; }')));
   });
+
+  test('extractText across two chapters joins with blank lines', () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(),
+    );
+
+    final text = await document.extractText(
+      const DocumentRange(
+        start: EpubLocator(href: 'OEBPS/ch1.xhtml'),
+        end: EpubLocator(href: 'OEBPS/ch2.xhtml'),
+      ),
+    );
+    expect(text, contains('hello from epub'));
+    expect(text, contains('second chapter text'));
+    expect(text, contains('\n\n'));
+  });
+
+  test('extractText returns empty when either EpubLocator href is unknown',
+      () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(),
+    );
+
+    expect(
+      await document.extractText(
+        const DocumentRange(
+          start: EpubLocator(href: 'OEBPS/missing.xhtml'),
+          end: EpubLocator(href: 'OEBPS/ch2.xhtml'),
+        ),
+      ),
+      '',
+    );
+    expect(
+      await document.extractText(
+        const DocumentRange(
+          start: EpubLocator(href: 'OEBPS/ch1.xhtml'),
+          end: EpubLocator(href: 'OEBPS/missing.xhtml'),
+        ),
+      ),
+      '',
+    );
+  });
+
+  test('extractText defaults the missing end locator to the last chapter',
+      () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(),
+    );
+
+    final text = await document.extractText(
+      const DocumentRange(
+        start: EpubLocator(href: 'OEBPS/ch1.xhtml'),
+        end: TextLocator(offset: 1),
+      ),
+    );
+    expect(text, contains('hello from epub'));
+    expect(text, contains('second chapter text'));
+  });
+
+  test('extractText returns empty when the text offset is past the end',
+      () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(),
+    );
+
+    expect(
+      await document.extractText(
+        const DocumentRange(
+          start: TextLocator(offset: 99999999),
+          end: TextLocator(offset: 99999999),
+        ),
+      ),
+      '',
+    );
+  });
+
+  test('extractText clamps a text range past the end of the book', () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(),
+    );
+
+    final text = await document.extractText(
+      const DocumentRange(
+        start: TextLocator(offset: 0),
+        end: TextLocator(offset: 99999999),
+      ),
+    );
+    expect(text, contains('hello from epub'));
+    expect(text, contains('second chapter text'));
+  });
+
+  test('goTo with a TextLocator jumps to the chapter that owns the offset',
+      () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(),
+    );
+
+    await document.goTo(TextLocator(offset: 99999999));
+    expect(document.currentChapterText, contains('second chapter text'));
+  });
+
+  test('goTo with a TextLocator before the first chapter stays at index 0',
+      () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(),
+    );
+
+    await document.goTo(const EpubLocator(href: 'OEBPS/ch2.xhtml'));
+    expect(document.currentChapterText, contains('second chapter text'));
+
+    await document.goTo(TextLocator(offset: -1));
+    expect(document.currentChapterText, contains('hello from epub'));
+  });
+
+  test('goTo ignores locator types other than Epub or Text', () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(),
+    );
+
+    await document.goTo(ComicLocator(page: 3));
+    expect(document.currentChapterText, contains('hello from epub'));
+  });
+
+  test('search reports the metadata title when the chapter has no title',
+      () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(
+        firstTitle: '',
+        firstBody: 'unique-needle-without-title',
+      ),
+    );
+
+    final hits = await document.search('unique-needle-without-title');
+    expect(hits, hasLength(1));
+    expect(hits.single.title, isNotEmpty);
+  });
+
+  test('locatorForProgress at 1.0 clamps to the chapter before the last',
+      () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(),
+    );
+
+    final lastLocator = document.locatorForProgress(0.999) as EpubLocator;
+    final overflowLocator = document.locatorForProgress(1.0) as EpubLocator;
+    expect(lastLocator.href, overflowLocator.href);
+    expect(overflowLocator.progression, 1.0);
+  });
+
+  test('currentLocator divides by chapters - 1 when there is more than one',
+      () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(),
+    );
+    document.sectionIndex = 1;
+    final locator = await document.currentLocator();
+    expect(locator, isA<EpubLocator>());
+    expect((locator as EpubLocator).progression, 1.0);
+  });
+
+  test('currentLocator returns the first chapter href when sectionIndex is 0',
+      () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(),
+    );
+    expect(document.sectionIndex, 0);
+    final locator = await document.currentLocator();
+    expect(locator, isA<EpubLocator>());
+    expect((locator as EpubLocator).progression, 0.0);
+    expect((locator as EpubLocator).href, document.currentChapterHref);
+  });
+
+  test('truncated flag stays false when the chapter fits in the byte limit',
+      () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(),
+    );
+    expect(document.truncated, isFalse);
+  });
 }
