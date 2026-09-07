@@ -163,7 +163,8 @@ class _CreateCollectionDialogState extends State<_CreateCollectionDialog> {
 
   Future<void> _submit() async {
     final created = await widget.controller.createCollection(name.text);
-    if (mounted) Navigator.pop(context, created);
+    if (!mounted) return;
+    if (created != null) Navigator.pop(context, created);
   }
 
   @override
