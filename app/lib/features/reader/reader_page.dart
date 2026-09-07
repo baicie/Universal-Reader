@@ -270,19 +270,19 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         .annotations
         .remove(widget.id, noteId);
     if (!mounted) return;
-    setState(() => runtime = runtime.copyWith(notes: next));
+    _setRuntime(runtime.copyWith(notes: next));
   }
 
   Future<void> _searchBook(String query) async {
     final reader = runtime.opened;
-    setState(() => runtime = runtime.copyWith(searchQuery: query));
+    _setRuntime(runtime.copyWith(searchQuery: query));
     if (reader == null) {
-      setState(() => runtime = runtime.withSearchHits(const []));
+      _setRuntime(runtime.withSearchHits(const []));
       return;
     }
     final hits = await hitsForQuery(reader, query);
     if (!mounted) return;
-    setState(() => runtime = runtime.withSearchHits(hits));
+    _setRuntime(runtime.withSearchHits(hits));
   }
 
   Future<void> _saveSelection() async {
@@ -293,18 +293,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       locatorLabel: encodeLocator(await _bookmarkLocator()),
     );
     if (note == null) {
-      setState(() => runtime = runtime.copyWith(pendingQuote: null));
+      _setRuntime(runtime.copyWith(pendingQuote: null));
       return;
     }
     await ref.read(aiRuntimeProvider).annotations.append(widget.id, note);
     if (!mounted) return;
-    setState(() {
-      runtime = runtime.withNote(note).copyWith(pendingQuote: null);
-    });
+    _setRuntime(runtime.withNote(note).copyWith(pendingQuote: null));
   }
 
   void _onFoliateSelection(FoliateSelection selection) {
-    setState(() => runtime = runtime.copyWith(pendingQuote: selection.quote));
+    _setRuntime(runtime.copyWith(pendingQuote: selection.quote));
   }
 
   void _onFoliateHostEvent(Map<String, Object?> event) {
@@ -475,6 +473,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     setState(() => panels = panels.toggle(PanelKind.toc));
   }
 
+  void _setRuntime(ReaderRuntime next) {
+    setState(() => runtime = next);
+  }
+
   PreferredSizeWidget? _buildAppBar(String title) {
     if (!chrome) return null;
     return ReaderAppBar(
@@ -617,9 +619,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                     onFoliateHostEvent: _onFoliateHostEvent,
                     onFoliateNext: () => _turnReflow(next: true),
                     onFoliatePrevious: () => _turnReflow(next: false),
-                    onSelectionChanged: (quote) => setState(
-                      () => runtime = runtime.copyWith(pendingQuote: quote),
-                    ),
+                    onSelectionChanged: (quote) =>
+                        _setRuntime(runtime.copyWith(pendingQuote: quote)),
                   ),
                 ),
               ],
@@ -643,9 +644,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               currentIndex: currentIndex,
               onJump: _goTo,
               onSaveSelection: _saveSelection,
-              onDismissSelection: () => setState(
-                () => runtime = runtime.copyWith(pendingQuote: null),
-              ),
+              onDismissSelection: () =>
+                  _setRuntime(runtime.copyWith(pendingQuote: null)),
               onSeekProgress: _seekProgress,
             ),
           ],
