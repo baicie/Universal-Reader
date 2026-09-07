@@ -61,6 +61,58 @@ void main() {
     expect(messages.last['content'], contains('设计中的设计'));
   });
 
+  group('ReaderPrompts.messages for every tool kind', () {
+    const grounding = GroundingContext(
+      documentId: 'design',
+      title: 'Test Book',
+      author: 'A. Uthor',
+      excerpt: 'some excerpt text',
+      locatorLabel: 'ch1.xhtml',
+    );
+
+    test('summarize emits a summarisation task', () {
+      final messages = const ReaderPrompts().messages(
+        kind: ReaderToolKind.summarize,
+        grounding: grounding,
+      );
+      expect(messages.last['content'], contains('Summarize the excerpt'));
+    });
+
+    test('explain emits a plain-language task', () {
+      final messages = const ReaderPrompts().messages(
+        kind: ReaderToolKind.explain,
+        grounding: grounding,
+      );
+      expect(messages.last['content'], contains('Explain the excerpt in plain language'));
+    });
+
+    test('translate emits a Chinese translation task', () {
+      final messages = const ReaderPrompts().messages(
+        kind: ReaderToolKind.translate,
+        grounding: grounding,
+      );
+      expect(messages.last['content'], contains('Translate the excerpt into Chinese'));
+    });
+
+    test('ask without a question falls back to a generic question task', () {
+      final messages = const ReaderPrompts().messages(
+        kind: ReaderToolKind.ask,
+        grounding: grounding,
+      );
+      expect(messages.last['content'], contains('Answer a question about the excerpt'));
+    });
+
+    test('ask with a question emits the question verbatim', () {
+      final messages = const ReaderPrompts().messages(
+        kind: ReaderToolKind.ask,
+        grounding: grounding,
+        question: '  what does this mean?  ',
+      );
+      expect(messages.last['content'], contains('what does this mean?'));
+      expect(messages.last['content'], contains('Answer this question about the excerpt'));
+    });
+  });
+
   test('disabled tool never calls the model client', () async {
     final client = RecordingModelClient();
     final tool = AiReaderTool(
