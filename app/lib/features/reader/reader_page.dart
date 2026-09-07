@@ -67,8 +67,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     if (!mounted) return;
     final document = library.documentById(widget.id);
     if (document == null) {
-      setState(() {
-        runtime = runtime.loaded(
+      _setRuntime(
+        runtime.loaded(
           document: UnavailableReaderDocument(
             metadata: DocumentMetadata(
               id: widget.id,
@@ -81,8 +81,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           body: '',
           toc: const <TocItem>[],
           progress: progress,
-        );
-      });
+        ),
+      );
       return;
     }
     final bytes = await library.readFile(widget.id);
@@ -113,8 +113,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         ),
       );
     }
-    setState(() {
-      runtime = runtime
+    _setRuntime(
+      runtime
           .loaded(
             document: reader,
             body: readerCurrentBody(reader),
@@ -125,8 +125,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
             notes: loadedNotes,
             fileBytes: bytes,
             foliateSession: session,
-          );
-    });
+          ),
+    );
   }
 
   Future<void> _goTo(
@@ -170,9 +170,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       progress = reader.chapterIndex / reader.chapterCount;
       ref.read(libraryProvider).updateProgress(widget.id, progress);
     }
-    setState(() {
-      runtime = nextRuntime.copyWith(progress: progress);
-    });
+    _setRuntime(nextRuntime.copyWith(progress: progress));
   }
 
   Future<void> _goToToc(TocItem item) async {
@@ -418,9 +416,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     }
     await reader.goTo(reader.locatorForProgress(value));
     if (!mounted) return;
-    setState(() {
-      runtime = runtime.copyWith(body: readerCurrentBody(reader));
-    });
+    _setRuntime(runtime.copyWith(body: readerCurrentBody(reader)));
   }
 
   void _toggleChrome() {
