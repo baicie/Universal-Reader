@@ -185,6 +185,89 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('tapping Watch folder triggers a network call to /v1/library/watch',
+      (tester) async {
+    final spying = _SpyingClient(
+      Uri.parse('http://fake/v1/library/watch'),
+      http.Response('{"imported":0,"skipped":0}', 200),
+    );
+    final repo = _FakeHttpRepositoryWithClient(spying);
+    await tester.pumpWidget(
+      _wrap(LibrarySourcesCard(), repository: repo),
+    );
+    await tester.pumpAndSettle();
+    final watchButton = find.widgetWithText(OutlinedButton, 'Watch folder');
+    await tester.ensureVisible(watchButton);
+    await tester.tap(watchButton);
+    await tester.pumpAndSettle();
+    expect(spying.requestedPaths, contains('/v1/library/watch'));
+  });
+
+  testWidgets('tapping WebDAV import triggers /v1/library/webdav/import',
+      (tester) async {
+    final spying = _SpyingClient(
+      Uri.parse('http://fake/v1/library/webdav/import'),
+      http.Response('{"imported":2,"skipped":1}', 200),
+    );
+    final repo = _FakeHttpRepositoryWithClient(spying);
+    await tester.pumpWidget(
+      _wrap(LibrarySourcesCard(), repository: repo),
+    );
+    await tester.pumpAndSettle();
+    final importButton = find.widgetWithText(
+      OutlinedButton,
+      'Import from WebDAV',
+    );
+    await tester.ensureVisible(importButton);
+    await tester.tap(importButton);
+    await tester.pumpAndSettle();
+    expect(spying.requestedPaths, contains('/v1/library/webdav/import'));
+  });
+
+  testWidgets('tapping WebDAV sync triggers /v1/library/webdav/sync',
+      (tester) async {
+    final spying = _SpyingClient(
+      Uri.parse('http://fake/v1/library/webdav/sync'),
+      http.Response('{"imported":1,"skipped":0,"pushed":2}', 200),
+    );
+    final repo = _FakeHttpRepositoryWithClient(spying);
+    await tester.pumpWidget(
+      _wrap(LibrarySourcesCard(), repository: repo),
+    );
+    await tester.pumpAndSettle();
+    final syncButton = find.widgetWithText(
+      OutlinedButton,
+      'Sync WebDAV both ways',
+    );
+    await tester.ensureVisible(syncButton);
+    await tester.tap(syncButton);
+    await tester.pumpAndSettle();
+    expect(spying.requestedPaths, contains('/v1/library/webdav/sync'));
+  });
+
+  testWidgets('WebDAV import surfaces an error message when the server fails',
+      (tester) async {
+    final repo = _FakeHttpRepositoryWithClient(
+      _SpyingClient(
+        Uri.parse('http://fake/v1/library/webdav/import'),
+        http.Response('boom', 500),
+      ),
+    );
+    await tester.pumpWidget(
+      _wrap(LibrarySourcesCard(), repository: repo),
+    );
+    await tester.pumpAndSettle();
+    final importButton = find.widgetWithText(
+      OutlinedButton,
+      'Import from WebDAV',
+    );
+    await tester.ensureVisible(importButton);
+    await tester.tap(importButton);
+    await tester.pumpAndSettle();
+    // Error text contains "WebDAV" and the status code.
+    expect(find.textContaining('500'), findsAtLeastNWidgets(1));
+  });
+
   testWidgets('disposes controllers without throwing', (tester) async {
     await tester.pumpWidget(
       _wrap(
