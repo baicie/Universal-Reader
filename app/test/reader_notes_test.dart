@@ -2,6 +2,7 @@ import 'package:app/core/locator_codec.dart';
 import 'package:app/core/models.dart';
 import 'package:app/features/library/annotation_store.dart';
 import 'package:app/features/reader/reader_notes.dart';
+import 'package:app/features/reader/reader_selection.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -84,6 +85,36 @@ void main() {
         createdAt: DateTime.utc(2026, 1, 1),
       );
       expect(noteListLabel(note), 'chapter-1');
+    });
+  });
+
+  group('noteFromSelection', () {
+    test('returns null for a blank selection', () {
+      expect(noteFromSelection(''), isNull);
+      expect(noteFromSelection('   '), isNull);
+    });
+
+    test('returns a user note with the trimmed quote and locator', () {
+      final note = noteFromSelection(
+        '  白是一种包容  ',
+        locatorLabel: 'chapter-4',
+        now: DateTime.utc(2026, 9, 7),
+      );
+      expect(note, isNotNull);
+      expect(note!.source, userNoteSource);
+      expect(note.quote, '白是一种包容');
+      expect(note.locatorLabel, 'chapter-4');
+      expect(note.note, isEmpty);
+    });
+
+    test('carries optional body text', () {
+      final note = noteFromSelection(
+        ' excerpt ',
+        note: '我的笔记',
+        now: DateTime.utc(2026, 9, 7),
+      );
+      expect(note!.note, '我的笔记');
+      expect(note.quote, 'excerpt');
     });
   });
 }
