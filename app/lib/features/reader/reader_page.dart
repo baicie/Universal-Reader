@@ -21,6 +21,7 @@ import '../tools/reader_ai_panel.dart';
 import 'open_reader.dart';
 import 'reader_app_bar.dart';
 import 'reader_bookmarks.dart';
+import 'reader_chapter_body.dart';
 import 'reader_notes.dart';
 import 'reader_progress_bar.dart';
 import 'reader_search.dart';
@@ -478,6 +479,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         .toList();
     final title = document?.metadata.title ?? widget.id;
     final formatLabel = document?.metadata.format.label ?? '';
+    final chapterState = _chapterState(
+      document: document,
+      isTruncated:
+          opened is ChapteredDocument && (opened as ChapteredDocument).truncated,
+    );
 
     return Scaffold(
       backgroundColor: paper,
@@ -569,6 +575,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         l10n: l10n,
                         document: document,
                         muted: muted,
+                        ink: ink,
                         heading: heading,
                         showHeading: currentTitle.trim().isNotEmpty,
                         paragraphs: paragraphs,
@@ -576,6 +583,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         chapterCount: chapterCount,
                         surface: surface,
                         formatLabel: formatLabel,
+                        chapterState: chapterState,
                       ),
                     ),
                   ],
@@ -682,6 +690,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     required AppLocalizations l10n,
     required LibraryDocument? document,
     required Color muted,
+    required Color ink,
     required String heading,
     required bool showHeading,
     required List<String> paragraphs,
@@ -689,6 +698,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     required int chapterCount,
     required ReadingSurface surface,
     required String formatLabel,
+    required ReaderChapterState chapterState,
   }) {
     final reader = opened;
     if (reader is ComicReaderDocument) {
@@ -752,118 +762,44 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
             28,
             chrome ? 112 : 48,
           ),
-          child: _readerBody(
-            l10n: l10n,
-            document: document,
-            muted: muted,
+          child: ReaderChapterBody(
+            state: chapterState,
+            surface: surface,
+            surfaceColor: ink,
+            mutedColor: muted,
             heading: heading,
             showHeading: showHeading,
-            paragraphs: paragraphs,
+            hasToc: tocItems.isNotEmpty,
             currentIndex: currentIndex,
             chapterCount: chapterCount,
-            surface: surface,
             formatLabel: formatLabel,
+            child: _annotatedBody(surface: surface, paragraphs: paragraphs),
           ),
         ),
       ),
     );
   }
 
-  Widget _readerBody({
-    required AppLocalizations l10n,
+  ReaderChapterState _chapterState({
     required LibraryDocument? document,
-    required Color muted,
-    required String heading,
-    required bool showHeading,
-    required List<String> paragraphs,
-    required int currentIndex,
-    required int chapterCount,
-    required ReadingSurface surface,
-    required String formatLabel,
+    required bool isTruncated,
   }) {
-    final fontSize = surface.fontSize;
-    final ink = surface.color;
-    final bodyStyle = TextStyle(
-      color: ink,
-      fontSize: fontSize,
-      height: surface.lineHeight,
-      fontFamily: surface.flutterFontFamily,
-    );
     if (loading) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 80),
-        child: Column(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(l10n.readerLoading, style: TextStyle(color: muted)),
-          ],
-        ),
-      );
+      return const ReaderChapterState.loading();
     }
     if (opened is CorruptReaderDocument) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 48),
-        child: Text(l10n.readerCorruptFile, style: bodyStyle),
-      );
+      return const ReaderChapterState.corrupt();
     }
     if (opened is UnavailableReaderDocument) {
       final format = document?.metadata.format;
       final missingFile =
           document == null || (format?.isReaderEngineFormat ?? false);
-      return Padding(
-        padding: const EdgeInsets.only(top: 48),
-        child: Text(
-          missingFile
-              ? l10n.readerMissingFile
-              : l10n.readerUnavailable(document.metadata.format.label),
-          style: bodyStyle,
-        ),
+      return ReaderChapterState.unavailable(
+        missingFile: missingFile,
+        formatLabel: document?.metadata.format.label ?? '',
       );
     }
-    final truncated =
-        opened is ChapteredDocument && (opened as ChapteredDocument).truncated;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          tocItems.isEmpty
-              ? formatLabel
-              : l10n.readerSection(
-                  currentIndex + 1,
-                  chapterCount <= 0 ? tocItems.length : chapterCount,
-                ),
-          style: TextStyle(
-            color: muted,
-            letterSpacing: 2,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (showHeading) ...[
-          Text(
-            heading,
-            style: TextStyle(
-              color: ink,
-              fontSize: fontSize * 2,
-              fontWeight: FontWeight.w600,
-              height: 1.15,
-              fontFamily: surface.flutterFontFamily,
-            ),
-          ),
-          const SizedBox(height: 28),
-        ],
-        if (truncated) ...[
-          Text(
-            l10n.readerTruncated,
-            style: TextStyle(color: muted, height: 1.5),
-          ),
-          const SizedBox(height: 22),
-        ],
-        _annotatedBody(surface: surface, paragraphs: paragraphs),
-      ],
-    );
+    return ReaderChapterState.ready(truncated: isTruncated);
   }
 
   List<String> _pageParagraphs(HtmlChapteredDocument reader) {
