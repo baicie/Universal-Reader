@@ -12,6 +12,7 @@ import '../../core/models.dart';
 import '../../core/pdf_document.dart';
 import '../../core/providers.dart';
 import '../../core/reader_chapter_state.dart';
+import '../../core/reader_chrome_panels.dart';
 import '../../core/reader_derived.dart';
 import '../../core/reader_runtime.dart';
 import '../../core/reader_text.dart';
@@ -41,11 +42,8 @@ class ReaderPage extends ConsumerStatefulWidget {
 
 class _ReaderPageState extends ConsumerState<ReaderPage> {
   bool chrome = true;
-  bool toc = false;
-  bool bookmarks = false;
-  bool showNotes = false;
-  bool showSearch = false;
   bool ask = false;
+  ReaderChromePanels panels = const ReaderChromePanels();
   late double progress;
   bool loading = true;
   ReaderDocument? opened;
@@ -243,7 +241,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     if (!mounted) return;
     setState(() {
       notes = [...notes, mark];
-      bookmarks = true;
+      panels = panels.toggle(PanelKind.bookmarks);
       chrome = true;
     });
     ScaffoldMessenger.of(context).showSnackBar(
@@ -448,7 +446,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final muted = surface.muted;
     final tocBg = dark ? const Color(0xFF24231F) : const Color(0xFFF0EADF);
     final wide = MediaQuery.sizeOf(context).width >= 900;
-    final sideOpen = toc || bookmarks || showNotes || showSearch;
+    final sideOpen = panels.anyOpen;
     final derived = ReaderDerived.build(
       opened: opened,
       tocItems: tocItems,
@@ -477,21 +475,24 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           ? ReaderAppBar(
               title: title,
               ask: ask,
-              showSearch: showSearch,
-              showNotes: showNotes,
-              bookmarks: bookmarks,
-              toc: toc,
+              showSearch: panels.showSearch,
+              showNotes: panels.showNotes,
+              bookmarks: panels.bookmarks,
+              toc: panels.toc,
               onAskToggle: () => setState(() {
                 ask = !ask;
                 chrome = true;
               }),
               onSearchToggle: () => setState(() {
-                showSearch = !showSearch;
+                panels = panels.toggle(PanelKind.search);
                 chrome = true;
               }),
-              onNotesToggle: () => setState(() => showNotes = !showNotes),
-              onBookmarksToggle: () => setState(() => bookmarks = !bookmarks),
-              onTocToggle: () => setState(() => toc = !toc),
+              onNotesToggle: () => setState(
+                  () => panels = panels.toggle(PanelKind.notes)),
+              onBookmarksToggle: () => setState(
+                  () => panels = panels.toggle(PanelKind.bookmarks)),
+              onTocToggle: () =>
+                  setState(() => panels = panels.toggle(PanelKind.toc)),
               onAddBookmark: _addBookmark,
               onOpenSettings: _openReadingSettings,
               onBack: () => context.go('/'),
@@ -533,10 +534,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         ink: ink,
                         muted: muted,
                         accent: accent,
-                        showSearch: showSearch,
-                        showNotes: showNotes,
-                        showBookmarks: bookmarks,
-                        showToc: toc,
+                        showSearch: panels.showSearch,
+                        showNotes: panels.showNotes,
+                        showBookmarks: panels.bookmarks,
+                        showToc: panels.toc,
                         searchQuery: searchQuery,
                         searchHits: searchHits,
                         notes: notes,
