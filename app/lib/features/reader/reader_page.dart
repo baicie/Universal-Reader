@@ -445,6 +445,34 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     });
   }
 
+  PreferredSizeWidget? _buildAppBar(String title) {
+    if (!chrome) return null;
+    return ReaderAppBar(
+      title: title,
+      ask: ask,
+      showSearch: panels.showSearch,
+      showNotes: panels.showNotes,
+      bookmarks: panels.bookmarks,
+      toc: panels.toc,
+      onAskToggle: () => setState(() {
+        ask = !ask;
+        chrome = true;
+      }),
+      onSearchToggle: () => setState(() {
+        panels = panels.toggle(PanelKind.search);
+        chrome = true;
+      }),
+      onNotesToggle: () =>
+          setState(() => panels = panels.toggle(PanelKind.notes)),
+      onBookmarksToggle: () =>
+          setState(() => panels = panels.toggle(PanelKind.bookmarks)),
+      onTocToggle: () => setState(() => panels = panels.toggle(PanelKind.toc)),
+      onAddBookmark: _addBookmark,
+      onOpenSettings: _openReadingSettings,
+      onBack: () => context.go('/'),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -491,33 +519,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
     return Scaffold(
       backgroundColor: paper,
-      appBar: chrome
-          ? ReaderAppBar(
-              title: title,
-              ask: ask,
-              showSearch: panels.showSearch,
-              showNotes: panels.showNotes,
-              bookmarks: panels.bookmarks,
-              toc: panels.toc,
-              onAskToggle: () => setState(() {
-                ask = !ask;
-                chrome = true;
-              }),
-              onSearchToggle: () => setState(() {
-                panels = panels.toggle(PanelKind.search);
-                chrome = true;
-              }),
-              onNotesToggle: () =>
-                  setState(() => panels = panels.toggle(PanelKind.notes)),
-              onBookmarksToggle: () =>
-                  setState(() => panels = panels.toggle(PanelKind.bookmarks)),
-              onTocToggle: () =>
-                  setState(() => panels = panels.toggle(PanelKind.toc)),
-              onAddBookmark: _addBookmark,
-              onOpenSettings: _openReadingSettings,
-              onBack: () => context.go('/'),
-            )
-          : null,
+      appBar: _buildAppBar(title),
       body: ReaderGestureShell(
         isReflowOpened: runtime.opened is HtmlChapteredDocument,
         hasPendingQuote:
