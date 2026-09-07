@@ -20,6 +20,7 @@ import '../../widgets/eyebrow.dart';
 import '../library/annotation_store.dart';
 import '../tools/reader_ai_panel.dart';
 import 'open_reader.dart';
+import 'reader_app_bar.dart';
 import 'reader_bookmarks.dart';
 import 'reader_bookmarks_pane.dart';
 import 'reader_notes.dart';
@@ -483,81 +484,27 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     return Scaffold(
       backgroundColor: paper,
       appBar: chrome
-          ? AppBar(
-              backgroundColor: paper,
-              foregroundColor: ink,
-              leading: IconButton(
-                tooltip: l10n.backToLibrary,
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => context.go('/'),
-              ),
-              title: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              actions: [
-                IconButton(
-                  tooltip: l10n.askThisPage,
-                  icon: Icon(
-                    ask ? Icons.chat_bubble : Icons.chat_bubble_outline,
-                    color: ask ? accent : ink,
-                  ),
-                  onPressed: () => setState(() {
-                    ask = !ask;
-                    chrome = true;
-                  }),
-                ),
-                IconButton(
-                  tooltip: l10n.searchInBook,
-                  icon: Icon(Icons.search, color: showSearch ? accent : ink),
-                  onPressed: () => setState(() {
-                    showSearch = !showSearch;
-                    chrome = true;
-                  }),
-                ),
-                IconButton(
-                  tooltip: l10n.notesTitle,
-                  icon: Icon(
-                    showNotes
-                        ? Icons.sticky_note_2
-                        : Icons.sticky_note_2_outlined,
-                    color: showNotes ? accent : ink,
-                  ),
-                  onPressed: () => setState(() => showNotes = !showNotes),
-                ),
-                IconButton(
-                  key: addBookmarkButtonKey,
-                  tooltip: l10n.addBookmark,
-                  icon: const Icon(Icons.bookmark_add_outlined),
-                  onPressed: _addBookmark,
-                ),
-                IconButton(
-                  tooltip: l10n.bookmarks,
-                  icon: Icon(
-                    bookmarks ? Icons.bookmarks : Icons.bookmarks_outlined,
-                    color: bookmarks ? accent : ink,
-                  ),
-                  onPressed: () => setState(() => bookmarks = !bookmarks),
-                ),
-                IconButton(
-                  tooltip: l10n.tableOfContents,
-                  icon: Icon(
-                    toc ? Icons.menu_book : Icons.menu_book_outlined,
-                    color: toc ? accent : ink,
-                  ),
-                  onPressed: () => setState(() => toc = !toc),
-                ),
-                IconButton(
-                  tooltip: l10n.readingSettings,
-                  icon: const Icon(Icons.text_fields),
-                  onPressed: _openReadingSettings,
-                ),
-              ],
+          ? ReaderAppBar(
+              title: title,
+              ask: ask,
+              showSearch: showSearch,
+              showNotes: showNotes,
+              bookmarks: bookmarks,
+              toc: toc,
+              onAskToggle: () => setState(() {
+                ask = !ask;
+                chrome = true;
+              }),
+              onSearchToggle: () => setState(() {
+                showSearch = !showSearch;
+                chrome = true;
+              }),
+              onNotesToggle: () => setState(() => showNotes = !showNotes),
+              onBookmarksToggle: () => setState(() => bookmarks = !bookmarks),
+              onTocToggle: () => setState(() => toc = !toc),
+              onAddBookmark: _addBookmark,
+              onOpenSettings: _openReadingSettings,
+              onBack: () => context.go('/'),
             )
           : null,
       body: CallbackShortcuts(
