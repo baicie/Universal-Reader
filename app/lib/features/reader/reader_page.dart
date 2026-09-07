@@ -445,6 +445,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     });
   }
 
+  void _toggleChrome() {
+    setState(() => chrome = !chrome);
+  }
+
   PreferredSizeWidget? _buildAppBar(String title) {
     if (!chrome) return null;
     return ReaderAppBar(
@@ -525,7 +529,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         hasPendingQuote:
             runtime.pendingQuote != null &&
             runtime.pendingQuote!.trim().isNotEmpty,
-        onToggleChrome: () => setState(() => chrome = !chrome),
+        onToggleChrome: _toggleChrome,
         onTurnNext: () => _turnReflow(next: true),
         onTurnPrevious: () => _turnReflow(next: false),
         child: Stack(
@@ -590,7 +594,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                     annotatedQuoteKey: annotatedQuoteKey,
                     onComicTurn: (index) =>
                         _goTo(ComicLocator(page: index + 1)),
-                    onToggleChrome: () => setState(() => chrome = !chrome),
+                    onToggleChrome: _toggleChrome,
                     onFoliateSelection: _onFoliateSelection,
                     onFoliateHostEvent: _onFoliateHostEvent,
                     onFoliateNext: () => _turnReflow(next: true),
