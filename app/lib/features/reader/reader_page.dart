@@ -449,6 +449,32 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     setState(() => chrome = !chrome);
   }
 
+  void _toggleAsk() {
+    setState(() {
+      ask = !ask;
+      chrome = true;
+    });
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      panels = panels.toggle(PanelKind.search);
+      chrome = true;
+    });
+  }
+
+  void _toggleNotes() {
+    setState(() => panels = panels.toggle(PanelKind.notes));
+  }
+
+  void _toggleBookmarks() {
+    setState(() => panels = panels.toggle(PanelKind.bookmarks));
+  }
+
+  void _toggleToc() {
+    setState(() => panels = panels.toggle(PanelKind.toc));
+  }
+
   PreferredSizeWidget? _buildAppBar(String title) {
     if (!chrome) return null;
     return ReaderAppBar(
@@ -458,19 +484,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       showNotes: panels.showNotes,
       bookmarks: panels.bookmarks,
       toc: panels.toc,
-      onAskToggle: () => setState(() {
-        ask = !ask;
-        chrome = true;
-      }),
-      onSearchToggle: () => setState(() {
-        panels = panels.toggle(PanelKind.search);
-        chrome = true;
-      }),
-      onNotesToggle: () =>
-          setState(() => panels = panels.toggle(PanelKind.notes)),
-      onBookmarksToggle: () =>
-          setState(() => panels = panels.toggle(PanelKind.bookmarks)),
-      onTocToggle: () => setState(() => panels = panels.toggle(PanelKind.toc)),
+      onAskToggle: _toggleAsk,
+      onSearchToggle: _toggleSearch,
+      onNotesToggle: _toggleNotes,
+      onBookmarksToggle: _toggleBookmarks,
+      onTocToggle: _toggleToc,
       onAddBookmark: _addBookmark,
       onOpenSettings: _openReadingSettings,
       onBack: () => context.go('/'),
