@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -27,6 +26,7 @@ import 'open_reader.dart';
 import 'reader_app_bar.dart';
 import 'reader_bookmarks.dart';
 import 'reader_chrome_overlay.dart';
+import 'reader_gesture_shell.dart';
 import 'reader_notes.dart';
 import 'reader_reading_pane.dart';
 import 'reader_search.dart';
@@ -114,16 +114,18 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       );
     }
     setState(() {
-      runtime = runtime.loaded(
-        document: reader,
-        body: readerCurrentBody(reader),
-        toc: items,
-        progress: progress,
-      ).copyWith(
-        notes: loadedNotes,
-        fileBytes: bytes,
-        foliateSession: session,
-      );
+      runtime = runtime
+          .loaded(
+            document: reader,
+            body: readerCurrentBody(reader),
+            toc: items,
+            progress: progress,
+          )
+          .copyWith(
+            notes: loadedNotes,
+            fileBytes: bytes,
+            foliateSession: session,
+          );
     });
   }
 
@@ -302,8 +304,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   void _onFoliateSelection(FoliateSelection selection) {
-    setState(() =>
-        runtime = runtime.copyWith(pendingQuote: selection.quote));
+    setState(() => runtime = runtime.copyWith(pendingQuote: selection.quote));
   }
 
   void _onFoliateHostEvent(Map<String, Object?> event) {
@@ -483,7 +484,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       loading: runtime.loading,
       opened: runtime.opened,
       document: document,
-      isTruncated: runtime.opened is ChapteredDocument &&
+      isTruncated:
+          runtime.opened is ChapteredDocument &&
           (runtime.opened as ChapteredDocument).truncated,
     );
 
@@ -505,10 +507,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                 panels = panels.toggle(PanelKind.search);
                 chrome = true;
               }),
-              onNotesToggle: () => setState(
-                  () => panels = panels.toggle(PanelKind.notes)),
-              onBookmarksToggle: () => setState(
-                  () => panels = panels.toggle(PanelKind.bookmarks)),
+              onNotesToggle: () =>
+                  setState(() => panels = panels.toggle(PanelKind.notes)),
+              onBookmarksToggle: () =>
+                  setState(() => panels = panels.toggle(PanelKind.bookmarks)),
               onTocToggle: () =>
                   setState(() => panels = panels.toggle(PanelKind.toc)),
               onAddBookmark: _addBookmark,
@@ -516,134 +518,113 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               onBack: () => context.go('/'),
             )
           : null,
-      body: CallbackShortcuts(
-        bindings: {
-          if (runtime.opened is HtmlChapteredDocument) ...{
-            const SingleActivator(LogicalKeyboardKey.arrowRight): () {
-              _turnReflow(next: true);
-            },
-            const SingleActivator(LogicalKeyboardKey.arrowLeft): () {
-              _turnReflow(next: false);
-            },
-            const SingleActivator(LogicalKeyboardKey.pageDown): () {
-              _turnReflow(next: true);
-            },
-            const SingleActivator(LogicalKeyboardKey.pageUp): () {
-              _turnReflow(next: false);
-            },
-          },
-        },
-        child: Focus(
-          autofocus: true,
-          child: GestureDetector(
-            onTap: () {
-              if (runtime.pendingQuote != null &&
-                  runtime.pendingQuote!.trim().isNotEmpty) {
-                return;
-              }
-              setState(() => chrome = !chrome);
-            },
-            child: Stack(
+      body: ReaderGestureShell(
+        isReflowOpened: runtime.opened is HtmlChapteredDocument,
+        hasPendingQuote:
+            runtime.pendingQuote != null &&
+            runtime.pendingQuote!.trim().isNotEmpty,
+        onToggleChrome: () => setState(() => chrome = !chrome),
+        onTurnNext: () => _turnReflow(next: true),
+        onTurnPrevious: () => _turnReflow(next: false),
+        child: Stack(
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    if (sideOpen)
-                      ReaderSidePanel(
-                        background: tocBg,
-                        ink: ink,
-                        muted: muted,
-                        accent: accent,
-                        showSearch: panels.showSearch,
-                        showNotes: panels.showNotes,
-                        showBookmarks: panels.bookmarks,
-                        showToc: panels.toc,
-                        searchQuery: runtime.searchQuery,
-                        searchHits: runtime.searchHits,
-                        notes: runtime.notes,
-                        tocItems: runtime.tocItems,
-                        currentHref: currentHref,
-                        currentFragment: runtime.foliateFragment,
-                        currentIndex: currentIndex,
-                        foliateSession: runtime.foliateSession,
-                        onSearchQuery: _searchBook,
-                        onSearchOpen: _onSearchHit,
-                        onNoteOpen: _onNoteOpen,
-                        onNoteDelete: (note) => _removeMark(note.id),
-                        onBookmarkOpen: (mark) {
-                          final locator = decodeLocator(mark.locatorLabel);
-                          if (locator != null) _goTo(locator);
-                        },
-                        onBookmarkDelete: (mark) => _removeMark(mark.id),
-                        onTocOpen: _goToToc,
-                      ),
-                    Expanded(
-                      child: ReaderReadingPane(
-                        opened: runtime.opened,
-                        chrome: chrome,
-                        fileBytes: runtime.fileBytes,
-                        foliateSession: runtime.foliateSession,
-                        foliateFragment: runtime.foliateFragment,
-                        foliateFragmentEpoch: runtime.foliateFragmentEpoch,
-                        foliateScrollQuote: runtime.foliateScrollQuote,
-                        foliateScrollQuoteEpoch:
-                            runtime.foliateScrollQuoteEpoch,
-                        tocItems: runtime.tocItems,
-                        notes: runtime.notes,
-                        surface: surface,
-                        inkColor: ink,
-                        mutedColor: muted,
-                        heading: heading,
-                        showHeading: currentTitle.trim().isNotEmpty,
-                        paragraphs: paragraphs,
-                        currentIndex: currentIndex,
-                        chapterCount: chapterCount,
-                        formatLabel: formatLabel,
-                        chapterState: chapterState,
-                        comicLayout: prefs.comicLayout,
-                        comicDirection: prefs.comicDirection,
-                        pdfZoom: prefs.pdfZoom,
-                        pageParagraphsFor: _pageParagraphs,
-                        annotatedQuoteKey: annotatedQuoteKey,
-                        onComicTurn: (index) => _goTo(ComicLocator(page: index + 1)),
-                        onToggleChrome: () => setState(() => chrome = !chrome),
-                        onFoliateSelection: _onFoliateSelection,
-                        onFoliateHostEvent: _onFoliateHostEvent,
-                        onFoliateNext: () => _turnReflow(next: true),
-                        onFoliatePrevious: () => _turnReflow(next: false),
-                        onSelectionChanged: (quote) => setState(() =>
-                            runtime = runtime.copyWith(pendingQuote: quote)),
-                      ),
-                    ),
-                  ],
-                ),
-                ReaderChromeOverlay(
-                  runtime: runtime,
-                  chrome: chrome,
-                  ask: ask,
-                  wide: wide,
-                  paper: paper,
-                  muted: muted,
-                  ink: ink,
-                  sideOpen: sideOpen,
-                  progress: progress,
-                  progressLabel: _progressLabel(
-                    l10n: l10n,
-                    formatLabel: formatLabel,
+                if (sideOpen)
+                  ReaderSidePanel(
+                    background: tocBg,
+                    ink: ink,
+                    muted: muted,
+                    accent: accent,
+                    showSearch: panels.showSearch,
+                    showNotes: panels.showNotes,
+                    showBookmarks: panels.bookmarks,
+                    showToc: panels.toc,
+                    searchQuery: runtime.searchQuery,
+                    searchHits: runtime.searchHits,
+                    notes: runtime.notes,
+                    tocItems: runtime.tocItems,
+                    currentHref: currentHref,
+                    currentFragment: runtime.foliateFragment,
                     currentIndex: currentIndex,
+                    foliateSession: runtime.foliateSession,
+                    onSearchQuery: _searchBook,
+                    onSearchOpen: _onSearchHit,
+                    onNoteOpen: _onNoteOpen,
+                    onNoteDelete: (note) => _removeMark(note.id),
+                    onBookmarkOpen: (mark) {
+                      final locator = decodeLocator(mark.locatorLabel);
+                      if (locator != null) _goTo(locator);
+                    },
+                    onBookmarkDelete: (mark) => _removeMark(mark.id),
+                    onTocOpen: _goToToc,
                   ),
-                  formatLabel: formatLabel,
-                  currentIndex: currentIndex,
-                  onJump: _goTo,
-                  onSaveSelection: _saveSelection,
-                  onDismissSelection: () =>
-                      setState(() => runtime = runtime.copyWith(
-                            pendingQuote: null,
-                          )),
-                  onSeekProgress: _seekProgress,
+                Expanded(
+                  child: ReaderReadingPane(
+                    opened: runtime.opened,
+                    chrome: chrome,
+                    fileBytes: runtime.fileBytes,
+                    foliateSession: runtime.foliateSession,
+                    foliateFragment: runtime.foliateFragment,
+                    foliateFragmentEpoch: runtime.foliateFragmentEpoch,
+                    foliateScrollQuote: runtime.foliateScrollQuote,
+                    foliateScrollQuoteEpoch: runtime.foliateScrollQuoteEpoch,
+                    tocItems: runtime.tocItems,
+                    notes: runtime.notes,
+                    surface: surface,
+                    inkColor: ink,
+                    mutedColor: muted,
+                    heading: heading,
+                    showHeading: currentTitle.trim().isNotEmpty,
+                    paragraphs: paragraphs,
+                    currentIndex: currentIndex,
+                    chapterCount: chapterCount,
+                    formatLabel: formatLabel,
+                    chapterState: chapterState,
+                    comicLayout: prefs.comicLayout,
+                    comicDirection: prefs.comicDirection,
+                    pdfZoom: prefs.pdfZoom,
+                    pageParagraphsFor: _pageParagraphs,
+                    annotatedQuoteKey: annotatedQuoteKey,
+                    onComicTurn: (index) =>
+                        _goTo(ComicLocator(page: index + 1)),
+                    onToggleChrome: () => setState(() => chrome = !chrome),
+                    onFoliateSelection: _onFoliateSelection,
+                    onFoliateHostEvent: _onFoliateHostEvent,
+                    onFoliateNext: () => _turnReflow(next: true),
+                    onFoliatePrevious: () => _turnReflow(next: false),
+                    onSelectionChanged: (quote) => setState(
+                      () => runtime = runtime.copyWith(pendingQuote: quote),
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
+            ReaderChromeOverlay(
+              runtime: runtime,
+              chrome: chrome,
+              ask: ask,
+              wide: wide,
+              paper: paper,
+              muted: muted,
+              ink: ink,
+              sideOpen: sideOpen,
+              progress: progress,
+              progressLabel: _progressLabel(
+                l10n: l10n,
+                formatLabel: formatLabel,
+                currentIndex: currentIndex,
+              ),
+              formatLabel: formatLabel,
+              currentIndex: currentIndex,
+              onJump: _goTo,
+              onSaveSelection: _saveSelection,
+              onDismissSelection: () => setState(
+                () => runtime = runtime.copyWith(pendingQuote: null),
+              ),
+              onSeekProgress: _seekProgress,
+            ),
+          ],
         ),
       ),
     );
