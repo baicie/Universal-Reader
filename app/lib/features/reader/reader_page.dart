@@ -22,9 +22,9 @@ import 'open_reader.dart';
 import 'reader_annotated_body.dart';
 import 'reader_app_bar.dart';
 import 'reader_bookmarks.dart';
+import 'reader_bottom_overlay.dart';
 import 'reader_chapter_body.dart';
 import 'reader_notes.dart';
-import 'reader_progress_bar.dart';
 import 'reader_search.dart';
 import 'reader_selection.dart';
 import 'reader_side_panel.dart';
@@ -605,39 +605,25 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       onJump: (locator) => _goTo(locator),
                     ),
                   ),
-                if (pendingQuote != null && pendingQuote!.trim().isNotEmpty)
-                  Positioned(
-                    left: sideOpen ? 240 : 0,
-                    right: ask && wide ? 320 : 0,
-                    bottom: chrome ? 72 : 0,
-                    child: GestureDetector(
-                      onTap: () {},
-                      child: SelectionConfirmBar(
-                        quote: pendingQuote!,
-                        saveLabel: l10n.saveSelection,
-                        onSave: _saveSelection,
-                        onDismiss: () => setState(() => pendingQuote = null),
-                      ),
-                    ),
+                ReaderBottomOverlay(
+                  pendingQuote: pendingQuote,
+                  saveLabel: l10n.saveSelection,
+                  chrome: chrome,
+                  sideOpen: sideOpen,
+                  askAndWide: ask && wide,
+                  paper: paper,
+                  muted: muted,
+                  ink: ink,
+                  progress: progress,
+                  progressLabel: _progressLabel(
+                    l10n: l10n,
+                    formatLabel: formatLabel,
+                    currentIndex: currentIndex,
                   ),
-                if (chrome)
-                  Positioned(
-                    left: sideOpen ? 240 : 0,
-                    right: ask && wide ? 320 : 0,
-                    bottom: 0,
-                    child: ReaderProgressBar(
-                      progress: progress,
-                      label: _progressLabel(
-                        l10n: l10n,
-                        formatLabel: formatLabel,
-                        currentIndex: currentIndex,
-                      ),
-                      paper: paper,
-                      muted: muted,
-                      ink: ink,
-                      onSeek: _seekProgress,
-                    ),
-                  ),
+                  onSaveSelection: _saveSelection,
+                  onDismissSelection: () => setState(() => pendingQuote = null),
+                  onSeekProgress: _seekProgress,
+                ),
               ],
             ),
           ),
