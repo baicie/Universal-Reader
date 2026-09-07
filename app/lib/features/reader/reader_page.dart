@@ -22,6 +22,7 @@ import 'open_reader.dart';
 import 'reader_app_bar.dart';
 import 'reader_bookmarks.dart';
 import 'reader_notes.dart';
+import 'reader_progress_bar.dart';
 import 'reader_search.dart';
 import 'reader_selection.dart';
 import 'reader_side_panel.dart';
@@ -615,50 +616,17 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                     left: sideOpen ? 240 : 0,
                     right: ask && wide ? 320 : 0,
                     bottom: 0,
-                    child: Material(
-                      color: paper,
-                      child: SafeArea(
-                        top: false,
-                        child: GestureDetector(
-                          onTap: () {},
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Slider(
-                                  value: progress.clamp(0, 1),
-                                  onChanged: _seekProgress,
-                                ),
-                                Row(
-                                  children: [
-                                    Text(
-                                      _progressLabel(
-                                        l10n: l10n,
-                                        formatLabel: formatLabel,
-                                        currentIndex: currentIndex,
-                                      ),
-                                      style: TextStyle(
-                                        color: muted,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    Text(
-                                      '${(progress * 100).round()}%',
-                                      style: TextStyle(
-                                        color: ink,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                    child: ReaderProgressBar(
+                      progress: progress,
+                      label: _progressLabel(
+                        l10n: l10n,
+                        formatLabel: formatLabel,
+                        currentIndex: currentIndex,
                       ),
+                      paper: paper,
+                      muted: muted,
+                      ink: ink,
+                      onSeek: _seekProgress,
                     ),
                   ),
               ],
