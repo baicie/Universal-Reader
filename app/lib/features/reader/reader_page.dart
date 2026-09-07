@@ -27,6 +27,7 @@ import 'reader_bookmarks.dart';
 import 'reader_bottom_overlay.dart';
 import 'reader_chapter_body.dart';
 import 'reader_notes.dart';
+import 'reader_reading_pane.dart';
 import 'reader_search.dart';
 import 'reader_selection.dart';
 import 'reader_side_panel.dart';
@@ -567,19 +568,40 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         onTocOpen: _goToToc,
                       ),
                     Expanded(
-                      child: _readingPane(
-                        l10n: l10n,
-                        document: document,
-                        muted: muted,
-                        ink: ink,
+                      child: ReaderReadingPane(
+                        opened: opened,
+                        chrome: chrome,
+                        fileBytes: fileBytes,
+                        foliateSession: foliateSession,
+                        foliateFragment: foliateFragment,
+                        foliateFragmentEpoch: foliateFragmentEpoch,
+                        foliateScrollQuote: foliateScrollQuote,
+                        foliateScrollQuoteEpoch: foliateScrollQuoteEpoch,
+                        tocItems: tocItems,
+                        notes: notes,
+                        surface: surface,
+                        inkColor: ink,
+                        mutedColor: muted,
                         heading: heading,
                         showHeading: currentTitle.trim().isNotEmpty,
                         paragraphs: paragraphs,
                         currentIndex: currentIndex,
                         chapterCount: chapterCount,
-                        surface: surface,
                         formatLabel: formatLabel,
                         chapterState: chapterState,
+                        comicLayout: prefs.comicLayout,
+                        comicDirection: prefs.comicDirection,
+                        pdfZoom: prefs.pdfZoom,
+                        pageParagraphsFor: _pageParagraphs,
+                        annotatedQuoteKey: annotatedQuoteKey,
+                        onComicTurn: (index) => _goTo(ComicLocator(page: index + 1)),
+                        onToggleChrome: () => setState(() => chrome = !chrome),
+                        onFoliateSelection: _onFoliateSelection,
+                        onFoliateHostEvent: _onFoliateHostEvent,
+                        onFoliateNext: () => _turnReflow(next: true),
+                        onFoliatePrevious: () => _turnReflow(next: false),
+                        onSelectionChanged: (quote) =>
+                            setState(() => pendingQuote = quote),
                       ),
                     ),
                   ],
@@ -664,100 +686,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       builder: (context) => ReadingSettingsSheet(
         showComicLayout: opened is ComicReaderDocument,
         showPdfZoom: opened is PdfReaderDocument,
-      ),
-    );
-  }
-
-  Widget _readingPane({
-    required AppLocalizations l10n,
-    required LibraryDocument? document,
-    required Color muted,
-    required Color ink,
-    required String heading,
-    required bool showHeading,
-    required List<String> paragraphs,
-    required int currentIndex,
-    required int chapterCount,
-    required ReadingSurface surface,
-    required String formatLabel,
-    required ReaderChapterState chapterState,
-  }) {
-    final reader = opened;
-    if (reader is ComicReaderDocument) {
-      return Padding(
-        padding: EdgeInsets.only(bottom: chrome ? 72 : 0),
-        child: IsolatedComicView(
-          document: reader,
-          layout: ref.watch(readerPrefsProvider).comicLayout,
-          direction: ref.watch(readerPrefsProvider).comicDirection,
-          onTurn: (index) {
-            _goTo(ComicLocator(page: index + 1));
-          },
-          onToggleChrome: () {
-            setState(() => chrome = !chrome);
-          },
-        ),
-      );
-    }
-    if (reader is PdfReaderDocument) {
-      return Padding(
-        padding: EdgeInsets.only(bottom: chrome ? 72 : 0),
-        child: IsolatedPdfView(
-          document: reader,
-          bytes: fileBytes,
-          zoom: ref.watch(readerPrefsProvider).pdfZoom,
-          fallback: _annotatedBody(surface: surface, paragraphs: paragraphs),
-        ),
-      );
-    }
-    if (reader is HtmlChapteredDocument) {
-      return Padding(
-        padding: EdgeInsets.only(bottom: chrome ? 72 : 0),
-        child: IsolatedFoliateView(
-          document: reader,
-          session: foliateSession,
-          surface: surface,
-          fallback: _annotatedBody(
-            surface: surface,
-            paragraphs: _pageParagraphs(reader),
-          ),
-          quotes: quoteHighlights(notes),
-          fragment: foliateFragment,
-          fragmentEpoch: foliateFragmentEpoch,
-          scrollQuote: foliateScrollQuote,
-          scrollQuoteEpoch: foliateScrollQuoteEpoch,
-          pageIndex: foliateSession?.pageIndex ?? 0,
-          onSelection: _onFoliateSelection,
-          onHostEvent: _onFoliateHostEvent,
-          onNext: () => _turnReflow(next: true),
-          onPrevious: () => _turnReflow(next: false),
-        ),
-      );
-    }
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 680),
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
-            28,
-            chrome ? 32 : 48,
-            28,
-            chrome ? 112 : 48,
-          ),
-          child: ReaderChapterBody(
-            state: chapterState,
-            surface: surface,
-            surfaceColor: ink,
-            mutedColor: muted,
-            heading: heading,
-            showHeading: showHeading,
-            hasToc: tocItems.isNotEmpty,
-            currentIndex: currentIndex,
-            chapterCount: chapterCount,
-            formatLabel: formatLabel,
-            child: _annotatedBody(surface: surface, paragraphs: paragraphs),
-          ),
-        ),
       ),
     );
   }
