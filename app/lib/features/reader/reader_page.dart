@@ -12,6 +12,7 @@ import '../../core/models.dart';
 import '../../core/pdf_document.dart';
 import '../../core/providers.dart';
 import '../../core/reader_chapter_state.dart';
+import '../../core/reader_derived.dart';
 import '../../core/reader_runtime.dart';
 import '../../core/reader_text.dart';
 import '../../core/reading_surface.dart';
@@ -448,24 +449,18 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final tocBg = dark ? const Color(0xFF24231F) : const Color(0xFFF0EADF);
     final wide = MediaQuery.sizeOf(context).width >= 900;
     final sideOpen = toc || bookmarks || showNotes || showSearch;
-    final currentIndex = opened is ChapteredDocument
-        ? (opened as ChapteredDocument).chapterIndex
-        : 0;
-    final chapterCount = opened is ChapteredDocument
-        ? (opened as ChapteredDocument).chapterCount
-        : tocItems.length;
-    final currentHref = opened is HtmlChapteredDocument
-        ? (opened as HtmlChapteredDocument).currentChapterHref
-        : '';
-    final currentTitle = opened is HtmlChapteredDocument
-        ? (opened as HtmlChapteredDocument).currentChapterTitle
-        : tocItems.isEmpty
-        ? ''
-        : tocItems[currentIndex.clamp(0, tocItems.length - 1)].title;
-    final heading = currentTitle.trim().isEmpty
-        ? l10n.untitledSection
-        : currentTitle;
-    final paragraphs = splitTextParagraphs(body);
+    final derived = ReaderDerived.build(
+      opened: opened,
+      tocItems: tocItems,
+      body: body,
+      l10n: l10n,
+    );
+    final currentIndex = derived.currentIndex;
+    final chapterCount = derived.chapterCount;
+    final currentHref = derived.currentHref;
+    final currentTitle = derived.currentTitle;
+    final heading = derived.heading;
+    final paragraphs = derived.paragraphs;
     final title = document?.metadata.title ?? widget.id;
     final formatLabel = document?.metadata.format.label ?? '';
     final chapterState = resolveReaderChapterState(
