@@ -14,6 +14,7 @@ import '../../core/providers.dart';
 import '../../core/reader_chapter_state.dart';
 import '../../core/reader_chrome_panels.dart';
 import '../../core/reader_derived.dart';
+import '../../core/reader_progress_label.dart';
 import '../../core/reader_runtime.dart';
 import '../../core/reader_state.dart';
 import '../../core/reader_text.dart';
@@ -22,11 +23,10 @@ import '../../core/reflow_nav.dart';
 import '../../core/text_document.dart';
 import '../../l10n/l10n.dart';
 import '../library/annotation_store.dart';
-import '../tools/reader_ai_panel.dart';
 import 'open_reader.dart';
 import 'reader_app_bar.dart';
 import 'reader_bookmarks.dart';
-import 'reader_bottom_overlay.dart';
+import 'reader_chrome_overlay.dart';
 import 'reader_notes.dart';
 import 'reader_reading_pane.dart';
 import 'reader_search.dart';
@@ -616,37 +616,24 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                     ),
                   ],
                 ),
-                if (ask && runtime.opened != null)
-                  Positioned(
-                    top: wide ? 0 : null,
-                    left: wide ? null : 0,
-                    right: 0,
-                    bottom: chrome ? 72 : 0,
-                    width: wide ? 320 : null,
-                    height: wide
-                        ? null
-                        : MediaQuery.sizeOf(context).height * 0.45,
-                    child: ReaderAiPanel(
-                      document: runtime.opened!,
-                      settings: ref.watch(aiSettingsProvider).settings,
-                      onJump: (locator) => _goTo(locator),
-                    ),
-                  ),
-                ReaderBottomOverlay(
-                  pendingQuote: runtime.pendingQuote,
-                  saveLabel: l10n.saveSelection,
+                ReaderChromeOverlay(
+                  runtime: runtime,
                   chrome: chrome,
-                  sideOpen: sideOpen,
-                  askAndWide: ask && wide,
+                  ask: ask,
+                  wide: wide,
                   paper: paper,
                   muted: muted,
                   ink: ink,
+                  sideOpen: sideOpen,
                   progress: progress,
                   progressLabel: _progressLabel(
                     l10n: l10n,
                     formatLabel: formatLabel,
                     currentIndex: currentIndex,
                   ),
+                  formatLabel: formatLabel,
+                  currentIndex: currentIndex,
+                  onJump: _goTo,
                   onSaveSelection: _saveSelection,
                   onDismissSelection: () =>
                       setState(() => runtime = runtime.copyWith(
@@ -667,28 +654,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     required String formatLabel,
     required int currentIndex,
   }) {
-    final chaptered = runtime.opened is ChapteredDocument
-        ? runtime.opened as ChapteredDocument
-        : null;
-    final chapterCount = chaptered?.chapterCount ?? runtime.tocItems.length;
-    if (runtime.tocItems.isNotEmpty &&
-        chapterCount > 0 &&
-        runtime.tocItems.length != chapterCount) {
-      final index = (chaptered?.chapterIndex ?? currentIndex).clamp(
-        0,
-        chapterCount - 1,
-      );
-      return l10n.readerSection(index + 1, chapterCount);
-    }
-    final pages = reflowChromePages(
-      pageIndex: runtime.foliateSession?.pageIndex,
-      pageCount: runtime.foliateSession?.pageCount,
+    return readerProgressLabel(
+      runtime: runtime,
+      l10n: l10n,
+      formatLabel: formatLabel,
+      currentIndex: currentIndex,
     );
-    if (pages != null) {
-      return l10n.readerSection(pages.current, pages.total);
-    }
-    if (runtime.tocItems.isEmpty) return formatLabel;
-    return l10n.readerSection(currentIndex + 1, runtime.tocItems.length);
   }
 
   Future<void> _openReadingSettings() async {
