@@ -19,6 +19,7 @@ import '../../l10n/l10n.dart';
 import '../library/annotation_store.dart';
 import '../tools/reader_ai_panel.dart';
 import 'open_reader.dart';
+import 'reader_annotated_body.dart';
 import 'reader_app_bar.dart';
 import 'reader_bookmarks.dart';
 import 'reader_chapter_body.dart';
@@ -831,34 +832,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       height: surface.lineHeight,
       fontFamily: surface.flutterFontFamily,
     );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < paragraphs.length; i++) ...[
-          if (i > 0) const SizedBox(height: 22),
-          _annotatedParagraph(paragraphs[i], style),
-        ],
-      ],
-    );
-  }
-
-  Widget _annotatedParagraph(String text, TextStyle style) {
-    final spans = annotatePlainText(text, notesOf(notes), style: style);
-    final highlighted = spans.any(
-      (span) => span is TextSpan && span.style?.backgroundColor != null,
-    );
-    return SelectableText.rich(
-      TextSpan(children: spans, style: style),
-      key: highlighted ? annotatedQuoteKey : null,
-      onSelectionChanged: (selection, _) {
-        if (!selection.isValid || selection.isCollapsed) return;
-        final start = selection.start;
-        final end = selection.end;
-        if (start < 0 || end > text.length || start >= end) return;
-        final quote = text.substring(start, end);
-        if (quote.trim().isEmpty) return;
-        setState(() => pendingQuote = quote);
-      },
+    return ReaderAnnotatedBody(
+      paragraphs: paragraphs,
+      style: style,
+      notes: notesOf(notes),
+      highlightKey: annotatedQuoteKey,
+      onSelectionChanged: (quote) => setState(() => pendingQuote = quote),
     );
   }
 }
