@@ -585,4 +585,158 @@ void main() {
       expect(rejoined, equals(huge));
     });
   });
+
+  // ── group 4: PlainTextFormat extension ───────────────────────────────────
+
+  group('PlainTextFormat extension', () {
+    test('isPlainText is true for txt, markdown, html', () {
+      expect(DocumentFormat.txt.isPlainText, isTrue);
+      expect(DocumentFormat.markdown.isPlainText, isTrue);
+      expect(DocumentFormat.html.isPlainText, isTrue);
+    });
+
+    test('isPlainText is false for binary formats', () {
+      expect(DocumentFormat.epub.isPlainText, isFalse);
+      expect(DocumentFormat.pdf.isPlainText, isFalse);
+      expect(DocumentFormat.cbz.isPlainText, isFalse);
+      expect(DocumentFormat.cbr.isPlainText, isFalse);
+      expect(DocumentFormat.mobi.isPlainText, isFalse);
+      expect(DocumentFormat.azw3.isPlainText, isFalse);
+      expect(DocumentFormat.fb2.isPlainText, isFalse);
+    });
+
+    test('isReaderEngineFormat covers all supported reader formats', () {
+      expect(DocumentFormat.txt.isReaderEngineFormat, isTrue);
+      expect(DocumentFormat.markdown.isReaderEngineFormat, isTrue);
+      expect(DocumentFormat.html.isReaderEngineFormat, isTrue);
+      expect(DocumentFormat.epub.isReaderEngineFormat, isTrue);
+      expect(DocumentFormat.pdf.isReaderEngineFormat, isTrue);
+      expect(DocumentFormat.cbz.isReaderEngineFormat, isTrue);
+      expect(DocumentFormat.cbr.isReaderEngineFormat, isTrue);
+      expect(DocumentFormat.mobi.isReaderEngineFormat, isTrue);
+      expect(DocumentFormat.azw3.isReaderEngineFormat, isTrue);
+      expect(DocumentFormat.fb2.isReaderEngineFormat, isTrue);
+    });
+  });
+
+  // ── group 5: UTF-16 BOM in decodePlainTextBytes ───────────────────────────
+
+  group('decodePlainTextBytes UTF-16 BOMs', () {
+    test('UTF-16 LE BOM is decoded', () {
+      // "hi" in UTF-16 LE: low byte first.
+      final bytes = [0xFF, 0xFE, 0x68, 0x00, 0x69, 0x00];
+      expect(decodePlainTextBytes(bytes), equals('hi'));
+    });
+
+    test('UTF-16 BE BOM is decoded', () {
+      // "hi" in UTF-16 BE: high byte first.
+      final bytes = [0xFE, 0xFF, 0x00, 0x68, 0x00, 0x69];
+      expect(decodePlainTextBytes(bytes), equals('hi'));
+    });
+  });
+
+  // ── group 6: CorruptReaderDocument ───────────────────────────────────────
+
+  group('CorruptReaderDocument returns documented empty values', () {
+    late CorruptReaderDocument doc;
+
+    setUp(() {
+      doc = CorruptReaderDocument(
+        metadata: DocumentMetadata(
+          id: 'corrupt-1',
+          title: 'Corrupt Book',
+          author: '',
+          format: DocumentFormat.pdf,
+          type: DocumentType.fixedPage,
+        ),
+      );
+    });
+
+    test('currentLocator returns TextLocator(0)', () async {
+      final locator = await doc.currentLocator();
+      expect(locator, isA<TextLocator>());
+      expect((locator as TextLocator).offset, 0);
+    });
+
+    test('extractText returns null', () async {
+      final text = await doc.extractText(
+        const DocumentRange(
+          start: TextLocator(offset: 0),
+          end: TextLocator(offset: 100),
+        ),
+      );
+      expect(text, isNull);
+    });
+
+    test('goTo does nothing', () async {
+      await doc.goTo(const TextLocator(offset: 99));
+      // No crash and no state change — nothing to assert.
+    });
+
+    test('progress is an empty stream', () async {
+      expect(await doc.progress.isEmpty, isTrue);
+    });
+
+    test('search returns empty list', () async {
+      final results = await doc.search('anything');
+      expect(results, isEmpty);
+    });
+
+    test('getToc returns empty list', () async {
+      final toc = await doc.getToc();
+      expect(toc, isEmpty);
+    });
+  });
+
+  // ── group 7: UnavailableReaderDocument ────────────────────────────────────
+
+  group('UnavailableReaderDocument returns documented empty values', () {
+    late UnavailableReaderDocument doc;
+
+    setUp(() {
+      doc = UnavailableReaderDocument(
+        metadata: DocumentMetadata(
+          id: 'unavailable-1',
+          title: 'Unavailable Book',
+          author: '',
+          format: DocumentFormat.epub,
+          type: DocumentType.reflow,
+        ),
+      );
+    });
+
+    test('currentLocator returns TextLocator(0)', () async {
+      final locator = await doc.currentLocator();
+      expect(locator, isA<TextLocator>());
+      expect((locator as TextLocator).offset, 0);
+    });
+
+    test('extractText returns null', () async {
+      final text = await doc.extractText(
+        const DocumentRange(
+          start: TextLocator(offset: 0),
+          end: TextLocator(offset: 100),
+        ),
+      );
+      expect(text, isNull);
+    });
+
+    test('goTo does nothing', () async {
+      await doc.goTo(const TextLocator(offset: 99));
+    });
+
+    test('progress is an empty stream', () async {
+      expect(await doc.progress.isEmpty, isTrue);
+    });
+
+    test('search returns empty list', () async {
+      final results = await doc.search('anything');
+      expect(results, isEmpty);
+    });
+
+    test('getToc returns empty list', () async {
+      final toc = await doc.getToc();
+      expect(toc, isEmpty);
+    });
+  });
 }
