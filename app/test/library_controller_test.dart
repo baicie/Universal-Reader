@@ -537,4 +537,325 @@ void main() {
       );
     });
   });
+
+  group('continueReading', () {
+    test('picks the most recently opened in-progress book', () async {
+      final repository = InMemoryLibraryRepository();
+      await repository.importBytes('a.txt', [1]);
+      await repository.importBytes('b.txt', [2]);
+      await repository.importBytes('c.txt', [3]);
+      final controller = PersistedLibraryController(repository: repository);
+      await controller.load();
+
+      final ids = controller.documents.map((d) => d.metadata.id).toList();
+      expect(ids, containsAll(['a.txt', 'b.txt', 'c.txt']));
+      await controller.updateProgress('a.txt', 0.3);
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      await controller.updateProgress('b.txt', 0.5);
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      await controller.updateProgress('c.txt', 0.7);
+
+      // c.txt was touched last and is still in-progress.
+      expect(controller.continueReading?.metadata.id, 'c.txt');
+    });
+
+    test('returns null when no book has any progress', () async {
+      final repository = InMemoryLibraryRepository();
+      await repository.importBytes('a.txt', [1]);
+      final controller = PersistedLibraryController(repository: repository);
+      await controller.load();
+
+      expect(controller.continueReading, isNull);
+    });
+
+    test('returns null when every book is finished (progress == 1.0)', () async {
+      final repository = InMemoryLibraryRepository();
+      await repository.importBytes('a.txt', [1]);
+      final controller = PersistedLibraryController(repository: repository);
+      await controller.load();
+      await controller.updateProgress('a.txt', 1.0);
+
+      expect(controller.continueReading, isNull);
+    });
+
+    test('returns null when the library is empty', () async {
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+      );
+      await controller.load();
+
+      expect(controller.continueReading, isNull);
+    });
+  });
+
+  group('toggleInCollection', () {
+    test('adds and removes a book from a collection', () async {
+      final repository = InMemoryLibraryRepository();
+      await repository.importBytes('notes.txt', [1]);
+      final controller = PersistedLibraryController(repository: repository);
+      await controller.load();
+      final docId = controller.documents.single.metadata.id;
+      final collection = await controller.createCollection('shelf-A');
+      expect(collection, isNotNull);
+
+      await controller.toggleInCollection(collection!.id, docId);
+      expect(controller.isInCollection(collection.id, docId), isTrue);
+
+      await controller.toggleInCollection(collection.id, docId);
+      expect(controller.isInCollection(collection.id, docId), isFalse);
+    });
+
+    test('is a no-op for an unknown document', () async {
+      final repository = InMemoryLibraryRepository();
+      await repository.importBytes('notes.txt', [1]);
+      final controller = PersistedLibraryController(repository: repository);
+      await controller.load();
+      final collection = await controller.createCollection('shelf-A');
+
+      await controller.toggleInCollection(collection!.id, 'missing');
+
+      expect(controller.isInCollection(collection.id, 'missing'), isFalse);
+    });
+  });
+
+  group('selectSort / selectType / toggleView', () {
+    test('selectSort changes ordering and notifyListeners fires', () async {
+      final repository = InMemoryLibraryRepository();
+      await repository.importBytes('alpha.txt', [1]);
+      await repository.importBytes('beta.txt', [2]);
+      final controller = PersistedLibraryController(repository: repository);
+      await controller.load();
+      var notifyCount = 0;
+      controller.addListener(() => notifyCount++);
+
+      controller.selectSort('title');
+      expect(controller.sort, 'title');
+      expect(
+        controller.documents.map((d) => d.metadata.title).toList(),
+        ['alpha', 'beta'],
+      );
+      expect(notifyCount, 1);
+
+      controller.selectSort('progress');
+      expect(controller.sort, 'progress');
+      expect(notifyCount, 2);
+    });
+
+    test('selectType narrows documents to the chosen type', () async {
+      final repository = InMemoryLibraryRepository();
+      await repository.importBytes('reflow.txt', [1]);
+      final controller = PersistedLibraryController(
+        repository: repository,
+      );
+      await controller.load();
+      // addDocumentForTest preserves the existing type. We add an unknown
+      // type, so all formats stay 'all' by default and the reflow document
+      // stays visible.
+      controller.addDocumentForTest(
+        _stubDoc(id: 'other-reflow', title: 'Other Book'),
+      );
+      expect(controller.documents, hasLength(2));
+
+      controller.selectType('pdf');
+      expect(controller.formatType, 'pdf');
+      expect(controller.documents, isEmpty);
+    });
+
+    test('toggleView flips listView and notifies listeners', () async {
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+      );
+      await controller.load();
+      expect(controller.listView, isFalse);
+      var notifyCount = 0;
+      controller.addListener(() => notifyCount++);
+
+      controller.toggleView();
+      expect(controller.listView, isTrue);
+      expect(notifyCount, 1);
+
+      controller.toggleView();
+      expect(controller.listView, isFalse);
+      expect(notifyCount, 2);
+    });
+  });
+
+  group('readCover / readFile on the controller', () {
+    test('readCover returns repository bytes when present', () async {
+      final repository = InMemoryLibraryRepository();
+      await repository.importBytes('notes.txt', [1]);
+      // InMemoryLibraryRepository stores covers only for formats that
+      // produce them; for txt there is none. Use a stub that hands out a
+      // cover directly so we exercise the controller pass-through.
+      final stubbed = _StubCoverRepository([1, 2, 3]);
+      final controller = PersistedLibraryController(repository: stubbed);
+      await controller.load();
+
+      final bytes = await controller.readCover('any-id');
+      expect(bytes, [1, 2, 3]);
+    });
+
+    test('readCover returns null when the cover is missing in storage',
+        () async {
+      final repository = InMemoryLibraryRepository();
+      await repository.importBytes('notes.txt', [1]);
+      final controller = PersistedLibraryController(repository: repository);
+      await controller.load();
+
+      expect(await controller.readCover('no-such-id'), isNull);
+    });
+
+    test('readCover returns null when the repository throws', () async {
+      final controller = PersistedLibraryController(
+        repository: _FailingReadCoverRepository(),
+      );
+      await controller.load();
+
+      expect(await controller.readCover('notes'), isNull);
+    });
+
+    test('readFile returns null when the repository throws', () async {
+      final controller = PersistedLibraryController(
+        repository: _FailingReadFileRepository(),
+      );
+      await controller.load();
+
+      expect(await controller.readFile('notes'), isNull);
+    });
+  });
+
+  group('importNamedBytes outcomes', () {
+    test('reports unsupported when nothing matches a known format', () async {
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+      );
+      await controller.load();
+
+      final outcome = await controller.importNamedBytes([
+        (name: 'noise.bin', bytes: [1, 2, 3]),
+      ]);
+
+      expect(outcome.count, 0);
+      expect(outcome.cancelled, isFalse);
+      expect(outcome.failed, isFalse);
+      expect(controller.documents, isEmpty);
+    });
+
+    test('reports failed when the repository throws on every file', () async {
+      final controller = PersistedLibraryController(
+        repository: _FailingImportRepository(),
+      );
+      await controller.load();
+
+      final outcome = await controller.importNamedBytes([
+        (name: 'notes.txt', bytes: [1]),
+      ]);
+
+      expect(outcome.count, 0);
+      expect(outcome.failed, isTrue);
+    });
+
+    test('reports imported with the success count', () async {
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+      );
+      await controller.load();
+
+      final outcome = await controller.importNamedBytes([
+        (name: 'a.txt', bytes: [1]),
+        (name: 'b.txt', bytes: [2]),
+      ]);
+
+      expect(outcome.count, 2);
+      expect(controller.documents, hasLength(2));
+    });
+
+    test('empty input short-circuits to cancelled without notify', () async {
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+      );
+      await controller.load();
+      var notifyCount = 0;
+      controller.addListener(() => notifyCount++);
+
+      final outcome = await controller.importNamedBytes(const []);
+
+      expect(outcome.cancelled, isTrue);
+      expect(notifyCount, 0);
+    });
+
+    test('partial failure still counts the successful imports', () async {
+      final controller = PersistedLibraryController(
+        repository: _PartialImportRepository(),
+      );
+      await controller.load();
+
+      final outcome = await controller.importNamedBytes([
+        (name: 'good.txt', bytes: [1]),
+        (name: 'bad.txt', bytes: [2]),
+      ]);
+
+      expect(outcome.count, 1);
+      // When at least one file succeeded the outcome reports the imported
+      // count; the partial failure is silently absorbed (no UI to surface it).
+      expect(outcome.failed, isFalse);
+      expect(controller.documents, hasLength(1));
+    });
+  });
+
+  group('continueReading notifies listeners on updateProgress', () {
+    test('updateProgress notifies after a successful write', () async {
+      final repository = InMemoryLibraryRepository();
+      await repository.importBytes('a.txt', [1]);
+      final controller = PersistedLibraryController(repository: repository);
+      await controller.load();
+      var notifyCount = 0;
+      controller.addListener(() => notifyCount++);
+
+      await controller.updateProgress(
+        controller.documents.single.metadata.id,
+        0.4,
+      );
+      expect(notifyCount, greaterThan(0));
+      expect(controller.continueReading, isNotNull);
+    });
+  });
+}
+
+class _FailingReadCoverRepository extends InMemoryLibraryRepository {
+  @override
+  Future<List<int>?> readCover(String id) async {
+    throw StateError('cover unreadable');
+  }
+}
+
+class _FailingReadFileRepository extends InMemoryLibraryRepository {
+  @override
+  Future<List<int>?> readFile(String id) async {
+    throw StateError('file unreadable');
+  }
+}
+
+class _FailingImportRepository extends InMemoryLibraryRepository {
+  @override
+  Future<LibraryDocument> importBytes(String name, List<int> bytes) async {
+    throw StateError('disk write failed');
+  }
+}
+
+class _PartialImportRepository extends InMemoryLibraryRepository {
+  @override
+  Future<LibraryDocument> importBytes(String name, List<int> bytes) async {
+    if (name == 'bad.txt') throw StateError('disk write failed');
+    return super.importBytes(name, bytes);
+  }
+}
+
+class _StubCoverRepository extends InMemoryLibraryRepository {
+  _StubCoverRepository(this._cover);
+
+  final List<int> _cover;
+
+  @override
+  Future<List<int>?> readCover(String id) async => List<int>.from(_cover);
 }
