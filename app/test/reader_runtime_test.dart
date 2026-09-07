@@ -6,14 +6,14 @@ import 'package:app/features/tools/sample_reader_document.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 SampleReaderDocument _doc() => SampleReaderDocument(
-      metadata: const DocumentMetadata(
-        id: 'book-1',
-        title: 'A',
-        author: 'B',
-        format: DocumentFormat.epub,
-        type: DocumentType.reflow,
-      ),
-    );
+  metadata: const DocumentMetadata(
+    id: 'book-1',
+    title: 'A',
+    author: 'B',
+    format: DocumentFormat.epub,
+    type: DocumentType.reflow,
+  ),
+);
 
 void main() {
   group('ReaderRuntime', () {
@@ -54,13 +54,15 @@ void main() {
     });
 
     test('failed() clears loading and keeps notes/foliate untouched', () {
-      final rt = ReaderRuntime(notes: [
-        ReaderAnnotation(
-          id: 'n1',
-          note: '',
-          createdAt: DateTime.utc(2025, 1, 1),
-        ),
-      ]);
+      final rt = ReaderRuntime(
+        notes: [
+          ReaderAnnotation(
+            id: 'n1',
+            note: '',
+            createdAt: DateTime.utc(2025, 1, 1),
+          ),
+        ],
+      );
       final failed = rt.failed();
       expect(failed.loading, false);
       expect(failed.opened, null);
@@ -84,9 +86,10 @@ void main() {
       const initial = ReaderRuntime();
       const hits = <SearchResult>[
         SearchResult(
-            title: 't',
-            excerpt: 'e',
-            locator: EpubLocator(href: 'chapter-1', progression: 0)),
+          title: 't',
+          excerpt: 'e',
+          locator: EpubLocator(href: 'chapter-1', progression: 0),
+        ),
       ];
       final withHits = initial.withSearchHits(hits);
       expect(withHits.searchHits, hits);
@@ -106,6 +109,27 @@ void main() {
       expect(cleared.foliateFragmentEpoch, 0);
       expect(cleared.foliateScrollQuote, null);
       expect(cleared.foliateScrollQuoteEpoch, 0);
+    });
+
+    test('bumpFragmentEpoch updates the fragment and increments the epoch', () {
+      const rt = ReaderRuntime(foliateFragment: 'old', foliateFragmentEpoch: 1);
+      final bumped = rt.bumpFragmentEpoch('new');
+      expect(bumped.foliateFragment, 'new');
+      expect(bumped.foliateFragmentEpoch, 2);
+      expect(rt.foliateFragment, 'old');
+      expect(rt.foliateFragmentEpoch, 1);
+    });
+
+    test('bumpScrollQuoteEpoch updates the quote and increments the epoch', () {
+      const rt = ReaderRuntime(
+        foliateScrollQuote: 'old',
+        foliateScrollQuoteEpoch: 3,
+      );
+      final bumped = rt.bumpScrollQuoteEpoch('new');
+      expect(bumped.foliateScrollQuote, 'new');
+      expect(bumped.foliateScrollQuoteEpoch, 4);
+      expect(rt.foliateScrollQuote, 'old');
+      expect(rt.foliateScrollQuoteEpoch, 3);
     });
 
     test('value equality holds for structurally equal instances', () {

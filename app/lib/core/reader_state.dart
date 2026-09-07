@@ -116,15 +116,15 @@ class ReaderRuntime {
 
   /// Transition out of loading into the empty/error state.
   ReaderRuntime failed() => ReaderRuntime(
-        loading: false,
-        notes: notes,
-        pendingQuote: pendingQuote,
-        foliateSession: foliateSession,
-        foliateFragment: foliateFragment,
-        foliateFragmentEpoch: foliateFragmentEpoch,
-        foliateScrollQuote: foliateScrollQuote,
-        foliateScrollQuoteEpoch: foliateScrollQuoteEpoch,
-      );
+    loading: false,
+    notes: notes,
+    pendingQuote: pendingQuote,
+    foliateSession: foliateSession,
+    foliateFragment: foliateFragment,
+    foliateFragmentEpoch: foliateFragmentEpoch,
+    foliateScrollQuote: foliateScrollQuote,
+    foliateScrollQuoteEpoch: foliateScrollQuoteEpoch,
+  );
 
   ReaderRuntime withNote(ReaderAnnotation note) =>
       copyWith(notes: [...notes, note]);
@@ -133,12 +133,26 @@ class ReaderRuntime {
       copyWith(searchHits: hits);
 
   ReaderRuntime closeAllFoliate() => copyWith(
-        foliateSession: null,
-        foliateFragment: null,
-        foliateFragmentEpoch: 0,
-        foliateScrollQuote: null,
-        foliateScrollQuoteEpoch: 0,
-      );
+    foliateSession: null,
+    foliateFragment: null,
+    foliateFragmentEpoch: 0,
+    foliateScrollQuote: null,
+    foliateScrollQuoteEpoch: 0,
+  );
+
+  /// Update the EPUB chapter fragment and bump its epoch so the foliate view
+  /// recognises the change as a new destination and re-scrolls.
+  ReaderRuntime bumpFragmentEpoch(String? fragment) => copyWith(
+    foliateFragment: fragment,
+    foliateFragmentEpoch: foliateFragmentEpoch + 1,
+  );
+
+  /// Update the scroll quote and bump its epoch so the foliate view scrolls to
+  /// the new highlight even when the chapter fragment is unchanged.
+  ReaderRuntime bumpScrollQuoteEpoch(String? quote) => copyWith(
+    foliateScrollQuote: quote,
+    foliateScrollQuoteEpoch: foliateScrollQuoteEpoch + 1,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -162,22 +176,22 @@ class ReaderRuntime {
 
   @override
   int get hashCode => Object.hash(
-        loading,
-        opened,
-        tocItems,
-        body,
-        fileBytes,
-        progress,
-        notes,
-        pendingQuote,
-        foliateSession,
-        foliateFragment,
-        foliateFragmentEpoch,
-        foliateScrollQuote,
-        foliateScrollQuoteEpoch,
-        searchQuery,
-        searchHits,
-      );
+    loading,
+    opened,
+    tocItems,
+    body,
+    fileBytes,
+    progress,
+    notes,
+    pendingQuote,
+    foliateSession,
+    foliateFragment,
+    foliateFragmentEpoch,
+    foliateScrollQuote,
+    foliateScrollQuoteEpoch,
+    searchQuery,
+    searchHits,
+  );
 }
 
 const Object _sentinel = Object();

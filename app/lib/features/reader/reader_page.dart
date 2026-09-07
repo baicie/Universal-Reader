@@ -184,12 +184,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           fragment != null &&
           reflowSameHref(session.href, locator.href)) {
         if (!mounted) return;
-        setState(() {
-          runtime = runtime.copyWith(
-            foliateFragment: fragment,
-            foliateFragmentEpoch: runtime.foliateFragmentEpoch + 1,
-          );
-        });
+        _setRuntime(runtime.bumpFragmentEpoch(fragment));
         return;
       }
     }
@@ -203,12 +198,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         runtime.foliateSession != null &&
         reflowSameHref(runtime.foliateSession!.href, locator.href)) {
       if (quote == null || !mounted) return;
-      setState(() {
-        runtime = runtime.copyWith(
-          foliateScrollQuote: quote,
-          foliateScrollQuoteEpoch: runtime.foliateScrollQuoteEpoch + 1,
-        );
-      });
+      _setRuntime(runtime.bumpScrollQuoteEpoch(quote));
       return;
     }
     await _goTo(locator, scrollQuote: quote);
@@ -223,12 +213,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         runtime.foliateSession != null &&
         reflowSameHref(runtime.foliateSession!.href, locator.href)) {
       if (quote == null || !mounted) return;
-      setState(() {
-        runtime = runtime.copyWith(
-          foliateScrollQuote: quote,
-          foliateScrollQuoteEpoch: runtime.foliateScrollQuoteEpoch + 1,
-        );
-      });
+      _setRuntime(runtime.bumpScrollQuoteEpoch(quote));
       return;
     }
     await _goTo(locator, scrollQuote: quote);
@@ -344,12 +329,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final fragment = reflowHrefFragment(raw);
     if (reflowSameHref(session.href, target)) {
       if (fragment == null || !mounted) return;
-      setState(() {
-        runtime = runtime.copyWith(
-          foliateFragment: fragment,
-          foliateFragmentEpoch: runtime.foliateFragmentEpoch + 1,
-        );
-      });
+      _setRuntime(runtime.bumpFragmentEpoch(fragment));
       return;
     }
     await _goTo(EpubLocator(href: target), fragment: fragment);
