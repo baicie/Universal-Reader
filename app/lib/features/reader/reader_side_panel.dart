@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../core/foliate_session.dart';
-import '../../core/locator_codec.dart';
 import '../../core/reader_runtime.dart';
 import '../../core/reflow_nav.dart';
 import '../../l10n/l10n.dart';
@@ -9,9 +8,7 @@ import '../../widgets/eyebrow.dart';
 import '../library/annotation_store.dart';
 import 'reader_bookmarks.dart';
 import 'reader_bookmarks_pane.dart';
-import 'reader_notes.dart';
 import 'reader_notes_pane.dart';
-import 'reader_search.dart';
 import 'reader_search_pane.dart';
 
 /// Side panel shown while a reader side panel is open.

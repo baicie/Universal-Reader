@@ -21,21 +21,15 @@ import '../../l10n/l10n.dart';
 import '../library/annotation_store.dart';
 import '../tools/reader_ai_panel.dart';
 import 'open_reader.dart';
-import 'reader_annotated_body.dart';
 import 'reader_app_bar.dart';
 import 'reader_bookmarks.dart';
 import 'reader_bottom_overlay.dart';
-import 'reader_chapter_body.dart';
 import 'reader_notes.dart';
 import 'reader_reading_pane.dart';
 import 'reader_search.dart';
 import 'reader_selection.dart';
 import 'reader_side_panel.dart';
 import 'reading_settings_sheet.dart';
-import 'renderers/isolated_comic_view.dart';
-import 'renderers/isolated_foliate_view.dart';
-import 'renderers/isolated_pdf_view.dart';
-import 'selection_confirm_bar.dart';
 
 class ReaderPage extends ConsumerStatefulWidget {
   const ReaderPage({required this.id, super.key});
@@ -702,24 +696,5 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final start = page.startOffset.clamp(0, source.length);
     final end = page.endOffset.clamp(start, source.length);
     return source.substring(start, end);
-  }
-
-  Widget _annotatedBody({
-    required ReadingSurface surface,
-    required List<String> paragraphs,
-  }) {
-    final style = TextStyle(
-      color: surface.color,
-      fontSize: surface.fontSize,
-      height: surface.lineHeight,
-      fontFamily: surface.flutterFontFamily,
-    );
-    return ReaderAnnotatedBody(
-      paragraphs: paragraphs,
-      style: style,
-      notes: notesOf(notes),
-      highlightKey: annotatedQuoteKey,
-      onSelectionChanged: (quote) => setState(() => pendingQuote = quote),
-    );
   }
 }
