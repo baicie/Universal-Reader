@@ -16,18 +16,15 @@ import '../../core/reading_surface.dart';
 import '../../core/reflow_nav.dart';
 import '../../core/text_document.dart';
 import '../../l10n/l10n.dart';
-import '../../widgets/eyebrow.dart';
 import '../library/annotation_store.dart';
 import '../tools/reader_ai_panel.dart';
 import 'open_reader.dart';
 import 'reader_app_bar.dart';
 import 'reader_bookmarks.dart';
-import 'reader_bookmarks_pane.dart';
 import 'reader_notes.dart';
-import 'reader_notes_pane.dart';
 import 'reader_search.dart';
-import 'reader_search_pane.dart';
 import 'reader_selection.dart';
+import 'reader_side_panel.dart';
 import 'reading_settings_sheet.dart';
 import 'renderers/isolated_comic_view.dart';
 import 'renderers/isolated_foliate_view.dart';
@@ -538,87 +535,33 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                 Row(
                   children: [
                     if (sideOpen)
-                      Material(
-                        color: tocBg,
-                        child: GestureDetector(
-                          onTap: () {},
-                          child: SizedBox(
-                            width: 240,
-                            child: ListView(
-                              padding: const EdgeInsets.fromLTRB(
-                                20,
-                                24,
-                                16,
-                                24,
-                              ),
-                              children: [
-                                if (showSearch) ...[
-                                  ReaderSearchPane(
-                                    title: l10n.searchInBook,
-                                    hint: l10n.searchInBookHint,
-                                    emptyLabel: l10n.noSearchResults,
-                                    query: searchQuery,
-                                    hits: searchHits,
-                                    onQuery: _searchBook,
-                                    onOpen: _onSearchHit,
-                                  ),
-                                  if (showNotes || bookmarks || toc)
-                                    const SizedBox(height: 28),
-                                ],
-                                if (showNotes) ...[
-                                  ReaderNotesPane(
-                                    title: l10n.notesTitle,
-                                    emptyLabel: l10n.noNotes,
-                                    deleteLabel: l10n.deleteNote,
-                                    notes: notesOf(notes),
-                                    onOpen: _onNoteOpen,
-                                    onDelete: (note) => _removeMark(note.id),
-                                  ),
-                                  if (bookmarks || toc)
-                                    const SizedBox(height: 28),
-                                ],
-                                if (bookmarks) ...[
-                                  ReaderBookmarksPane(
-                                    title: l10n.bookmarks,
-                                    emptyLabel: l10n.noBookmarks,
-                                    deleteLabel: l10n.deleteBookmark,
-                                    bookmarks: bookmarksOf(notes),
-                                    onOpen: (mark) {
-                                      final locator = decodeLocator(
-                                        mark.locatorLabel,
-                                      );
-                                      if (locator != null) _goTo(locator);
-                                    },
-                                    onDelete: (mark) => _removeMark(mark.id),
-                                  ),
-                                  if (toc) const SizedBox(height: 28),
-                                ],
-                                if (toc) ...[
-                                  Eyebrow(l10n.tableOfContents),
-                                  const SizedBox(height: 12),
-                                  if (tocItems.isEmpty)
-                                    Text(
-                                      l10n.untitledSection,
-                                      style: TextStyle(
-                                        color: muted,
-                                        height: 1.4,
-                                      ),
-                                    )
-                                  else
-                                    ..._tocTiles(
-                                      items: tocItems,
-                                      currentIndex: currentIndex,
-                                      currentHref: currentHref,
-                                      currentFragment: foliateFragment,
-                                      ink: ink,
-                                      accent: accent,
-                                      l10n: l10n,
-                                    ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
+                      ReaderSidePanel(
+                        background: tocBg,
+                        ink: ink,
+                        muted: muted,
+                        accent: accent,
+                        showSearch: showSearch,
+                        showNotes: showNotes,
+                        showBookmarks: bookmarks,
+                        showToc: toc,
+                        searchQuery: searchQuery,
+                        searchHits: searchHits,
+                        notes: notes,
+                        tocItems: tocItems,
+                        currentHref: currentHref,
+                        currentFragment: foliateFragment,
+                        currentIndex: currentIndex,
+                        foliateSession: foliateSession,
+                        onSearchQuery: _searchBook,
+                        onSearchOpen: _onSearchHit,
+                        onNoteOpen: _onNoteOpen,
+                        onNoteDelete: (note) => _removeMark(note.id),
+                        onBookmarkOpen: (mark) {
+                          final locator = decodeLocator(mark.locatorLabel);
+                          if (locator != null) _goTo(locator);
+                        },
+                        onBookmarkDelete: (mark) => _removeMark(mark.id),
+                        onTocOpen: _goToToc,
                       ),
                     Expanded(
                       child: _readingPane(
@@ -724,60 +667,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         ),
       ),
     );
-  }
-
-  List<Widget> _tocTiles({
-    required List<TocItem> items,
-    required int currentIndex,
-    required String currentHref,
-    String? currentFragment,
-    required Color ink,
-    required Color accent,
-    required AppLocalizations l10n,
-    int depth = 0,
-  }) {
-    final tiles = <Widget>[];
-    for (var i = 0; i < items.length; i++) {
-      final item = items[i];
-      final current = currentHref.isEmpty
-          ? depth == 0 && i == currentIndex
-          : reflowTocItemCurrent(
-              item,
-              href: currentHref,
-              fragment: currentFragment,
-            );
-      tiles.add(
-        Padding(
-          padding: EdgeInsets.fromLTRB(depth * 12.0, 6, 0, 6),
-          child: InkWell(
-            onTap: () => _goToToc(item),
-            child: Text(
-              item.title.trim().isEmpty ? l10n.untitledSection : item.title,
-              style: TextStyle(
-                fontWeight: current ? FontWeight.w700 : FontWeight.w400,
-                color: current ? accent : ink,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ),
-      );
-      if (item.children.isNotEmpty) {
-        tiles.addAll(
-          _tocTiles(
-            items: item.children,
-            currentIndex: currentIndex,
-            currentHref: currentHref,
-            currentFragment: currentFragment,
-            ink: ink,
-            accent: accent,
-            l10n: l10n,
-            depth: depth + 1,
-          ),
-        );
-      }
-    }
-    return tiles;
   }
 
   String _progressLabel({
