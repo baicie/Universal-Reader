@@ -96,4 +96,52 @@ void main() {
     );
     expect(result.imported, 0);
   });
+
+  test('scan throws when the server returns a non-200 status', () async {
+    final client = MockClient((request) async {
+      return http.Response('server error', 500);
+    });
+    expect(
+      () => scanLibraryFolder(
+        HttpLibraryRepository(
+          baseUrl: 'http://127.0.0.1:8787',
+          httpClient: client,
+        ),
+        '/data/books',
+      ),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
+  test('sync throws when the server returns a non-200 status', () async {
+    final client = MockClient((request) async {
+      return http.Response('sync error', 502);
+    });
+    expect(
+      () => syncLibraryWebDav(
+        HttpLibraryRepository(
+          baseUrl: 'http://127.0.0.1:8787',
+          httpClient: client,
+        ),
+        baseUrl: 'https://webdav.example.com',
+      ),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
+  test('watch throws when the server returns a non-200 status', () async {
+    final client = MockClient((request) async {
+      return http.Response('watch error', 503);
+    });
+    expect(
+      () => watchLibraryFolder(
+        HttpLibraryRepository(
+          baseUrl: 'http://127.0.0.1:8787',
+          httpClient: client,
+        ),
+        '/data/books',
+      ),
+      throwsA(isA<FormatException>()),
+    );
+  });
 }
