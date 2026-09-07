@@ -173,4 +173,53 @@ void main() {
     expect(pages.single.endOffset, 0);
     expect(pages.single.html, '<p></p>');
   });
+
+  test('paginateReflow breaks long text at the last whitespace', () {
+    // 'aabbcc dd ee': whitespace at indices 6 and 9. With limit=10, the
+    // first slice extends to index 10 (after the last whitespace) so the
+    // first page holds 'aabbcc dd' and the loop resumes at the next
+    // character.
+    final pages = paginateReflow(
+      text: 'aabbcc dd ee',
+      html: '<p>aabbcc dd ee</p>',
+      pageCharLimit: 10,
+    );
+    expect(pages, hasLength(2));
+    expect(pages[0].endOffset, 10);
+    expect(pages[0].html, '<p>aabbcc dd</p>');
+    expect(pages[1].startOffset, 10);
+    expect(pages[1].endOffset, 12);
+    expect(pages[1].html, '<p>ee</p>');
+  });
+
+  test('paginateReflow falls back to end-of-slice when there is no whitespace',
+      () {
+    // 50 chars, no whitespace → each slice ends at start+pageCharLimit.
+    final text = 'x' * 50;
+    final pages = paginateReflow(
+      text: text,
+      html: '',
+      pageCharLimit: 10,
+    );
+    expect(pages, hasLength(5));
+    expect(pages[0].startOffset, 0);
+    expect(pages[0].endOffset, 10);
+    expect(pages[4].startOffset, 40);
+    expect(pages[4].endOffset, 50);
+    expect(pages.every((p) => p.html.startsWith('<p>')), isTrue);
+  });
+
+  test('paginateReflow advances past short pages', () {
+    // With pageCharLimit=1, each page holds one character, including the
+    // space at index 1 (which trims to an empty <p></p>).
+    final pages = paginateReflow(
+      text: 'a b',
+      html: '',
+      pageCharLimit: 1,
+    );
+    expect(pages, hasLength(3));
+    expect(pages.map((p) => p.startOffset).toList(), [0, 1, 2]);
+    expect(pages.map((p) => p.endOffset).toList(), [1, 2, 3]);
+    expect(pages.last.endOffset, 3);
+  });
 }
