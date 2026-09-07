@@ -15,6 +15,7 @@ import '../../core/reader_chapter_state.dart';
 import '../../core/reader_chrome_panels.dart';
 import '../../core/reader_derived.dart';
 import '../../core/reader_runtime.dart';
+import '../../core/reader_state.dart';
 import '../../core/reader_text.dart';
 import '../../core/reading_surface.dart';
 import '../../core/reflow_nav.dart';
@@ -44,21 +45,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   bool chrome = true;
   bool ask = false;
   ReaderChromePanels panels = const ReaderChromePanels();
-  late double progress;
-  bool loading = true;
-  ReaderDocument? opened;
-  List<TocItem> tocItems = const [];
-  String body = '';
-  List<int>? fileBytes;
-  List<ReaderAnnotation> notes = const [];
-  String? pendingQuote;
-  FoliateSession? foliateSession;
-  String? foliateFragment;
-  int foliateFragmentEpoch = 0;
-  String? foliateScrollQuote;
-  int foliateScrollQuoteEpoch = 0;
-  String searchQuery = '';
-  List<SearchResult> searchHits = const [];
+  ReaderRuntime runtime = const ReaderRuntime();
+  double progress = 0;
 
   @override
   void initState() {
@@ -80,16 +68,20 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final document = library.documentById(widget.id);
     if (document == null) {
       setState(() {
-        opened = UnavailableReaderDocument(
-          metadata: DocumentMetadata(
-            id: widget.id,
-            title: widget.id,
-            author: '',
-            format: DocumentFormat.unknown,
-            type: DocumentType.reflow,
+        runtime = runtime.loaded(
+          document: UnavailableReaderDocument(
+            metadata: DocumentMetadata(
+              id: widget.id,
+              title: widget.id,
+              author: '',
+              format: DocumentFormat.unknown,
+              type: DocumentType.reflow,
+            ),
           ),
+          body: '',
+          toc: const <TocItem>[],
+          progress: progress,
         );
-        loading = false;
       });
       return;
     }
@@ -108,26 +100,30 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     }
     final items = await reader.getToc();
     if (!mounted) return;
+    final session = reader is HtmlChapteredDocument
+        ? FoliateSession.open(reader)
+        : null;
+    if (session != null && reader is HtmlChapteredDocument) {
+      session.goToPage(
+        reflowPageIndexForProgress(
+          progress: progress,
+          chapterCount: reader.chapterCount,
+          chapterIndex: reader.chapterIndex,
+          pageCount: session.pageCount,
+        ),
+      );
+    }
     setState(() {
-      opened = reader;
-      tocItems = items;
-      body = readerCurrentBody(reader);
-      fileBytes = bytes;
-      notes = loadedNotes;
-      foliateSession = reader is HtmlChapteredDocument
-          ? FoliateSession.open(reader)
-          : null;
-      if (foliateSession != null && reader is HtmlChapteredDocument) {
-        foliateSession!.goToPage(
-          reflowPageIndexForProgress(
-            progress: progress,
-            chapterCount: reader.chapterCount,
-            chapterIndex: reader.chapterIndex,
-            pageCount: foliateSession!.pageCount,
-          ),
-        );
-      }
-      loading = false;
+      runtime = runtime.loaded(
+        document: reader,
+        body: readerCurrentBody(reader),
+        toc: items,
+        progress: progress,
+      ).copyWith(
+        notes: loadedNotes,
+        fileBytes: bytes,
+        foliateSession: session,
+      );
     });
   }
 
@@ -137,7 +133,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     String? fragment,
     String? scrollQuote,
   }) async {
-    final reader = opened;
+    final reader = runtime.opened;
     if (reader == null) return;
     await reader.goTo(locator);
     FoliateSession? session;
@@ -150,19 +146,30 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final resolvedFragment =
         fragment ?? (locator is EpubLocator ? locator.fragment : null);
     if (!mounted) return;
+    var nextRuntime = runtime.copyWith(
+      body: readerCurrentBody(reader),
+      foliateSession: session,
+      foliateFragment: resolvedFragment,
+      foliateScrollQuote: scrollQuote,
+    );
+    if (resolvedFragment != null) {
+      nextRuntime = nextRuntime.copyWith(
+        foliateFragmentEpoch: nextRuntime.foliateFragmentEpoch + 1,
+      );
+    }
+    if (scrollQuote != null) {
+      nextRuntime = nextRuntime.copyWith(
+        foliateScrollQuoteEpoch: nextRuntime.foliateScrollQuoteEpoch + 1,
+      );
+    }
+    if (syncProgress &&
+        reader is ChapteredDocument &&
+        reader.chapterCount > 0) {
+      progress = reader.chapterIndex / reader.chapterCount;
+      ref.read(libraryProvider).updateProgress(widget.id, progress);
+    }
     setState(() {
-      body = readerCurrentBody(reader);
-      foliateSession = session;
-      foliateFragment = resolvedFragment;
-      if (resolvedFragment != null) foliateFragmentEpoch++;
-      foliateScrollQuote = scrollQuote;
-      if (scrollQuote != null) foliateScrollQuoteEpoch++;
-      if (syncProgress &&
-          reader is ChapteredDocument &&
-          reader.chapterCount > 0) {
-        progress = reader.chapterIndex / reader.chapterCount;
-        ref.read(libraryProvider).updateProgress(widget.id, progress);
-      }
+      runtime = nextRuntime.copyWith(progress: progress);
     });
   }
 
@@ -170,14 +177,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final locator = item.locator;
     if (locator is EpubLocator) {
       final fragment = locator.fragment;
-      final session = foliateSession;
+      final session = runtime.foliateSession;
       if (session != null &&
           fragment != null &&
           reflowSameHref(session.href, locator.href)) {
         if (!mounted) return;
         setState(() {
-          foliateFragment = fragment;
-          foliateFragmentEpoch++;
+          runtime = runtime.copyWith(
+            foliateFragment: fragment,
+            foliateFragmentEpoch: runtime.foliateFragmentEpoch + 1,
+          );
         });
         return;
       }
@@ -186,15 +195,17 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   Future<void> _onSearchHit(SearchResult hit) async {
-    final quote = reflowScrollQuote(searchQuery);
+    final quote = reflowScrollQuote(runtime.searchQuery);
     final locator = hit.locator;
     if (locator is EpubLocator &&
-        foliateSession != null &&
-        reflowSameHref(foliateSession!.href, locator.href)) {
+        runtime.foliateSession != null &&
+        reflowSameHref(runtime.foliateSession!.href, locator.href)) {
       if (quote == null || !mounted) return;
       setState(() {
-        foliateScrollQuote = quote;
-        foliateScrollQuoteEpoch++;
+        runtime = runtime.copyWith(
+          foliateScrollQuote: quote,
+          foliateScrollQuoteEpoch: runtime.foliateScrollQuoteEpoch + 1,
+        );
       });
       return;
     }
@@ -207,12 +218,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     if (locator == null) return;
     final quote = jump.scrollQuote;
     if (locator is EpubLocator &&
-        foliateSession != null &&
-        reflowSameHref(foliateSession!.href, locator.href)) {
+        runtime.foliateSession != null &&
+        reflowSameHref(runtime.foliateSession!.href, locator.href)) {
       if (quote == null || !mounted) return;
       setState(() {
-        foliateScrollQuote = quote;
-        foliateScrollQuoteEpoch++;
+        runtime = runtime.copyWith(
+          foliateScrollQuote: quote,
+          foliateScrollQuoteEpoch: runtime.foliateScrollQuoteEpoch + 1,
+        );
       });
       return;
     }
@@ -220,10 +233,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   Future<Locator> _bookmarkLocator() async {
-    final reader = opened;
+    final reader = runtime.opened;
     if (reader == null) return const TextLocator(offset: 0);
     final current = await reader.currentLocator();
-    final session = foliateSession;
+    final session = runtime.foliateSession;
     if (current is EpubLocator && session != null) {
       return EpubLocator(
         href: current.href,
@@ -235,12 +248,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   Future<void> _addBookmark() async {
-    if (opened == null || loading) return;
+    if (runtime.opened == null || runtime.loading) return;
     final mark = bookmarkAt(locator: await _bookmarkLocator());
     await ref.read(aiRuntimeProvider).annotations.append(widget.id, mark);
     if (!mounted) return;
     setState(() {
-      notes = [...notes, mark];
+      runtime = runtime.withNote(mark);
       panels = panels.toggle(PanelKind.bookmarks);
       chrome = true;
     });
@@ -255,46 +268,46 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         .annotations
         .remove(widget.id, noteId);
     if (!mounted) return;
-    setState(() => notes = next);
+    setState(() => runtime = runtime.copyWith(notes: next));
   }
 
   Future<void> _searchBook(String query) async {
-    final reader = opened;
-    setState(() => searchQuery = query);
+    final reader = runtime.opened;
+    setState(() => runtime = runtime.copyWith(searchQuery: query));
     if (reader == null) {
-      setState(() => searchHits = const []);
+      setState(() => runtime = runtime.withSearchHits(const []));
       return;
     }
     final hits = await hitsForQuery(reader, query);
     if (!mounted) return;
-    setState(() => searchHits = hits);
+    setState(() => runtime = runtime.withSearchHits(hits));
   }
 
   Future<void> _saveSelection() async {
-    final quote = pendingQuote;
+    final quote = runtime.pendingQuote;
     if (quote == null) return;
     final note = noteFromSelection(
       quote,
       locatorLabel: encodeLocator(await _bookmarkLocator()),
     );
     if (note == null) {
-      setState(() => pendingQuote = null);
+      setState(() => runtime = runtime.copyWith(pendingQuote: null));
       return;
     }
     await ref.read(aiRuntimeProvider).annotations.append(widget.id, note);
     if (!mounted) return;
     setState(() {
-      notes = [...notes, note];
-      pendingQuote = null;
+      runtime = runtime.withNote(note).copyWith(pendingQuote: null);
     });
   }
 
   void _onFoliateSelection(FoliateSelection selection) {
-    setState(() => pendingQuote = selection.quote);
+    setState(() =>
+        runtime = runtime.copyWith(pendingQuote: selection.quote));
   }
 
   void _onFoliateHostEvent(Map<String, Object?> event) {
-    final session = foliateSession;
+    final session = runtime.foliateSession;
     if (session != null && session.applyRelocated(event)) {
       if (!mounted) return;
       setState(() {});
@@ -333,8 +346,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     if (reflowSameHref(session.href, target)) {
       if (fragment == null || !mounted) return;
       setState(() {
-        foliateFragment = fragment;
-        foliateFragmentEpoch++;
+        runtime = runtime.copyWith(
+          foliateFragment: fragment,
+          foliateFragmentEpoch: runtime.foliateFragmentEpoch + 1,
+        );
       });
       return;
     }
@@ -342,8 +357,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   Future<void> _turnReflow({required bool next}) async {
-    final reader = opened;
-    final session = foliateSession;
+    final reader = runtime.opened;
+    final session = runtime.foliateSession;
     if (reader is! HtmlChapteredDocument || session == null) return;
     final turn = next
         ? reflowNext(
@@ -372,21 +387,21 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   Future<void> _goToChapter(int index, {bool lastPage = false}) async {
-    final reader = opened;
+    final reader = runtime.opened;
     if (reader is! ChapteredDocument) return;
     if (index < 0 || index >= reader.chapterCount) return;
     final at = reader.chapterCount <= 1 ? 0.0 : index / reader.chapterCount;
     await _goTo(reader.locatorForProgress(at));
     if (lastPage) {
-      foliateSession?.goToLastPage();
+      runtime.foliateSession?.goToLastPage();
       if (mounted) setState(() {});
     }
     _syncReflowProgress();
   }
 
   void _syncReflowProgress() {
-    final reader = opened;
-    final session = foliateSession;
+    final reader = runtime.opened;
+    final session = runtime.foliateSession;
     if (reader is! ChapteredDocument || reader.chapterCount <= 0) return;
     final pagePart = session == null || session.pageCount <= 1
         ? 0.0
@@ -399,13 +414,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   Future<void> _seekProgress(double value) async {
-    setState(() => progress = value);
+    setState(() {
+      progress = value;
+      runtime = runtime.copyWith(progress: value);
+    });
     ref.read(libraryProvider).updateProgress(widget.id, value);
-    final reader = opened;
+    final reader = runtime.opened;
     if (reader is! ChapteredDocument) return;
     if (reader is HtmlChapteredDocument) {
       await _goTo(reader.locatorForProgress(value), syncProgress: false);
-      final session = foliateSession;
+      final session = runtime.foliateSession;
       if (session != null) {
         session.goToPage(
           reflowPageIndexForProgress(
@@ -422,7 +440,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     await reader.goTo(reader.locatorForProgress(value));
     if (!mounted) return;
     setState(() {
-      body = readerCurrentBody(reader);
+      runtime = runtime.copyWith(body: readerCurrentBody(reader));
     });
   }
 
@@ -448,9 +466,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final wide = MediaQuery.sizeOf(context).width >= 900;
     final sideOpen = panels.anyOpen;
     final derived = ReaderDerived.build(
-      opened: opened,
-      tocItems: tocItems,
-      body: body,
+      opened: runtime.opened,
+      tocItems: runtime.tocItems,
+      body: runtime.body,
       l10n: l10n,
     );
     final currentIndex = derived.currentIndex;
@@ -462,11 +480,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final title = document?.metadata.title ?? widget.id;
     final formatLabel = document?.metadata.format.label ?? '';
     final chapterState = resolveReaderChapterState(
-      loading: loading,
-      opened: opened,
+      loading: runtime.loading,
+      opened: runtime.opened,
       document: document,
-      isTruncated: opened is ChapteredDocument &&
-          (opened as ChapteredDocument).truncated,
+      isTruncated: runtime.opened is ChapteredDocument &&
+          (runtime.opened as ChapteredDocument).truncated,
     );
 
     return Scaffold(
@@ -500,7 +518,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           : null,
       body: CallbackShortcuts(
         bindings: {
-          if (opened is HtmlChapteredDocument) ...{
+          if (runtime.opened is HtmlChapteredDocument) ...{
             const SingleActivator(LogicalKeyboardKey.arrowRight): () {
               _turnReflow(next: true);
             },
@@ -519,7 +537,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           autofocus: true,
           child: GestureDetector(
             onTap: () {
-              if (pendingQuote != null && pendingQuote!.trim().isNotEmpty) {
+              if (runtime.pendingQuote != null &&
+                  runtime.pendingQuote!.trim().isNotEmpty) {
                 return;
               }
               setState(() => chrome = !chrome);
@@ -538,14 +557,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         showNotes: panels.showNotes,
                         showBookmarks: panels.bookmarks,
                         showToc: panels.toc,
-                        searchQuery: searchQuery,
-                        searchHits: searchHits,
-                        notes: notes,
-                        tocItems: tocItems,
+                        searchQuery: runtime.searchQuery,
+                        searchHits: runtime.searchHits,
+                        notes: runtime.notes,
+                        tocItems: runtime.tocItems,
                         currentHref: currentHref,
-                        currentFragment: foliateFragment,
+                        currentFragment: runtime.foliateFragment,
                         currentIndex: currentIndex,
-                        foliateSession: foliateSession,
+                        foliateSession: runtime.foliateSession,
                         onSearchQuery: _searchBook,
                         onSearchOpen: _onSearchHit,
                         onNoteOpen: _onNoteOpen,
@@ -559,16 +578,17 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       ),
                     Expanded(
                       child: ReaderReadingPane(
-                        opened: opened,
+                        opened: runtime.opened,
                         chrome: chrome,
-                        fileBytes: fileBytes,
-                        foliateSession: foliateSession,
-                        foliateFragment: foliateFragment,
-                        foliateFragmentEpoch: foliateFragmentEpoch,
-                        foliateScrollQuote: foliateScrollQuote,
-                        foliateScrollQuoteEpoch: foliateScrollQuoteEpoch,
-                        tocItems: tocItems,
-                        notes: notes,
+                        fileBytes: runtime.fileBytes,
+                        foliateSession: runtime.foliateSession,
+                        foliateFragment: runtime.foliateFragment,
+                        foliateFragmentEpoch: runtime.foliateFragmentEpoch,
+                        foliateScrollQuote: runtime.foliateScrollQuote,
+                        foliateScrollQuoteEpoch:
+                            runtime.foliateScrollQuoteEpoch,
+                        tocItems: runtime.tocItems,
+                        notes: runtime.notes,
                         surface: surface,
                         inkColor: ink,
                         mutedColor: muted,
@@ -590,13 +610,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         onFoliateHostEvent: _onFoliateHostEvent,
                         onFoliateNext: () => _turnReflow(next: true),
                         onFoliatePrevious: () => _turnReflow(next: false),
-                        onSelectionChanged: (quote) =>
-                            setState(() => pendingQuote = quote),
+                        onSelectionChanged: (quote) => setState(() =>
+                            runtime = runtime.copyWith(pendingQuote: quote)),
                       ),
                     ),
                   ],
                 ),
-                if (ask && opened != null)
+                if (ask && runtime.opened != null)
                   Positioned(
                     top: wide ? 0 : null,
                     left: wide ? null : 0,
@@ -607,13 +627,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         ? null
                         : MediaQuery.sizeOf(context).height * 0.45,
                     child: ReaderAiPanel(
-                      document: opened!,
+                      document: runtime.opened!,
                       settings: ref.watch(aiSettingsProvider).settings,
                       onJump: (locator) => _goTo(locator),
                     ),
                   ),
                 ReaderBottomOverlay(
-                  pendingQuote: pendingQuote,
+                  pendingQuote: runtime.pendingQuote,
                   saveLabel: l10n.saveSelection,
                   chrome: chrome,
                   sideOpen: sideOpen,
@@ -628,7 +648,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                     currentIndex: currentIndex,
                   ),
                   onSaveSelection: _saveSelection,
-                  onDismissSelection: () => setState(() => pendingQuote = null),
+                  onDismissSelection: () =>
+                      setState(() => runtime = runtime.copyWith(
+                            pendingQuote: null,
+                          )),
                   onSeekProgress: _seekProgress,
                 ),
               ],
@@ -644,13 +667,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     required String formatLabel,
     required int currentIndex,
   }) {
-    final chaptered = opened is ChapteredDocument
-        ? opened as ChapteredDocument
+    final chaptered = runtime.opened is ChapteredDocument
+        ? runtime.opened as ChapteredDocument
         : null;
-    final chapterCount = chaptered?.chapterCount ?? tocItems.length;
-    if (tocItems.isNotEmpty &&
+    final chapterCount = chaptered?.chapterCount ?? runtime.tocItems.length;
+    if (runtime.tocItems.isNotEmpty &&
         chapterCount > 0 &&
-        tocItems.length != chapterCount) {
+        runtime.tocItems.length != chapterCount) {
       final index = (chaptered?.chapterIndex ?? currentIndex).clamp(
         0,
         chapterCount - 1,
@@ -658,14 +681,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       return l10n.readerSection(index + 1, chapterCount);
     }
     final pages = reflowChromePages(
-      pageIndex: foliateSession?.pageIndex,
-      pageCount: foliateSession?.pageCount,
+      pageIndex: runtime.foliateSession?.pageIndex,
+      pageCount: runtime.foliateSession?.pageCount,
     );
     if (pages != null) {
       return l10n.readerSection(pages.current, pages.total);
     }
-    if (tocItems.isEmpty) return formatLabel;
-    return l10n.readerSection(currentIndex + 1, tocItems.length);
+    if (runtime.tocItems.isEmpty) return formatLabel;
+    return l10n.readerSection(currentIndex + 1, runtime.tocItems.length);
   }
 
   Future<void> _openReadingSettings() async {
@@ -674,8 +697,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       showDragHandle: true,
       isScrollControlled: true,
       builder: (context) => ReadingSettingsSheet(
-        showComicLayout: opened is ComicReaderDocument,
-        showPdfZoom: opened is PdfReaderDocument,
+        showComicLayout: runtime.opened is ComicReaderDocument,
+        showPdfZoom: runtime.opened is PdfReaderDocument,
       ),
     );
   }
@@ -685,7 +708,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   String _pageText(HtmlChapteredDocument reader) {
-    final session = foliateSession;
+    final session = runtime.foliateSession;
     final source = reader.currentChapterText;
     if (session == null || source.isEmpty) return source;
     final page = session.currentPage;
