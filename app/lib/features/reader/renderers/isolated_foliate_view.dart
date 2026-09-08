@@ -69,7 +69,7 @@ class _IsolatedFoliateViewState extends State<IsolatedFoliateView> {
     // Compare href only; href change implies chapter change without expensive HTML comparison.
     final chapterChanged =
         oldWidget.document.currentChapterHref !=
-            widget.document.currentChapterHref;
+        widget.document.currentChapterHref;
     final pageChanged = oldWidget.pageIndex != widget.pageIndex;
     final surfaceChanged = oldWidget.surface != widget.surface;
     final quotesChanged = !listEquals(oldWidget.quotes, widget.quotes);
@@ -90,7 +90,14 @@ class _IsolatedFoliateViewState extends State<IsolatedFoliateView> {
   }
 
   void _onHostMessage(JavaScriptMessage message) {
-    final decoded = jsonDecode(message.message);
+    Object? decoded;
+    try {
+      decoded = jsonDecode(message.message);
+    } catch (error) {
+      // Malformed message from the Foliate JS bridge — ignore it.
+      debugPrint('isolated_foliate_view received unparseable message: $error');
+      return;
+    }
     if (decoded is! Map) return;
     final payload = <String, Object?>{
       for (final entry in decoded.entries) '${entry.key}': entry.value,
