@@ -427,20 +427,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     setState(() => ask = !ask);
   }
 
-  void _toggleSearch() {
-    setState(() => panels = panels.toggle(PanelKind.search));
-  }
+  void _toggleSearch() => _togglePanel(PanelKind.search);
+  void _toggleNotes() => _togglePanel(PanelKind.notes);
+  void _toggleBookmarks() => _togglePanel(PanelKind.bookmarks);
+  void _toggleToc() => _togglePanel(PanelKind.toc);
 
-  void _toggleNotes() {
-    setState(() => panels = panels.toggle(PanelKind.notes));
-  }
-
-  void _toggleBookmarks() {
-    setState(() => panels = panels.toggle(PanelKind.bookmarks));
-  }
-
-  void _toggleToc() {
-    setState(() => panels = panels.toggle(PanelKind.toc));
+  void _togglePanel(PanelKind kind) {
+    setState(() => panels = panels.toggle(kind));
   }
 
   void _setRuntime(ReaderRuntime next) {
