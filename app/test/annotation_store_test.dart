@@ -272,6 +272,24 @@ void main() {
         throwsFormatException,
       );
     });
+
+    test('load encodes ids with spaces or special characters', () async {
+      // Spaces and '#' in an id must not corrupt the URL path.
+      late String seenPath;
+      final client = MockClient((req) async {
+        seenPath = req.url.path;
+        return http.Response(jsonEncode({'notes': []}), 200);
+      });
+      final store = HttpAnnotationRepository(
+        baseUrl: 'http://x',
+        httpClient: client,
+      );
+      await store.load('my book #1.epub');
+      expect(
+        seenPath,
+        '/v1/library/documents/${Uri.encodeComponent('my book #1.epub')}/annotations',
+      );
+    });
   });
 
   group('ReaderAnnotation JSON', () {

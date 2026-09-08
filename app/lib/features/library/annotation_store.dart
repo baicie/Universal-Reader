@@ -153,7 +153,7 @@ class HttpAnnotationRepository implements AnnotationRepository {
     final root = baseUrl.endsWith('/')
         ? baseUrl.substring(0, baseUrl.length - 1)
         : baseUrl;
-    return Uri.parse('$root/v1/library/documents/$documentId/annotations');
+    return Uri.parse('$root/v1/library/documents/${Uri.encodeComponent(documentId)}/annotations');
   }
 
   @override
