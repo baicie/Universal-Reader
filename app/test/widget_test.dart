@@ -418,6 +418,36 @@ void main() {
     expect(find.text('设计中的设计'), findsNothing);
   });
 
+  testWidgets('epub resume at saved progress jumps past the first chapter', (
+    tester,
+  ) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('story.epub', minimalEpubBytes());
+    await repository.writeReadingState(
+      id: 'story.epub',
+      progress: 0.9,
+      lastOpened: DateTime(2026, 9, 8),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('Fixture Book').first);
+    await tester.pumpAndSettle();
+    // A saved progress > 0 must take the reader straight to the second chapter,
+    // so the first chapter body should no longer be on screen.
+    expect(find.textContaining('hello from epub'), findsNothing);
+    expect(find.textContaining('second chapter text'), findsOneWidget);
+  });
+
   testWidgets('opens imported plain text in the reader', (tester) async {
     final repository = InMemoryLibraryRepository();
     await repository.importBytes(
