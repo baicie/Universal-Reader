@@ -88,10 +88,19 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       return;
     }
     final bytes = await library.readFile(widget.id);
-    final loadedNotes = await ref
-        .read(aiRuntimeProvider)
-        .annotations
-        .load(widget.id);
+    List<ReaderAnnotation> loadedNotes = const [];
+    try {
+      loadedNotes = await ref
+          .read(aiRuntimeProvider)
+          .annotations
+          .load(widget.id);
+    } catch (error) {
+      // Notes are decorative for opening the book; a corrupt annotation store
+      // must not block the reader. Log and continue with an empty list.
+      debugPrint(
+        'reader_page._open notes load failed for ${widget.id}: $error',
+      );
+    }
     if (!mounted) return;
     final reader = openReaderDocument(
       metadata: document.metadata,
@@ -237,7 +246,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   Future<void> _addBookmark() async {
     if (runtime.opened == null || runtime.loading) return;
     final mark = bookmarkAt(locator: await _bookmarkLocator());
-    await ref.read(aiRuntimeProvider).annotations.append(widget.id, mark);
+    try {
+      await ref.read(aiRuntimeProvider).annotations.append(widget.id, mark);
+    } catch (error) {
+      debugPrint('bookmark append failed: $error');
+    }
     if (!mounted) return;
     setState(() {
       runtime = runtime.withNote(mark);
@@ -250,10 +263,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   Future<void> _removeMark(String noteId) async {
-    final next = await ref
-        .read(aiRuntimeProvider)
-        .annotations
-        .remove(widget.id, noteId);
+    List<ReaderAnnotation> next = const [];
+    try {
+      next = await ref
+          .read(aiRuntimeProvider)
+          .annotations
+          .remove(widget.id, noteId);
+    } catch (error) {
+      debugPrint('annotation remove failed: $error');
+    }
     if (!mounted) return;
     _setRuntime(runtime.copyWith(notes: next));
   }
@@ -281,7 +299,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       _setRuntime(runtime.copyWith(pendingQuote: null));
       return;
     }
-    await ref.read(aiRuntimeProvider).annotations.append(widget.id, note);
+    try {
+      await ref.read(aiRuntimeProvider).annotations.append(widget.id, note);
+    } catch (error) {
+      debugPrint('note append failed: $error');
+    }
     if (!mounted) return;
     _setRuntime(runtime.withNote(note).copyWith(pendingQuote: null));
   }

@@ -225,6 +225,35 @@ void main() {
     expect(find.textContaining('阅读器尚未接入'), findsNothing);
   });
 
+  testWidgets('opens the book even when the annotation store throws on load', (
+    tester,
+  ) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('story.epub', minimalEpubBytes());
+    final broken = _ThrowingAnnotationRepository();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+          aiRuntimeProvider.overrideWithValue(
+            AiRuntime.local(
+              InMemoryConversationRepository(),
+              annotations: broken,
+            ),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('Fixture Book').first);
+    await tester.pumpAndSettle();
+    // The reader should still render the book body despite the broken store.
+    expect(find.textContaining('hello from epub'), findsOneWidget);
+  });
   testWidgets('epub tap turns pages then the next chapter', (tester) async {
     final repository = InMemoryLibraryRepository();
     await repository.importBytes(
@@ -1238,4 +1267,16 @@ void main() {
     expect(renamed.metadata.title, '设计笔记');
     expect(renamed.metadata.author, '某作者');
   });
+}
+
+class _ThrowingAnnotationRepository implements AnnotationRepository {
+  @override
+  Future<List<ReaderAnnotation>> load(String documentId) async {
+    throw StateError('annotation store unreadable');
+  }
+
+  @override
+  Future<void> save(String documentId, List<ReaderAnnotation> notes) async {
+    throw StateError('annotation store unwritable');
+  }
 }
