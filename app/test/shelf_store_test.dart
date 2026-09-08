@@ -212,8 +212,7 @@ void main() {
       );
     });
 
-    test('collection section returns true only for matching collections',
-        () {
+    test('collection section returns true only for matching collections', () {
       expect(
         documentMatchesSection(
           section: collectionSection('col-1'),
@@ -374,8 +373,7 @@ void main() {
       expect(a.hashCode, b.hashCode);
     });
 
-    test('documentIds of equal length but different order are not equal',
-        () {
+    test('documentIds of equal length but different order are not equal', () {
       // Forces the inner loop inside `_sameList` to run on a non-trivial
       // mismatch (lengths equal, contents diverge).
       const a = LibraryCollection(
@@ -457,46 +455,38 @@ void main() {
       ],
     );
 
-    test(
-      'addToCollection touches only the matching collection, '
-      'leaving the others untouched',
-      () {
-        final next = addToCollection(shelves, 'col-1', 'doc-3');
-        expect(next.collections, hasLength(2));
-        expect(
-          next.collections.firstWhere((c) => c.id == 'col-1').documentIds,
-          ['doc-1', 'doc-3'],
-        );
-        // The other collection must be the exact same instance (untouched).
-        final untouched = shelves.collections
-            .firstWhere((c) => c.id == 'col-2');
-        expect(
-          identical(
-            next.collections.firstWhere((c) => c.id == 'col-2'),
-            untouched,
-          ),
-          isTrue,
-        );
-      },
-    );
+    test('addToCollection touches only the matching collection, '
+        'leaving the others untouched', () {
+      final next = addToCollection(shelves, 'col-1', 'doc-3');
+      expect(next.collections, hasLength(2));
+      expect(next.collections.firstWhere((c) => c.id == 'col-1').documentIds, [
+        'doc-1',
+        'doc-3',
+      ]);
+      // The other collection must be the exact same instance (untouched).
+      final untouched = shelves.collections.firstWhere((c) => c.id == 'col-2');
+      expect(
+        identical(
+          next.collections.firstWhere((c) => c.id == 'col-2'),
+          untouched,
+        ),
+        isTrue,
+      );
+    });
 
-    test(
-      'removeFromCollection touches only the matching collection, '
-      'leaving the others untouched',
-      () {
-        final next = removeFromCollection(shelves, 'col-1', 'doc-1');
-        expect(next.collections, hasLength(2));
-        expect(
-          next.collections.firstWhere((c) => c.id == 'col-1').documentIds,
-          isEmpty,
-        );
-        // The other collection's documentIds stay intact.
-        expect(
-          next.collections.firstWhere((c) => c.id == 'col-2').documentIds,
-          ['doc-2'],
-        );
-      },
-    );
+    test('removeFromCollection touches only the matching collection, '
+        'leaving the others untouched', () {
+      final next = removeFromCollection(shelves, 'col-1', 'doc-1');
+      expect(next.collections, hasLength(2));
+      expect(
+        next.collections.firstWhere((c) => c.id == 'col-1').documentIds,
+        isEmpty,
+      );
+      // The other collection's documentIds stay intact.
+      expect(next.collections.firstWhere((c) => c.id == 'col-2').documentIds, [
+        'doc-2',
+      ]);
+    });
   });
 
   group('LibraryCollection JSON', () {
@@ -522,10 +512,7 @@ void main() {
     });
 
     test('fromJson falls back to the first palette colour', () {
-      final collection = LibraryCollection.fromJson({
-        'id': 'c-1',
-        'name': 'A',
-      });
+      final collection = LibraryCollection.fromJson({'id': 'c-1', 'name': 'A'});
       expect(collection.color, collectionColors.first);
       expect(collection.documentIds, isEmpty);
     });
@@ -533,17 +520,45 @@ void main() {
 
   group('parseShelves', () {
     test('throws when the value is not a map', () {
-      expect(
-        () => parseShelves(['not', 'a', 'map']),
-        throwsFormatException,
-      );
+      expect(() => parseShelves(['not', 'a', 'map']), throwsFormatException);
+    });
+
+    test('ignores collection with a missing id (same pattern as annotation id)', () {
+      final shelves = parseShelves({
+        'favorites': ['notes'],
+        'collections': [
+          {'id': 'c-1', 'name': 'A', 'color': 1, 'document_ids': []},
+          {'name': 'no-id-collection'}, // missing id
+        ],
+      });
+      // The collection with no id must not appear — otherwise the empty string
+      // id would corrupt shelf operations.
+      expect(shelves.collections.length, 1);
+      expect(shelves.collections.single.id, 'c-1');
+    });
+
+    test('ignores a collection entry whose factory throws', () {
+      final shelves = parseShelves({
+        'collections': [
+          {'id': 'c-1', 'name': 'A', 'color': 1, 'document_ids': []},
+          // name as an int causes `as String?` to throw.
+          {'id': 'c-2', 'name': 42, 'color': 1, 'document_ids': []},
+        ],
+      });
+      expect(shelves.collections.length, 1);
+      expect(shelves.collections.single.id, 'c-1');
     });
 
     test('ignores non-string favorite ids and non-string collection ids', () {
       final shelves = parseShelves({
         'favorites': ['notes', 42, null, ''],
         'collections': [
-          {'id': 'c-1', 'name': 'A', 'color': 1, 'document_ids': ['notes']},
+          {
+            'id': 'c-1',
+            'name': 'A',
+            'color': 1,
+            'document_ids': ['notes'],
+          },
           'not a map',
         ],
       });
@@ -553,51 +568,46 @@ void main() {
   });
 
   group('ShelfRepository implementations', () {
-    test('SharedPreferencesShelfRepository returns empty for empty value',
-        () async {
-      SharedPreferences.setMockInitialValues({
-        'universal_reader.shelves.v1': '',
-      });
-      final repo = SharedPreferencesShelfRepository(
-        await SharedPreferences.getInstance(),
-      );
-      final shelves = await repo.load();
-      expect(shelves.favoriteIds, isEmpty);
-    });
+    test(
+      'SharedPreferencesShelfRepository returns empty for empty value',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'universal_reader.shelves.v1': '',
+        });
+        final repo = SharedPreferencesShelfRepository(
+          await SharedPreferences.getInstance(),
+        );
+        final shelves = await repo.load();
+        expect(shelves.favoriteIds, isEmpty);
+      },
+    );
 
-    test('HttpShelfRepository strips a trailing slash on the base URL',
-        () async {
-      late http.Request seen;
-      final client = MockClient((req) async {
-        seen = req;
-        return http.Response('missing', 404);
-      });
-      final repo = HttpShelfRepository(
-        baseUrl: 'http://127.0.0.1:8787/',
-        httpClient: client,
-      );
-      await repo.load();
-      expect(
-        seen.url.toString(),
-        'http://127.0.0.1:8787/v1/library/shelves',
-      );
-    });
+    test(
+      'HttpShelfRepository strips a trailing slash on the base URL',
+      () async {
+        late http.Request seen;
+        final client = MockClient((req) async {
+          seen = req;
+          return http.Response('missing', 404);
+        });
+        final repo = HttpShelfRepository(
+          baseUrl: 'http://127.0.0.1:8787/',
+          httpClient: client,
+        );
+        await repo.load();
+        expect(seen.url.toString(), 'http://127.0.0.1:8787/v1/library/shelves');
+      },
+    );
 
     test('HttpShelfRepository throws on non-200 non-404 responses', () async {
       final client = MockClient((_) async => http.Response('no', 503));
-      final repo = HttpShelfRepository(
-        baseUrl: 'http://x',
-        httpClient: client,
-      );
+      final repo = HttpShelfRepository(baseUrl: 'http://x', httpClient: client);
       await expectLater(repo.load(), throwsFormatException);
     });
 
     test('HttpShelfRepository throws when the PUT fails', () async {
       final client = MockClient((_) async => http.Response('no', 500));
-      final repo = HttpShelfRepository(
-        baseUrl: 'http://x',
-        httpClient: client,
-      );
+      final repo = HttpShelfRepository(baseUrl: 'http://x', httpClient: client);
       await expectLater(
         repo.save(const LibraryShelves()),
         throwsFormatException,
@@ -616,10 +626,7 @@ void main() {
         // SqliteLibraryRepository (e.g. WebLibraryRepository or an
         // InMemoryLibraryRepository used in tests) must degrade gracefully
         // to the SharedPreferences-backed shelves instead of throwing.
-        final repo = resolveShelfRepository(
-          InMemoryLibraryRepository(),
-          prefs,
-        );
+        final repo = resolveShelfRepository(InMemoryLibraryRepository(), prefs);
         expect(repo, isA<SharedPreferencesShelfRepository>());
       },
     );

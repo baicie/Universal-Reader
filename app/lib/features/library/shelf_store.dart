@@ -244,6 +244,24 @@ LibraryShelves pruneShelves(
   );
 }
 
+Iterable<LibraryCollection> _parseCollections(Object? collections) sync* {
+  if (collections is! List) return;
+  for (final item in collections) {
+    if (item is! Map) continue;
+    final parsed = _tryParseCollection(Map<String, dynamic>.from(item));
+    if (parsed != null) yield parsed;
+  }
+}
+
+LibraryCollection? _tryParseCollection(Map<String, dynamic> json) {
+  if ((json['id'] as String?)?.isNotEmpty != true) return null;
+  try {
+    return LibraryCollection.fromJson(json);
+  } catch (_) {
+    return null;
+  }
+}
+
 LibraryShelves parseShelves(Object? raw) {
   final decoded = raw is String ? jsonDecode(raw) : raw;
   if (decoded is! Map) {
@@ -259,10 +277,7 @@ LibraryShelves parseShelves(Object? raw) {
           if (id is String && id.isNotEmpty) id,
     },
     collections: [
-      if (collections is List)
-        for (final item in collections)
-          if (item is Map)
-            LibraryCollection.fromJson(Map<String, dynamic>.from(item)),
+      for (final collection in _parseCollections(collections)) collection,
     ],
   );
 }
