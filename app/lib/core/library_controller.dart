@@ -121,8 +121,7 @@ class PersistedLibraryController extends ChangeNotifier {
 
   bool _passesTypeAndSection(LibraryDocument document) {
     final metadata = document.metadata;
-    final typeMatches =
-        formatType == 'all' || metadata.type.name == formatType;
+    final typeMatches = formatType == 'all' || metadata.type.name == formatType;
     final sectionMatches = shelf.documentMatchesSection(
       section: section,
       documentId: metadata.id,
@@ -312,7 +311,10 @@ class PersistedLibraryController extends ChangeNotifier {
   Future<List<int>?> readFile(String id) async {
     try {
       return await repository.readFile(id);
-    } catch (_) {
+    } catch (error) {
+      // Storage read failure is treated as a missing file so the reader can
+      // fall back to the unavailable state. Log it to keep the diagnostic.
+      debugPrint('library_controller.readFile($id) failed: $error');
       return null;
     }
   }
@@ -320,7 +322,8 @@ class PersistedLibraryController extends ChangeNotifier {
   Future<List<int>?> readCover(String id) async {
     try {
       return await repository.readCover(id);
-    } catch (_) {
+    } catch (error) {
+      debugPrint('library_controller.readCover($id) failed: $error');
       return null;
     }
   }
@@ -361,6 +364,8 @@ class PersistedLibraryController extends ChangeNotifier {
       } on FormatException {
         continue;
       } catch (_) {
+        // Non-format I/O errors mark the whole batch as failed so the caller
+        // can distinguish a partial import from a full abort.
         failed = true;
       }
     }
