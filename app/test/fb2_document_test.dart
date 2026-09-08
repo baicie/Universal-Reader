@@ -174,6 +174,130 @@ void main() {
     });
   });
 
+  group('parseFb2 inlines', () {
+    test('emphasis wraps text in <em>', () {
+      final parsed = parseFb2(fb2WithInlineParagraphBytes(
+        extra: '<emphasis>italic</emphasis>',
+      ));
+      expect(parsed.chapters.first.html, contains('<em>italic</em>'));
+    });
+
+    test('strong wraps text in <strong>', () {
+      final parsed = parseFb2(fb2WithInlineParagraphBytes(
+        extra: '<strong>bold</strong>',
+      ));
+      expect(parsed.chapters.first.html, contains('<strong>bold</strong>'));
+    });
+
+    test('strikethrough wraps text in <s>', () {
+      final parsed = parseFb2(fb2WithInlineParagraphBytes(
+        extra: '<strikethrough>cut</strikethrough>',
+      ));
+      expect(parsed.chapters.first.html, contains('<s>cut</s>'));
+    });
+
+    test('sub wraps text in <sub>', () {
+      final parsed = parseFb2(fb2WithInlineParagraphBytes(
+        extra: '<sub>2</sub>',
+      ));
+      expect(parsed.chapters.first.html, contains('<sub>2</sub>'));
+    });
+
+    test('sup wraps text in <sup>', () {
+      final parsed = parseFb2(fb2WithInlineParagraphBytes(
+        extra: '<sup>n</sup>',
+      ));
+      expect(parsed.chapters.first.html, contains('<sup>n</sup>'));
+    });
+
+    test('code wraps text in <code>', () {
+      final parsed = parseFb2(fb2WithInlineParagraphBytes(
+        extra: '<code>printf</code>',
+      ));
+      expect(parsed.chapters.first.html, contains('<code>printf</code>'));
+    });
+
+    test('style with name produces <span class="…">', () {
+      final parsed = parseFb2(fb2WithInlineParagraphBytes(
+        extra: '<style name="highlight">lit</style>',
+      ));
+      expect(
+        parsed.chapters.first.html,
+        contains('<span class="highlight">lit</span>'),
+      );
+    });
+
+    test('style without name falls back to plain inner text', () {
+      final parsed = parseFb2(fb2WithInlineParagraphBytes(
+        extra: '<style>naked</style>',
+      ));
+      // No <span> wrapper when no name attribute is provided.
+      expect(parsed.chapters.first.html, isNot(contains('<span')));
+      expect(parsed.chapters.first.html, contains('naked'));
+    });
+
+    test('a hash-href renders <a href="#…">', () {
+      final parsed = parseFb2(fb2WithInlineParagraphBytes(
+        textBefore: 'see ',
+        textAfter: ' for details',
+        extra: '<a l:href="#note1">footnote 1</a>',
+      ));
+      expect(
+        parsed.chapters.first.html,
+        contains('<a href="#note1">footnote 1</a>'),
+      );
+    });
+
+    test('a http-href renders external link with class', () {
+      final parsed = parseFb2(fb2WithInlineParagraphBytes(
+        textBefore: '',
+        textAfter: '',
+        extra: '<a l:href="https://example.com/x">ext</a>',
+      ));
+      expect(
+        parsed.chapters.first.html,
+        contains('class="external-link"'),
+      );
+      expect(
+        parsed.chapters.first.html,
+        contains('href="https://example.com/x"'),
+      );
+    });
+
+    test('a with id but no href renders a <span id="…">', () {
+      final parsed = parseFb2(fb2WithInlineParagraphBytes(
+        extra: '<a id="bookmark-here">marker</a>',
+      ));
+      expect(parsed.chapters.first.html, contains('<span id="bookmark-here">'));
+    });
+
+    test('a with neither href nor id drops the wrapper', () {
+      final parsed = parseFb2(fb2WithInlineParagraphBytes(
+        extra: '<a>plain anchor</a>',
+      ));
+      // The anchor wrapper should disappear entirely (no <a> tag emitted).
+      expect(parsed.chapters.first.html, isNot(contains('<a')));
+      expect(parsed.chapters.first.html, contains('plain anchor'));
+    });
+
+    test('inline image renders an <img src> with binary data uri', () {
+      final parsed = parseFb2(fb2WithInlineImageBytes());
+      final html = parsed.chapters.first.html;
+      expect(html, contains('<img'));
+      expect(html, contains('src="data:image/png;base64,'));
+    });
+
+    test('cross-reference hash href is rewritten to chapter anchor', () {
+      final parsed = parseFb2(fb2WithCrossReferenceBytes());
+      final html = parsed.chapters.first.html;
+      // The original '#anchor1' is rewritten to a chapter-scoped href
+      // (e.g. "section-0#anchor1") so the link points to a real chapter.
+      expect(html, contains('href="section-0#anchor1"'));
+      // And the original bare '#anchor1' href must no longer be present.
+      expect(html, isNot(contains('href="#anchor1"')));
+    });
+  });
+
   group('Fb2ReaderDocument', () {
     Fb2ReaderDocument build({
       List<String> titles = const ['第一章', '第二章'],

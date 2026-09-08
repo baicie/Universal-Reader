@@ -154,6 +154,99 @@ List<int> fb2WithChapterBlocksBytes(
   return utf8.encode(buffer.toString());
 }
 
+/// Returns FB2 bytes containing an inline-rich single paragraph. Use [extra]
+/// to embed custom XML fragments like `<a href="#…">` or `<image href="…" />`
+/// inside the paragraph. Used to test inline element rendering.
+List<int> fb2WithInlineParagraphBytes({
+  String title = 'Inline Book',
+  String chapterTitle = 'Chapter 1',
+  String textBefore = 'before ',
+  String textAfter = ' after',
+  String extra = '',
+}) {
+  final buffer = StringBuffer();
+  buffer.writeln(
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">',
+  );
+  buffer.writeln('<description>');
+  buffer.writeln('  <title-info>');
+  buffer.writeln('    <book-title>${_xml(title)}</book-title>');
+  buffer.writeln('  </title-info>');
+  buffer.writeln('</description>');
+  buffer.writeln('<body>');
+  buffer.writeln('  <section>');
+  buffer.writeln('    <title>${_xml(chapterTitle)}</title>');
+  buffer.writeln('    <p>${_xml(textBefore)}$extra${_xml(textAfter)}</p>');
+  buffer.writeln('  </section>');
+  buffer.writeln('</body>');
+  buffer.writeln('</FictionBook>');
+  return utf8.encode(buffer.toString());
+}
+
+/// Returns FB2 bytes containing one binary image asset (`id="cover.png"`)
+/// referenced by `<image l:href="#cover.png" />` from inside the chapter
+/// paragraph. The image is a 1×1 transparent PNG.
+List<int> fb2WithInlineImageBytes({
+  String title = 'Inline Image Book',
+  String chapterTitle = 'Chapter 1',
+}) {
+  // 1×1 transparent PNG, base64-encoded.
+  const pngBase64 =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+  final buffer = StringBuffer();
+  buffer.writeln(
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"'
+    ' xmlns:l="http://www.w3.org/1999/xlink">',
+  );
+  buffer.writeln('<description>');
+  buffer.writeln('  <title-info>');
+  buffer.writeln('    <book-title>${_xml(title)}</book-title>');
+  buffer.writeln('  </title-info>');
+  buffer.writeln('</description>');
+  buffer.writeln('<binary id="cover.png" content-type="image/png">'
+      '$pngBase64</binary>');
+  buffer.writeln('<body>');
+  buffer.writeln('  <section>');
+  buffer.writeln('    <title>${_xml(chapterTitle)}</title>');
+  buffer.writeln('    <p><image l:href="#cover.png"/></p>');
+  buffer.writeln('  </section>');
+  buffer.writeln('</body>');
+  buffer.writeln('</FictionBook>');
+  return utf8.encode(buffer.toString());
+}
+
+/// Returns FB2 bytes with two body sections: the first one contains a
+/// paragraph with `id="anchor1"` and a paragraph with an `<a l:href="#anchor1">`
+/// inside another paragraph. The first chapter's html should have its `#`
+/// href rewritten to point at the second chapter and re-anchor.
+List<int> fb2WithCrossReferenceBytes({
+  String title = 'Cross Ref Book',
+}) {
+  final buffer = StringBuffer();
+  buffer.writeln(
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"'
+    ' xmlns:l="http://www.w3.org/1999/xlink">',
+  );
+  buffer.writeln('<description>');
+  buffer.writeln('  <title-info>');
+  buffer.writeln('    <book-title>${_xml(title)}</book-title>');
+  buffer.writeln('  </title-info>');
+  buffer.writeln('</description>');
+  buffer.writeln('<body>');
+  buffer.writeln('  <section>');
+  buffer.writeln('    <title>Chapter A</title>');
+  buffer.writeln('    <p id="anchor1">target paragraph</p>');
+  buffer.writeln('    <p>link below goes to '
+      '<a l:href="#anchor1">the anchor</a>.</p>');
+  buffer.writeln('  </section>');
+  buffer.writeln('</body>');
+  buffer.writeln('</FictionBook>');
+  return utf8.encode(buffer.toString());
+}
+
 /// Returns FB2 bytes with a body containing two top-level sections
 /// ("Part I" and "Part II"), each with a child section ("Chapter One" /
 /// "Chapter Two"). Used by widget tests that navigate a nested TOC.
