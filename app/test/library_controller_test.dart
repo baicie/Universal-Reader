@@ -770,6 +770,62 @@ void main() {
     });
   });
 
+  group('shelf load failures', () {
+    test(
+      'a shelf repository that throws on load does not invent seed favorites '
+      'or collections',
+      () async {
+        final repository = InMemoryLibraryRepository(seedDocuments);
+        final controller = PersistedLibraryController(
+          repository: repository,
+          shelfRepository: _UnreadableShelfRepository(),
+        );
+
+        await controller.load();
+
+        // Catch path must produce an empty shelf instead of fabricating one.
+        expect(controller.collections, isEmpty);
+        expect(controller.isFavorite('design'), isFalse);
+        // The controller still finishes loading so callers can render.
+        expect(controller.loading, isFalse);
+      },
+    );
+
+    test(
+      'shelf entries referencing unknown documents are pruned and saved back',
+      () async {
+        // Seed two real documents so the controller can match shelf ids.
+        final repository = InMemoryLibraryRepository(seedDocuments);
+        final shelves = _FailingShelfRepository()
+          ..primedShelves = const LibraryShelves(
+            collections: [
+              LibraryCollection(
+                id: 'shelf-orphans',
+                name: 'Orphan shelf',
+                color: 0xFFC69355,
+                documentIds: ['design', 'vanished-book'],
+              ),
+            ],
+            favoriteIds: {'vanished-book'},
+          );
+        final controller = PersistedLibraryController(
+          repository: repository,
+          shelfRepository: shelves,
+        );
+
+        await controller.load();
+
+        // Unknown ids are dropped; known ids survive.
+        expect(controller.collections, hasLength(1));
+        expect(controller.collections.single.documentIds, equals(['design']));
+        expect(controller.isFavorite('design'), isFalse);
+        // `pruned != stored` triggered the save branch — the failing shelf
+        // store now records the prune write.
+        expect(shelves.saveCount, equals(1));
+      },
+    );
+  });
+
   group('importNamedBytes outcomes', () {
     test('reports unsupported when nothing matches a known format', () async {
       final controller = PersistedLibraryController(
@@ -909,17 +965,39 @@ class _StubCoverRepository extends InMemoryLibraryRepository {
 class _FailingShelfRepository implements ShelfRepository {
   final Map<String, LibraryShelves> _stores = {};
   bool failNextSave = false;
+  LibraryShelves primedShelves = const LibraryShelves();
+  int saveCount = 0;
 
   @override
-  Future<LibraryShelves> load() async =>
-      _stores['default'] ?? const LibraryShelves();
+  Future<LibraryShelves> load() async {
+    // When primed, return the pre-loaded state so callers can observe a
+    // shelf that already references documents the repository does not have.
+    if (primedShelves.collections.isNotEmpty ||
+        primedShelves.favoriteIds.isNotEmpty) {
+      return primedShelves;
+    }
+    return _stores['default'] ?? const LibraryShelves();
+  }
 
   @override
   Future<void> save(LibraryShelves shelves) async {
+    saveCount++;
     if (failNextSave) {
       failNextSave = false;
       throw StateError('shelf save failed');
     }
     _stores['default'] = shelves;
+  }
+}
+
+class _UnreadableShelfRepository implements ShelfRepository {
+  @override
+  Future<LibraryShelves> load() async {
+    throw StateError('shelf disk unreadable');
+  }
+
+  @override
+  Future<void> save(LibraryShelves shelves) async {
+    throw StateError('shelf disk unwritable');
   }
 }
