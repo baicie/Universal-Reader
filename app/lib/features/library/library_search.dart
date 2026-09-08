@@ -36,8 +36,7 @@ List<LibraryDocument> _metadataMatches(
   for (final document in documents) {
     if (seen.add(document.metadata.id) &&
         (_looseContains(document.metadata.title, query) ||
-            _looseContains(document.metadata.author, query) ||
-            _looseContains(document.metadata.id, query))) {
+            _looseContains(document.metadata.author, query))) {
       hits.add(document);
     }
   }
@@ -50,7 +49,7 @@ Future<List<LibrarySearchHit>> librarySearchAllAsync({
   required Iterable<LibraryDocument> documents,
   required String query,
   required Future<List<ReaderAnnotation>> Function(String documentId)
-      annotationsFor,
+  annotationsFor,
 }) async {
   if (query.isEmpty) {
     return [
@@ -66,9 +65,9 @@ Future<List<LibrarySearchHit>> librarySearchAllAsync({
   final metadataHits = <LibraryDocument>[];
   final noteHits = <LibrarySearchHit>[];
   for (final document in documents) {
-    final matchesMetadata = _looseContains(document.metadata.title, query) ||
-        _looseContains(document.metadata.author, query) ||
-        _looseContains(document.metadata.id, query);
+    final matchesMetadata =
+        _looseContains(document.metadata.title, query) ||
+        _looseContains(document.metadata.author, query);
     if (matchesMetadata) {
       metadataHits.add(document);
     }
