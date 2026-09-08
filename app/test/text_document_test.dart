@@ -333,6 +333,22 @@ void main() {
       );
     });
 
+    test('search returns one hit per match in the full text', () async {
+      // Reader search must report every match so the search pane can offer
+      // "next" navigation. Today the implementation only reports the first
+      // hit, hiding all subsequent occurrences from the reader UI.
+      final document = TextReaderDocument.parse(
+        metadata: _txt(),
+        bytes: utf8.encode('alpha beta alpha beta alpha beta'),
+      );
+      final results = await document.search('alpha');
+      final offsets = [
+        for (final result in results) (result.locator as TextLocator).offset,
+      ];
+      expect(offsets, hasLength(3));
+      expect(offsets, equals(<int>[0, 11, 22]));
+    });
+
     test('search returns const empty for empty query', () async {
       final document = TextReaderDocument.parse(
         metadata: _txt(),

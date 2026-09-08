@@ -338,15 +338,23 @@ class TextReaderDocument implements ChapteredDocument {
 
   @override
   Future<List<SearchResult>> search(String query) async {
-    if (query.isEmpty || !parsed.fullText.contains(query)) return const [];
-    final offset = parsed.fullText.indexOf(query);
-    return [
-      SearchResult(
-        title: metadata.title,
-        excerpt: query,
-        locator: TextLocator(offset: offset),
-      ),
-    ];
+    if (query.isEmpty) return const [];
+    final text = parsed.fullText;
+    final hits = <SearchResult>[];
+    var index = 0;
+    while (true) {
+      final next = text.indexOf(query, index);
+      if (next < 0) break;
+      hits.add(
+        SearchResult(
+          title: metadata.title,
+          excerpt: query,
+          locator: TextLocator(offset: next),
+        ),
+      );
+      index = next + query.length;
+    }
+    return hits;
   }
 
   @override
