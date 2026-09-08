@@ -13,24 +13,26 @@ void main() {
       expect(l10n.authorLabel('Author'), 'Author');
     });
 
-    test('falls back to localLibraryAuthor for empty author', () {
-      expect(l10n.authorLabel(''), l10n.localLibraryAuthor);
+    test('returns empty for missing author (missing data stays missing)', () {
+      expect(l10n.authorLabel(''), '');
     });
 
-    test('falls back to localLibraryAuthor for "本地文件"', () {
-      expect(l10n.authorLabel('本地文件'), l10n.localLibraryAuthor);
+    test('falls back to empty for legacy seed "本地文件"', () {
+      expect(l10n.authorLabel('本地文件'), '');
     });
 
-    test('falls back to localLibraryAuthor for "本地书库"', () {
-      expect(l10n.authorLabel('本地书库'), l10n.localLibraryAuthor);
+    test('falls back to empty for injected "本地书库"', () {
+      expect(l10n.authorLabel('本地书库'), '');
     });
 
-    test('preserves authors that share a substring with the local sentinel',
-        () {
-      // The fallback is an exact-match check; "本地文件 2" must not be
-      // treated as the local library placeholder.
-      expect(l10n.authorLabel('本地文件 2'), '本地文件 2');
-    });
+    test(
+      'preserves authors that share a substring with the local sentinel',
+      () {
+        // The fallback is an exact-match check; "本地文件 2" must not be
+        // treated as the local library placeholder.
+        expect(l10n.authorLabel('本地文件 2'), '本地文件 2');
+      },
+    );
 
     test('matches localLibraryAuthor exactly, not by prefix', () {
       // Substring-prefix should be preserved.
@@ -38,11 +40,11 @@ void main() {
     });
 
     test('keeps the stub reference stable across calls', () {
-      // Two calls must return the same fallback string for the same locale.
+      // Two calls must return the same empty string for legacy seed values.
       final first = l10n.authorLabel('本地文件');
       final second = l10n.authorLabel('本地书库');
       expect(first, second);
-      expect(first, l10n.localLibraryAuthor);
+      expect(first, '');
     });
   });
 
@@ -57,33 +59,32 @@ void main() {
       expect(l10n.sectionTitle('favorites'), l10n.favorites);
     });
 
-    test('"collection:abc" with collectionName returns the collectionName',
-        () {
+    test('"collection:abc" with collectionName returns the collectionName', () {
       expect(
         l10n.sectionTitle('collection:abc', collectionName: 'My Shelf'),
         'My Shelf',
       );
     });
 
-    test('"collection:abc" without collectionName falls back to collections',
-        () {
-      expect(l10n.sectionTitle('collection:abc'), l10n.collections);
-    });
+    test(
+      '"collection:abc" without collectionName falls back to collections',
+      () {
+        expect(l10n.sectionTitle('collection:abc'), l10n.collections);
+      },
+    );
 
     test('unknown section maps to allBooks', () {
       expect(l10n.sectionTitle('whatever'), l10n.allBooks);
       expect(l10n.sectionTitle(''), l10n.allBooks);
     });
 
-    test('"collection:" without an id is treated as an unknown section',
-        () {
+    test('"collection:" without an id is treated as an unknown section', () {
       // No `:` separator after `collection` → doesn't match the startsWith
       // branch and falls through to allBooks.
       expect(l10n.sectionTitle('collection'), l10n.allBooks);
     });
 
-    test('"collection:" with empty collection name falls back gracefully',
-        () {
+    test('"collection:" with empty collection name falls back gracefully', () {
       // collectionName is null → uses the collections label.
       expect(
         l10n.sectionTitle('collection:', collectionName: null),
@@ -104,16 +105,16 @@ void main() {
   group('LibraryStrings with zh locale', () {
     final l10n = _stubL10n(const Locale('zh'));
 
-    test('authorLabel fallback matches zh localLibraryAuthor', () {
-      expect(l10n.authorLabel(''), l10n.localLibraryAuthor);
-      expect(l10n.authorLabel('本地文件'), l10n.localLibraryAuthor);
+    test('authorLabel returns empty for missing/legacy values in zh', () {
+      expect(l10n.authorLabel(''), '');
+      expect(l10n.authorLabel('本地文件'), '');
+      expect(l10n.authorLabel('本地书库'), '');
     });
 
     test('sectionTitle maps to zh strings', () {
       expect(l10n.sectionTitle('reading'), l10n.currentlyReading);
       expect(l10n.sectionTitle('favorites'), l10n.favorites);
-      expect(l10n.sectionTitle('collection:1', collectionName: '我的书架'),
-          '我的书架');
+      expect(l10n.sectionTitle('collection:1', collectionName: '我的书架'), '我的书架');
     });
   });
 }
