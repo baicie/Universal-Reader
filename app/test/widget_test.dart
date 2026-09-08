@@ -448,6 +448,37 @@ void main() {
     expect(find.textContaining('second chapter text'), findsOneWidget);
   });
 
+  testWidgets('plain text seek slider writes the new progress', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    // Two blank-line-separated sections give TextReaderDocument two chapters.
+    await repository.importBytes(
+      'notes.txt',
+      utf8.encode('first section\n\nsecond section content'),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('notes').first);
+    await tester.pumpAndSettle();
+    // _seekProgress exercises the non-HtmlChapteredDocument ChapteredDocument
+    // path in ReaderPage (plain text / pdf / comic).
+    tester.widget<Slider>(find.byType(Slider)).onChanged!(0.9);
+    await tester.pumpAndSettle();
+    final after = (await repository.load()).singleWhere(
+      (item) => item.metadata.id == 'notes.txt',
+    );
+    expect(after.readingState.progress, 0.9);
+  });
+
   testWidgets('opens imported plain text in the reader', (tester) async {
     final repository = InMemoryLibraryRepository();
     await repository.importBytes(
