@@ -1,9 +1,11 @@
 import 'package:app/core/library_controller.dart';
 import 'package:app/core/library_repository.dart';
 import 'package:app/core/models.dart';
-import 'support/seed_documents.dart';
 import 'package:app/features/library/annotation_store.dart';
+import 'package:app/features/library/shelf_store.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/seed_documents.dart';
 
 class _StubAnnotationRepository implements AnnotationRepository {
   _StubAnnotationRepository(this._byId);
@@ -220,21 +222,24 @@ void main() {
     expect(controller.documents, hasLength(1));
   });
 
-  test('opened updates lastOpened in memory even when persistence fails', () async {
-    final repository = _FailingWriteRepository();
-    await repository.importBytes('notes.txt', [1]);
-    final controller = PersistedLibraryController(repository: repository);
-    await controller.load();
-    final id = controller.documents.single.metadata.id;
-    final before = controller.documents.single.readingState.lastOpened;
+  test(
+    'opened updates lastOpened in memory even when persistence fails',
+    () async {
+      final repository = _FailingWriteRepository();
+      await repository.importBytes('notes.txt', [1]);
+      final controller = PersistedLibraryController(repository: repository);
+      await controller.load();
+      final id = controller.documents.single.metadata.id;
+      final before = controller.documents.single.readingState.lastOpened;
 
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-    await controller.opened(id);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await controller.opened(id);
 
-    final after = controller.documents.single.readingState.lastOpened;
-    expect(after.isAfter(before), isTrue);
-    expect(controller.documents.single.readingState.progress, 0.0);
-  });
+      final after = controller.documents.single.readingState.lastOpened;
+      expect(after.isAfter(before), isTrue);
+      expect(controller.documents.single.readingState.progress, 0.0);
+    },
+  );
 
   test('opened on missing book does not invent a document', () async {
     final repository = InMemoryLibraryRepository();
@@ -292,33 +297,31 @@ void main() {
   });
 
   group('annotation-backed search', () {
-    test('includes a book whose note matches when no metadata hit exists',
-        () async {
-      final repository = _StubAnnotationRepository({
-        'note-only': [
-          _stubNote(id: 'n1', quote: 'this contains needle'),
-        ],
-      });
-      final controller = PersistedLibraryController(
-        repository: InMemoryLibraryRepository(),
-        annotationRepository: repository,
-      );
-      await controller.load();
-      controller.addDocumentForTest(
-        _stubDoc(id: 'note-only', title: 'Alpha'),
-      );
+    test(
+      'includes a book whose note matches when no metadata hit exists',
+      () async {
+        final repository = _StubAnnotationRepository({
+          'note-only': [_stubNote(id: 'n1', quote: 'this contains needle')],
+        });
+        final controller = PersistedLibraryController(
+          repository: InMemoryLibraryRepository(),
+          annotationRepository: repository,
+        );
+        await controller.load();
+        controller.addDocumentForTest(
+          _stubDoc(id: 'note-only', title: 'Alpha'),
+        );
 
-      controller.search('needle');
-      await controller.waitForSearch();
-      final ids = controller.documents.map((d) => d.metadata.id).toList();
-      expect(ids, contains('note-only'));
-    });
+        controller.search('needle');
+        await controller.waitForSearch();
+        final ids = controller.documents.map((d) => d.metadata.id).toList();
+        expect(ids, contains('note-only'));
+      },
+    );
 
     test('does not duplicate a book that already matched metadata', () async {
       final repository = _StubAnnotationRepository({
-        'design': [
-          _stubNote(id: 'n1', quote: 'design quote'),
-        ],
+        'design': [_stubNote(id: 'n1', quote: 'design quote')],
       });
       final controller = PersistedLibraryController(
         repository: InMemoryLibraryRepository(),
@@ -362,9 +365,7 @@ void main() {
         repository: InMemoryLibraryRepository(),
       );
       await controller.load();
-      controller.addDocumentForTest(
-        _stubDoc(id: 'note-only', title: 'Alpha'),
-      );
+      controller.addDocumentForTest(_stubDoc(id: 'note-only', title: 'Alpha'));
 
       controller.search('needle');
       await controller.waitForSearch();
@@ -376,9 +377,7 @@ void main() {
   group('deleteCollection', () {
     test('removes the collection from the shelf', () async {
       final repository = InMemoryLibraryRepository(seedDocuments);
-      final controller = PersistedLibraryController(
-        repository: repository,
-      );
+      final controller = PersistedLibraryController(repository: repository);
       await controller.load();
       final created = await controller.createCollection('shelf-A');
       expect(created, isNotNull);
@@ -392,9 +391,7 @@ void main() {
 
     test('falls back to all when the active section is removed', () async {
       final repository = InMemoryLibraryRepository(seedDocuments);
-      final controller = PersistedLibraryController(
-        repository: repository,
-      );
+      final controller = PersistedLibraryController(repository: repository);
       await controller.load();
       final created = await controller.createCollection('shelf-A');
       controller.selectSection('collection:${created!.id}');
@@ -405,33 +402,31 @@ void main() {
       expect(controller.section, 'all');
     });
 
-    test('leaves other sections alone when an unrelated collection is removed',
-        () async {
-      final repository = InMemoryLibraryRepository(seedDocuments);
-      final controller = PersistedLibraryController(
-        repository: repository,
-      );
-      await controller.load();
-      final keep = await controller.createCollection('shelf-A');
-      final drop = await controller.createCollection('shelf-B');
-      controller.selectSection('favorites');
+    test(
+      'leaves other sections alone when an unrelated collection is removed',
+      () async {
+        final repository = InMemoryLibraryRepository(seedDocuments);
+        final controller = PersistedLibraryController(repository: repository);
+        await controller.load();
+        final keep = await controller.createCollection('shelf-A');
+        final drop = await controller.createCollection('shelf-B');
+        controller.selectSection('favorites');
 
-      await controller.deleteCollection(drop!.id);
+        await controller.deleteCollection(drop!.id);
 
-      expect(controller.section, 'favorites');
-      expect(
-        controller.collections.map((c) => c.name),
-        containsAll(['shelf-A']),
-        reason: 'unrelated collection must survive',
-      );
-      expect(controller.isInCollection(keep!.id, 'design'), isFalse);
-    });
+        expect(controller.section, 'favorites');
+        expect(
+          controller.collections.map((c) => c.name),
+          containsAll(['shelf-A']),
+          reason: 'unrelated collection must survive',
+        );
+        expect(controller.isInCollection(keep!.id, 'design'), isFalse);
+      },
+    );
 
     test('is a no-op when the collection id is unknown', () async {
       final repository = InMemoryLibraryRepository(seedDocuments);
-      final controller = PersistedLibraryController(
-        repository: repository,
-      );
+      final controller = PersistedLibraryController(repository: repository);
       await controller.load();
       final before = controller.collections;
 
@@ -479,44 +474,50 @@ void main() {
   });
 
   group('search refresh', () {
-    test('empty query skips the async scan and waitForSearch resolves', () async {
-      final controller = PersistedLibraryController(
-        repository: InMemoryLibraryRepository(),
-        annotationRepository: _ThrowingAnnotationRepository(),
-      );
-      await controller.load();
+    test(
+      'empty query skips the async scan and waitForSearch resolves',
+      () async {
+        final controller = PersistedLibraryController(
+          repository: InMemoryLibraryRepository(),
+          annotationRepository: _ThrowingAnnotationRepository(),
+        );
+        await controller.load();
 
-      controller.search('');
-      // The throwing repo must not be reached; waitForSearch must not hang.
-      await controller.waitForSearch();
-      expect(controller.documents, isEmpty);
-    });
+        controller.search('');
+        // The throwing repo must not be reached; waitForSearch must not hang.
+        await controller.waitForSearch();
+        expect(controller.documents, isEmpty);
+      },
+    );
 
-    test('a stale pending search does not publish after a newer query', () async {
-      final controller = PersistedLibraryController(
-        repository: InMemoryLibraryRepository(),
-        annotationRepository: _StubAnnotationRepository(const {}),
-      );
-      await controller.load();
-      controller.addDocumentForTest(
-        _stubDoc(id: 'design', title: 'Design Notes'),
-      );
+    test(
+      'a stale pending search does not publish after a newer query',
+      () async {
+        final controller = PersistedLibraryController(
+          repository: InMemoryLibraryRepository(),
+          annotationRepository: _StubAnnotationRepository(const {}),
+        );
+        await controller.load();
+        controller.addDocumentForTest(
+          _stubDoc(id: 'design', title: 'Design Notes'),
+        );
 
-      controller.search('design');
-      controller.search('rust');
-      await controller.waitForSearch();
+        controller.search('design');
+        controller.search('rust');
+        await controller.waitForSearch();
 
-      expect(
-        controller.documents.where((d) => d.metadata.id == 'design'),
-        isEmpty,
-        reason: 'the stale design hit must be discarded by the new query',
-      );
-      expect(
-        controller.documents.where((d) => d.metadata.id == 'rust'),
-        isEmpty,
-        reason: 'no metadata match for rust either',
-      );
-    });
+        expect(
+          controller.documents.where((d) => d.metadata.id == 'design'),
+          isEmpty,
+          reason: 'the stale design hit must be discarded by the new query',
+        );
+        expect(
+          controller.documents.where((d) => d.metadata.id == 'rust'),
+          isEmpty,
+          reason: 'no metadata match for rust either',
+        );
+      },
+    );
 
     test('waitForSearch resolves when annotation store throws', () async {
       final controller = PersistedLibraryController(
@@ -568,15 +569,18 @@ void main() {
       expect(controller.continueReading, isNull);
     });
 
-    test('returns null when every book is finished (progress == 1.0)', () async {
-      final repository = InMemoryLibraryRepository();
-      await repository.importBytes('a.txt', [1]);
-      final controller = PersistedLibraryController(repository: repository);
-      await controller.load();
-      await controller.updateProgress('a.txt', 1.0);
+    test(
+      'returns null when every book is finished (progress == 1.0)',
+      () async {
+        final repository = InMemoryLibraryRepository();
+        await repository.importBytes('a.txt', [1]);
+        final controller = PersistedLibraryController(repository: repository);
+        await controller.load();
+        await controller.updateProgress('a.txt', 1.0);
 
-      expect(controller.continueReading, isNull);
-    });
+        expect(controller.continueReading, isNull);
+      },
+    );
 
     test('returns null when the library is empty', () async {
       final controller = PersistedLibraryController(
@@ -618,6 +622,48 @@ void main() {
     });
   });
 
+  group('shelf persistence failures', () {
+    test('toggleFavorite keeps memory state when save throws', () async {
+      final repository = InMemoryLibraryRepository(seedDocuments);
+      final shelves = _FailingShelfRepository()..failNextSave = true;
+      final controller = PersistedLibraryController(
+        repository: repository,
+        shelfRepository: shelves,
+      );
+      await controller.load();
+
+      await controller.toggleFavorite('design');
+
+      // The favorite is held in memory even though persistence failed so the
+      // user can retry the same toggle later in the same session.
+      expect(controller.isFavorite('design'), isTrue);
+      // The next toggle reaches the in-memory shelves — save failure was
+      // consumed by the first call and now persists successfully.
+      shelves.failNextSave = false;
+      await controller.toggleFavorite('design');
+      expect(controller.isFavorite('design'), isFalse);
+      // The second toggle's save reached the shelves store.
+      expect(shelves.load(), completion(isNotNull));
+    });
+
+    test('createCollection is reported as null when save throws', () async {
+      final repository = InMemoryLibraryRepository(seedDocuments);
+      final shelves = _FailingShelfRepository()..failNextSave = true;
+      final controller = PersistedLibraryController(
+        repository: repository,
+        shelfRepository: shelves,
+      );
+      await controller.load();
+
+      final created = await controller.createCollection('shelf-A');
+
+      expect(created, isNull);
+      // Memory state is rolled back, so the collection does not appear in
+      // the current session either.
+      expect(controller.collections, isEmpty);
+    });
+  });
+
   group('selectSort / selectType / toggleView', () {
     test('selectSort changes ordering and notifyListeners fires', () async {
       final repository = InMemoryLibraryRepository();
@@ -630,10 +676,10 @@ void main() {
 
       controller.selectSort('title');
       expect(controller.sort, 'title');
-      expect(
-        controller.documents.map((d) => d.metadata.title).toList(),
-        ['alpha', 'beta'],
-      );
+      expect(controller.documents.map((d) => d.metadata.title).toList(), [
+        'alpha',
+        'beta',
+      ]);
       expect(notifyCount, 1);
 
       controller.selectSort('progress');
@@ -644,9 +690,7 @@ void main() {
     test('selectType narrows documents to the chosen type', () async {
       final repository = InMemoryLibraryRepository();
       await repository.importBytes('reflow.txt', [1]);
-      final controller = PersistedLibraryController(
-        repository: repository,
-      );
+      final controller = PersistedLibraryController(repository: repository);
       await controller.load();
       // addDocumentForTest preserves the existing type. We add an unknown
       // type, so all formats stay 'all' by default and the reflow document
@@ -695,15 +739,17 @@ void main() {
       expect(bytes, [1, 2, 3]);
     });
 
-    test('readCover returns null when the cover is missing in storage',
-        () async {
-      final repository = InMemoryLibraryRepository();
-      await repository.importBytes('notes.txt', [1]);
-      final controller = PersistedLibraryController(repository: repository);
-      await controller.load();
+    test(
+      'readCover returns null when the cover is missing in storage',
+      () async {
+        final repository = InMemoryLibraryRepository();
+        await repository.importBytes('notes.txt', [1]);
+        final controller = PersistedLibraryController(repository: repository);
+        await controller.load();
 
-      expect(await controller.readCover('no-such-id'), isNull);
-    });
+        expect(await controller.readCover('no-such-id'), isNull);
+      },
+    );
 
     test('readCover returns null when the repository throws', () async {
       final controller = PersistedLibraryController(
@@ -858,4 +904,22 @@ class _StubCoverRepository extends InMemoryLibraryRepository {
 
   @override
   Future<List<int>?> readCover(String id) async => List<int>.from(_cover);
+}
+
+class _FailingShelfRepository implements ShelfRepository {
+  final Map<String, LibraryShelves> _stores = {};
+  bool failNextSave = false;
+
+  @override
+  Future<LibraryShelves> load() async =>
+      _stores['default'] ?? const LibraryShelves();
+
+  @override
+  Future<void> save(LibraryShelves shelves) async {
+    if (failNextSave) {
+      failNextSave = false;
+      throw StateError('shelf save failed');
+    }
+    _stores['default'] = shelves;
+  }
 }

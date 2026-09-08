@@ -178,11 +178,16 @@ class PersistedLibraryController extends ChangeNotifier {
     }
   }
 
-  Future<void> _saveShelves() async {
+  Future<bool> _saveShelves() async {
     try {
       await shelfRepository.save(_shelves);
-    } catch (_) {
-      // 当前筛选仍可用；下次 load 会再尝试写入。
+      return true;
+    } catch (error) {
+      // Persistence failure: keep memory state so the user does not lose
+      // the change in the current session, but log so the user can be told
+      // the shelf will not survive a restart.
+      debugPrint('library_controller._saveShelves failed: $error');
+      return false;
     }
   }
 
@@ -196,9 +201,17 @@ class PersistedLibraryController extends ChangeNotifier {
   Future<shelf.LibraryCollection?> createCollection(String name) async {
     final next = shelf.addCollection(_shelves, name: name);
     if (next.collections.length == _shelves.collections.length) return null;
+    final previous = _shelves;
     _shelves = next;
     notifyListeners();
-    await _saveShelves();
+    final saved = await _saveShelves();
+    if (!saved) {
+      // Roll back so the caller can tell persistence failed and the
+      // collection will not survive a restart.
+      _shelves = previous;
+      notifyListeners();
+      return null;
+    }
     return _shelves.collections.last;
   }
 
