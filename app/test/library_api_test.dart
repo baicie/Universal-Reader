@@ -26,7 +26,7 @@ void main() {
 
     expect(document.metadata.id, '1-0');
     expect(document.metadata.title, 'Design');
-    expect(document.metadata.author, '本地书库');
+    expect(document.metadata.author, isEmpty);
     expect(document.metadata.format, DocumentFormat.pdf);
     expect(document.metadata.type, DocumentType.fixedPage);
     expect(document.readingState.progress, 0.25);

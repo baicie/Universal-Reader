@@ -344,8 +344,8 @@ class LibraryDocumentCodec {
         id: json['id'] as String,
         title: (json['title'] as String?)?.trim().isNotEmpty == true
             ? json['title'] as String
-            : (json['file_name'] as String? ?? '未命名'),
-        author: author.isEmpty ? '本地书库' : author,
+            : (json['file_name'] as String? ?? ''),
+        author: author,
         format: format,
         type: type,
         coverColor: (json['cover_color'] as num?)?.toInt() ?? 0xFF527882,

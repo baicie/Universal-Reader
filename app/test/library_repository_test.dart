@@ -133,29 +133,32 @@ void main() {
     expect(await repository.load(), hasLength(1));
   });
 
-  test('SharedPreferencesLibraryRepository returns defaults when empty',
-      () async {
-    SharedPreferences.setMockInitialValues({});
-    final repo = SharedPreferencesLibraryRepository(
-      await SharedPreferences.getInstance(),
-    );
-    expect(await repo.load(), isEmpty);
-    expect(repo.usesRemoteStore, isFalse);
-  });
+  test(
+    'SharedPreferencesLibraryRepository returns defaults when empty',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final repo = SharedPreferencesLibraryRepository(
+        await SharedPreferences.getInstance(),
+      );
+      expect(await repo.load(), isEmpty);
+      expect(repo.usesRemoteStore, isFalse);
+    },
+  );
 
-  test('SharedPreferencesLibraryRepository recovers from corrupt JSON',
-      () async {
-    SharedPreferences.setMockInitialValues({
-      'universal_reader.library.v1': '{not-json',
-    });
-    final repo = SharedPreferencesLibraryRepository(
-      await SharedPreferences.getInstance(),
-    );
-    expect(await repo.load(), isEmpty);
-  });
+  test(
+    'SharedPreferencesLibraryRepository recovers from corrupt JSON',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'universal_reader.library.v1': '{not-json',
+      });
+      final repo = SharedPreferencesLibraryRepository(
+        await SharedPreferences.getInstance(),
+      );
+      expect(await repo.load(), isEmpty);
+    },
+  );
 
-  test('SharedPreferencesLibraryRepository round-trips through JSON',
-      () async {
+  test('SharedPreferencesLibraryRepository round-trips through JSON', () async {
     SharedPreferences.setMockInitialValues({});
     final repo = SharedPreferencesLibraryRepository(
       await SharedPreferences.getInstance(),
@@ -166,16 +169,18 @@ void main() {
     expect(loaded.single.readingState.progress, .42);
   });
 
-  test('SharedPreferencesLibraryRepository ignores non-list JSON values',
-      () async {
-    SharedPreferences.setMockInitialValues({
-      'universal_reader.library.v1': '{"not":"a-list"}',
-    });
-    final repo = SharedPreferencesLibraryRepository(
-      await SharedPreferences.getInstance(),
-    );
-    expect(await repo.load(), isEmpty);
-  });
+  test(
+    'SharedPreferencesLibraryRepository ignores non-list JSON values',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'universal_reader.library.v1': '{"not":"a-list"}',
+      });
+      final repo = SharedPreferencesLibraryRepository(
+        await SharedPreferences.getInstance(),
+      );
+      expect(await repo.load(), isEmpty);
+    },
+  );
 
   test('SharedPreferencesLibraryRepository writes reading state', () async {
     SharedPreferences.setMockInitialValues({});
@@ -193,8 +198,7 @@ void main() {
     expect(loaded.single.readingState.lastOpened, DateTime(2026, 9, 1));
   });
 
-  test('SharedPreferencesLibraryRepository no-ops for missing books',
-      () async {
+  test('SharedPreferencesLibraryRepository no-ops for missing books', () async {
     SharedPreferences.setMockInitialValues({});
     final repo = SharedPreferencesLibraryRepository(
       await SharedPreferences.getInstance(),
@@ -205,46 +209,50 @@ void main() {
       progress: 1,
       lastOpened: DateTime(2026, 9, 1),
     );
-    await repo.writeIdentity(
-      id: 'missing',
-      title: 'new',
-      author: 'a',
-    );
+    await repo.writeIdentity(id: 'missing', title: 'new', author: 'a');
     await repo.delete('missing');
     final loaded = await repo.load();
     expect(loaded.single.metadata.id, 'book-1');
   });
 
-  test('InMemoryLibraryRepository reads back the file bytes and cover',
-      () async {
-    final repo = InMemoryLibraryRepository();
-    await repo.importBytes('notes.txt', [1, 2, 3]);
-    expect(await repo.readFile('notes.txt'), [1, 2, 3]);
-    // Plain text without an embedded cover returns null.
-    expect(await repo.readCover('notes.txt'), isNull);
-  });
+  test(
+    'InMemoryLibraryRepository reads back the file bytes and cover',
+    () async {
+      final repo = InMemoryLibraryRepository();
+      await repo.importBytes('notes.txt', [1, 2, 3]);
+      expect(await repo.readFile('notes.txt'), [1, 2, 3]);
+      // Plain text without an embedded cover returns null.
+      expect(await repo.readCover('notes.txt'), isNull);
+    },
+  );
 
-  test('InMemoryLibraryRepository deletes the file bytes alongside metadata',
-      () async {
-    final repo = InMemoryLibraryRepository();
-    await repo.importBytes('notes.txt', [1, 2, 3]);
-    await repo.delete('notes.txt');
-    expect(await repo.readFile('notes.txt'), isNull);
-  });
+  test(
+    'InMemoryLibraryRepository deletes the file bytes alongside metadata',
+    () async {
+      final repo = InMemoryLibraryRepository();
+      await repo.importBytes('notes.txt', [1, 2, 3]);
+      await repo.delete('notes.txt');
+      expect(await repo.readFile('notes.txt'), isNull);
+    },
+  );
 
-  test('clipBookIdentity keeps short strings unchanged and truncates the rest',
-      () {
-    expect(clipBookIdentity('short'), 'short');
-    final long = 'x' * (maxBookIdentityLength + 5);
-    final clipped = clipBookIdentity(long);
-    expect(clipped.length, maxBookIdentityLength);
-  });
+  test(
+    'clipBookIdentity keeps short strings unchanged and truncates the rest',
+    () {
+      expect(clipBookIdentity('short'), 'short');
+      final long = 'x' * (maxBookIdentityLength + 5);
+      final clipped = clipBookIdentity(long);
+      expect(clipped.length, maxBookIdentityLength);
+    },
+  );
 
-  test('bookTitleForWrite keeps the current title when blank and trims input',
-      () {
-    expect(bookTitleForWrite('  ', 'current'), 'current');
-    expect(bookTitleForWrite('  new title  ', 'current'), 'new title');
-  });
+  test(
+    'bookTitleForWrite keeps the current title when blank and trims input',
+    () {
+      expect(bookTitleForWrite('  ', 'current'), 'current');
+      expect(bookTitleForWrite('  new title  ', 'current'), 'new title');
+    },
+  );
 
   test('bookAuthorForWrite trims and clips the input', () {
     expect(bookAuthorForWrite('  作者  '), '作者');
@@ -299,8 +307,7 @@ void main() {
       expect(doc.metadata.type, DocumentType.reflow);
     });
 
-    test('falls back to file_name and 本地书库 when title and author are empty',
-        () {
+    test('falls back to file_name when title is missing', () {
       final doc = LibraryDocumentCodec.fromServiceJson({
         'id': 'book-1',
         'title': '   ',
@@ -309,7 +316,19 @@ void main() {
         'content_hash': 'abc',
       });
       expect(doc.metadata.title, 't.txt');
-      expect(doc.metadata.author, '本地书库');
+    });
+
+    test('keeps author empty when missing instead of inventing 本地书库', () {
+      // `本地书库` is UI copy and must not leak into the model. The UI layer
+      // already maps an empty author back to a localized label.
+      final doc = LibraryDocumentCodec.fromServiceJson({
+        'id': 'book-1',
+        'title': 'T',
+        'file_name': 't.txt',
+        'format': 'txt',
+        'content_hash': 'abc',
+      });
+      expect(doc.metadata.author, isEmpty);
     });
 
     test('defaults progress and lastOpened when missing', () {
@@ -321,7 +340,10 @@ void main() {
         'content_hash': 'abc',
       });
       expect(doc.readingState.progress, 0);
-      expect(doc.readingState.lastOpened, DateTime.fromMillisecondsSinceEpoch(0));
+      expect(
+        doc.readingState.lastOpened,
+        DateTime.fromMillisecondsSinceEpoch(0),
+      );
     });
   });
 }
