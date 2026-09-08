@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:app/core/cover_extract.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -45,6 +47,31 @@ void main() {
 
   test('missing cover stays missing', () {
     expect(extractCover(fileName: 'notes.txt', bytes: 'hi'.codeUnits), isNull);
+  });
+
+  test('corrupt fb2 cover binary surfaces as null without throwing', () {
+    // The file points to a coverpage whose embedded binary is not valid
+    // base64, so the parser must hit its catch branch and return null
+    // instead of crashing or leaking the error to the caller.
+    final bytes = utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+  <description>
+    <title-info>
+      <book-title>FB2 Book</book-title>
+      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
+      <coverpage><image l:href="#spot.png"/></coverpage>
+    </title-info>
+  </description>
+  <body>
+    <section>
+      <title><p>Chapter One</p></title>
+      <p>hello from fb2</p>
+    </section>
+  </body>
+  <binary id="spot.png" content-type="image/png">!!!not-base64!!!</binary>
+</FictionBook>
+''');
+    expect(extractCover(fileName: 'book.fb2', bytes: bytes), isNull);
   });
 }
 

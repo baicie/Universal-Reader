@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart';
 
 import 'format_detector.dart';
@@ -20,8 +21,9 @@ List<int>? extractCover({required String fileName, required List<int> bytes}) {
       DocumentFormat.cbz || DocumentFormat.cbr => _zipFirstImage(bytes),
       _ => null,
     };
-  } catch (_) {
-    // 封面失败不能挡住导入；没有封面就继续用颜色块。
+  } on Exception catch (error) {
+    // 封面失败不能挡住导入；用日志保留线索便于排查损坏文件。
+    debugPrint('cover extract failed for $fileName: $error');
     return null;
   }
 }
