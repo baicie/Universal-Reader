@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'content_hash.dart';
@@ -53,16 +54,27 @@ class WebPersistentLibraryRepository implements LibraryRepository {
 
   @override
   Future<List<int>?> readFile(String id) async {
-    final raw = preferences.getString('$filePrefix$id');
-    if (raw == null || raw.isEmpty) return null;
-    return base64Decode(raw);
+    return _decodePref('$filePrefix$id', id);
   }
 
   @override
   Future<List<int>?> readCover(String id) async {
-    final raw = preferences.getString('$coverPrefix$id');
+    return _decodePref('$coverPrefix$id', id);
+  }
+
+  Future<List<int>?> _decodePref(String key, String id) async {
+    final raw = preferences.getString(key);
     if (raw == null || raw.isEmpty) return null;
-    return base64Decode(raw);
+    try {
+      return base64Decode(raw);
+    } on FormatException catch (error) {
+      // Corrupt entry in preferences looks like a missing file to the caller;
+      // logging keeps the diagnostic visible for support / debugging.
+      debugPrint(
+        'WebPersistentLibraryRepository decode failed for $id: $error',
+      );
+      return null;
+    }
   }
 
   @override

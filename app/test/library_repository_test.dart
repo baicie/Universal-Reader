@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:app/core/library_repository.dart';
 import 'package:app/core/models.dart';
+import 'package:app/core/web_library_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/epub_fixture.dart';
@@ -345,5 +346,37 @@ void main() {
         DateTime.fromMillisecondsSinceEpoch(0),
       );
     });
+  });
+
+  group('WebPersistentLibraryRepository', () {
+    test(
+      'readFile returns null for corrupt base64 instead of crashing',
+      () async {
+        // Storing malformed base64 in preferences (e.g., manual edit or data
+        // corruption) must not crash the reader; treat it as a missing file.
+        SharedPreferences.setMockInitialValues({
+          '${WebPersistentLibraryRepository.filePrefix}corrupt':
+              '@@@@binary junk with chars outside the base64 alphabet@@@@',
+        });
+        final repo = WebPersistentLibraryRepository(
+          await SharedPreferences.getInstance(),
+        );
+        expect(await repo.readFile('corrupt'), isNull);
+      },
+    );
+
+    test(
+      'readCover returns null for corrupt base64 instead of crashing',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          '${WebPersistentLibraryRepository.coverPrefix}bad':
+              '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@',
+        });
+        final repo = WebPersistentLibraryRepository(
+          await SharedPreferences.getInstance(),
+        );
+        expect(await repo.readCover('bad'), isNull);
+      },
+    );
   });
 }
