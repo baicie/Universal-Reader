@@ -38,20 +38,24 @@ class _ThrowingAnnotationRepository implements AnnotationRepository {
 LibraryDocument _stubDoc({
   required String id,
   required String title,
+  String author = '',
+  DocumentFormat format = DocumentFormat.txt,
+  DocumentType type = DocumentType.reflow,
   DateTime? lastOpened,
+  double progress = 0,
 }) {
   return LibraryDocument(
     metadata: DocumentMetadata(
       id: id,
       title: title,
-      author: '',
-      format: DocumentFormat.txt,
-      type: DocumentType.reflow,
+      author: author,
+      format: format,
+      type: type,
       coverColor: 0xFF527882,
       contentHash: 'hash-$id',
     ),
     readingState: ReadingState(
-      progress: 0,
+      progress: progress,
       lastOpened: lastOpened ?? DateTime.utc(2026, 1, 1),
     ),
   );
@@ -372,6 +376,169 @@ void main() {
 
       expect(controller.documents, isEmpty);
     });
+  });
+
+  group('note-only hits merged with metadata hits', () {
+    test(
+      'a note-only document is appended after the metadata hits in recent sort',
+      () async {
+        // 'Alpha' matches the query by title; 'Zebra' matches only via
+        // annotation quote. With sort='recent' and Alpha opened most
+        // recently, Alpha leads the list and Zebra trails after it.
+        final repository = _StubAnnotationRepository({
+          'zebra': [_stubNote(id: 'n1', quote: 'contains Alpha text')],
+        });
+        final controller = PersistedLibraryController(
+          repository: InMemoryLibraryRepository(),
+          annotationRepository: repository,
+        );
+        await controller.load();
+        controller.addDocumentForTest(
+          _stubDoc(
+            id: 'alpha',
+            title: 'Alpha',
+            lastOpened: DateTime.utc(2026, 6, 1),
+          ),
+        );
+        controller.addDocumentForTest(
+          _stubDoc(
+            id: 'zebra',
+            title: 'Zebra',
+            lastOpened: DateTime.utc(2026, 1, 1),
+          ),
+        );
+
+        controller.search('Alpha');
+        await controller.waitForSearch();
+
+        final ids = controller.documents
+            .map((d) => d.metadata.id)
+            .toList();
+        expect(ids, equals(['alpha', 'zebra']));
+      },
+    );
+
+    test(
+      'sort=title reorders the combined list alphabetically',
+      () async {
+        final repository = _StubAnnotationRepository({
+          'zebra': [_stubNote(id: 'n1', quote: 'Alpha in quote')],
+        });
+        final controller = PersistedLibraryController(
+          repository: InMemoryLibraryRepository(),
+          annotationRepository: repository,
+        );
+        await controller.load();
+        controller.addDocumentForTest(
+          _stubDoc(id: 'alpha', title: 'Alpha'),
+        );
+        controller.addDocumentForTest(
+          _stubDoc(id: 'zebra', title: 'Zebra'),
+        );
+        controller.selectSort('title');
+
+        controller.search('Alpha');
+        await controller.waitForSearch();
+
+        final titles = controller.documents
+            .map((d) => d.metadata.title)
+            .toList();
+        expect(titles, equals(['Alpha', 'Zebra']));
+      },
+    );
+
+    test(
+      'sort=progress places the higher-progress document first even when '
+      'it is a note-only hit',
+      () async {
+        // 'Zebra' is the metadata hit; 'Alpha' is note-only. With sort
+        // =progress and Alpha ahead in progress, Alpha still leads.
+        final repository = _StubAnnotationRepository({
+          'alpha': [_stubNote(id: 'n1', quote: 'Zebra needle')],
+        });
+        final controller = PersistedLibraryController(
+          repository: InMemoryLibraryRepository(),
+          annotationRepository: repository,
+        );
+        await controller.load();
+        controller.addDocumentForTest(
+          _stubDoc(id: 'zebra', title: 'Zebra', progress: 0.2),
+        );
+        controller.addDocumentForTest(
+          _stubDoc(id: 'alpha', title: 'Alpha', progress: 0.9),
+        );
+        controller.selectSort('progress');
+
+        controller.search('Zebra');
+        await controller.waitForSearch();
+
+        final ids = controller.documents
+            .map((d) => d.metadata.id)
+            .toList();
+        expect(ids, equals(['alpha', 'zebra']));
+      },
+    );
+
+    test(
+      'a note-only hit filtered out by document type leaves metadata hits only',
+      () async {
+        // 'Zebra' is a comic and is excluded by the type filter; 'Alpha'
+        // is a reflow and survives. The note-only hit on Zebra must not
+        // surface because `_passesTypeAndSection` rejects it.
+        final repository = _StubAnnotationRepository({
+          'zebra': [_stubNote(id: 'n1', quote: 'Alpha needle')],
+        });
+        final controller = PersistedLibraryController(
+          repository: InMemoryLibraryRepository(),
+          annotationRepository: repository,
+        );
+        await controller.load();
+        controller.addDocumentForTest(
+          _stubDoc(
+            id: 'alpha',
+            title: 'Alpha',
+            format: DocumentFormat.txt,
+            type: DocumentType.reflow,
+          ),
+        );
+        controller.addDocumentForTest(
+          _stubDoc(
+            id: 'zebra',
+            title: 'Zebra',
+            format: DocumentFormat.cbz,
+            type: DocumentType.comic,
+          ),
+        );
+        controller.selectType('reflow');
+
+        controller.search('Alpha');
+        await controller.waitForSearch();
+
+        final ids = controller.documents
+            .map((d) => d.metadata.id)
+            .toList();
+        expect(ids, equals(['alpha']));
+      },
+    );
+
+    test(
+      'reading documents before any search skips the note-only branch',
+      () async {
+        // Before the user types a query, `_noteOnlyHits` is the empty
+        // set and the early-return guard fires. The view must still see
+        // the underlying documents.
+        final repository = InMemoryLibraryRepository();
+        final controller = PersistedLibraryController(
+          repository: repository,
+          annotationRepository: _StubAnnotationRepository(const {}),
+        );
+        await controller.load();
+        controller.addDocumentForTest(_stubDoc(id: 'alpha', title: 'Alpha'));
+
+        final ids = controller.documents.map((d) => d.metadata.id).toList();
+        expect(ids, equals(['alpha']));
+      },
+    );
   });
 
   group('deleteCollection', () {
