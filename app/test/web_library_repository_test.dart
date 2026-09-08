@@ -4,6 +4,9 @@ import 'package:app/core/library_repository.dart';
 import 'package:app/core/web_library_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'support/epub_fixture.dart';
+import 'support/image_fixture.dart';
+
 void main() {
   test('usesRemoteStore is false even though it persists to SharedPreferences',
       () async {
@@ -32,6 +35,23 @@ void main() {
     await repo.importBytes('notes.txt', [1, 2, 3]);
     final coverKey = 'universal_reader.covers.v1.notes.txt';
     expect(prefs.getString(coverKey), isNull);
+  });
+
+  test('importBytes writes a base64 cover key when cover bytes are provided',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final repo = WebPersistentLibraryRepository(prefs);
+
+    // An epub with an OEBPS/cover.png entry triggers extractCover → the
+    // cover != null branch persists a `covers.v1.<id>` key.
+    final bytes = minimalEpubBytes(extraFiles: {
+      'OEBPS/cover.png': tinyPngBytes(),
+    });
+    await repo.importBytes('cover.epub', bytes);
+    final coverKey = 'universal_reader.covers.v1.cover.epub';
+    expect(prefs.getString(coverKey), isNotNull);
+    expect(await repo.readCover('cover.epub'), isNotNull);
   });
 
   test('readFile returns null when no bytes were ever stored', () async {

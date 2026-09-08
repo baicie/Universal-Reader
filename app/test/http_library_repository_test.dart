@@ -241,6 +241,17 @@ void main() {
       expect(await repo.readCover('missing'), isNull);
     });
 
+    test('readCover returns the bytes on 200', () async {
+      final repo = HttpLibraryRepository(
+        baseUrl: 'http://x',
+        httpClient: _scripted({
+          '/v1/library/documents/has/cover':
+              (_) => http.Response.bytes([9, 8, 7], 200),
+        }),
+      );
+      expect(await repo.readCover('has'), [9, 8, 7]);
+    });
+
     test('readCover throws on unexpected status codes', () async {
       final repo = HttpLibraryRepository(
         baseUrl: 'http://x',
@@ -440,6 +451,41 @@ void main() {
         }),
       );
       expect(repo.usesRemoteStore, isFalse);
+    });
+
+    test('default baseUrl path falls back when no client override is given',
+        () async {
+      // Pass a custom httpClient; this exercises the `baseUrl ?? libraryBaseUrl()`
+      // path without forcing `libraryBaseUrl()` to consult Uri.base.
+      final prefs = await SharedPreferences.getInstance();
+      final repo = await resolveLibraryRepository(
+        prefs,
+        httpClient: MockClient((_) async => http.Response('no', 500)),
+      );
+      expect(repo.usesRemoteStore, isFalse);
+    });
+
+    test(
+      'falls back to local when no httpClient is provided and the probe fails',
+      () async {
+        // Pass null httpClient so the `?? http.Client()` branch is exercised.
+        // The default client will fail to reach the loopback address inside
+        // the test VM and trigger the catch-all fallback.
+        final prefs = await SharedPreferences.getInstance();
+        final repo = await resolveLibraryRepository(
+          prefs,
+          baseUrl: 'http://127.0.0.1:1',
+          timeout: const Duration(milliseconds: 10),
+          httpClient: null,
+        );
+        expect(repo.usesRemoteStore, isFalse);
+      },
+    );
+  });
+
+  group('libraryBaseUrl', () {
+    test('returns the default loopback origin on the VM', () {
+      expect(libraryBaseUrl(), 'http://127.0.0.1:8787');
     });
   });
 }

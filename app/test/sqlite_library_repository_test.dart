@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:app/core/library_repository.dart';
+import 'package:app/core/models.dart';
 import 'package:app/core/sqlite_library_repository.dart';
 import 'package:app/features/library/annotation_store.dart';
 import 'package:app/features/library/shelf_store.dart';
@@ -282,4 +283,129 @@ void main() {
       expect(loaded.single.createdAt, created);
     },
   );
+
+  group('SqliteLibraryRepository.save', () {
+    test('replaces the snapshot and drops missing books', () async {
+      final repository = await SqliteLibraryRepository.memory();
+      addTearDown(repository.close);
+      await repository.importBytes(
+        'keep.txt',
+        Uint8List.fromList('keep'.codeUnits),
+      );
+      await repository.importBytes(
+        'drop.txt',
+        Uint8List.fromList('drop'.codeUnits),
+      );
+      await repository.saveAnnotations('drop.txt', [
+        ReaderAnnotation(
+          id: 'orphan',
+          note: 'belongs to drop.txt',
+          createdAt: DateTime.utc(2026, 1, 1),
+        ),
+      ]);
+
+      final keep = (await repository.load()).firstWhere(
+        (item) => item.metadata.id == 'keep.txt',
+      );
+      await repository.save([keep]);
+
+      final loaded = await repository.load();
+      expect(loaded, hasLength(1));
+      expect(loaded.single.metadata.id, 'keep.txt');
+      expect(await repository.loadAnnotations('drop.txt'), isEmpty);
+    });
+
+    test('preserves existing file and cover bytes when saving', () async {
+      final repository = await SqliteLibraryRepository.memory();
+      addTearDown(repository.close);
+      final imported = await repository.importBytes(
+        'keep.txt',
+        Uint8List.fromList('keep-bytes'.codeUnits),
+      );
+      final refreshed = LibraryDocument(
+        metadata: imported.metadata,
+        readingState: ReadingState(
+          progress: 0.5,
+          lastOpened: DateTime.utc(2026, 9, 1),
+        ),
+      );
+      await repository.save([refreshed]);
+      expect(
+        await repository.readFile('keep.txt'),
+        'keep-bytes'.codeUnits,
+      );
+    });
+  });
+
+  group('SqliteLibraryRepository._documentFromRow defensive decoding', () {
+    test('falls back to unknown format and reflow type', () async {
+      // Open an in-memory db, run migrations, then poke a row directly to
+      // simulate a legacy schema with an unrecognised format / type.
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+      final db = await databaseFactory.openDatabase(inMemoryDatabasePath);
+      await SqliteLibraryRepository.migrate(db);
+      addTearDown(db.close);
+      await db.insert('documents', {
+        'id': 'legacy',
+        'title': 'legacy',
+        'author': '',
+        'format': 'mystery-format',
+        'type': 'mystery-type',
+        'cover_color': 1,
+        'progress': 0.1,
+        'last_opened': DateTime.utc(2026, 1, 1).toIso8601String(),
+        'file_name': 'legacy',
+        'content_hash': '',
+      });
+      final repository = SqliteLibraryRepository(db);
+      final loaded = (await repository.load()).single;
+      expect(loaded.metadata.format, DocumentFormat.unknown);
+      expect(loaded.metadata.type, DocumentType.reflow);
+    });
+  });
+
+  test(
+    'SqliteConversationRepository fallback loads from another store',
+    () async {
+      final library = await SqliteLibraryRepository.memory();
+      addTearDown(library.close);
+      await library.importBytes(
+        'notes.txt',
+        Uint8List.fromList('conv'.codeUnits),
+      );
+      final fallback = _StubFallbackConversationRepository([
+        ConversationTurn(
+          kind: ReaderToolKind.summarize,
+          reply: '从 fallback 取回',
+          createdAt: DateTime.utc(2026, 8, 29),
+        ),
+      ]);
+      final store = SqliteConversationRepository(library, fallback: fallback);
+
+      final loaded = await store.load('notes.txt');
+      expect(loaded, hasLength(1));
+      expect(loaded.single.reply, '从 fallback 取回');
+      // The fallback result was persisted; a second load should not re-pull.
+      expect(fallback.calls, 1);
+      final again = await store.load('notes.txt');
+      expect(again, hasLength(1));
+      expect(fallback.calls, 1);
+    },
+  );
+}
+
+class _StubFallbackConversationRepository implements ConversationRepository {
+  _StubFallbackConversationRepository(this._seed);
+  final List<ConversationTurn> _seed;
+  int calls = 0;
+
+  @override
+  Future<List<ConversationTurn>> load(String documentId) async {
+    calls++;
+    return _seed;
+  }
+
+  @override
+  Future<void> save(String documentId, List<ConversationTurn> turns) async {}
 }
