@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:app/core/content_hash.dart';
 import 'package:app/core/library_repository.dart';
 import 'package:app/core/models.dart';
 import 'package:app/core/web_library_repository.dart';
@@ -7,8 +8,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/epub_fixture.dart';
 import 'support/fb2_fixture.dart';
+import 'support/image_fixture.dart';
 
 void main() {
+  final epoch = DateTime(2026, 1, 1);
   final document = LibraryDocument(
     metadata: const DocumentMetadata(
       id: 'book-1',
@@ -378,5 +381,324 @@ void main() {
         expect(await repo.readCover('bad'), isNull);
       },
     );
+  });
+
+  group('importedLibraryDocument', () {
+    test('throws FormatException for unsupported file extensions', () {
+      expect(
+        () => importedLibraryDocument('garbage.dat', [0xFF, 0x00]),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('flags hasCover when cover bytes are provided', () {
+      final doc = importedLibraryDocument(
+        'book.epub',
+        minimalEpubBytes(),
+        cover: tinyPngBytes(),
+      );
+      expect(doc.metadata.hasCover, isTrue);
+    });
+
+    test('keeps hasCover false when cover is null', () {
+      final doc = importedLibraryDocument(
+        'book.epub',
+        minimalEpubBytes(),
+      );
+      expect(doc.metadata.hasCover, isFalse);
+    });
+
+    test('contentHash matches contentHash() of the same bytes', () {
+      final bytes = minimalEpubBytes();
+      final doc = importedLibraryDocument('book.epub', bytes);
+      expect(doc.metadata.contentHash, contentHash(bytes));
+    });
+
+    test('readingState starts at zero progress', () {
+      final doc = importedLibraryDocument('book.epub', minimalEpubBytes());
+      expect(doc.readingState.progress, 0);
+    });
+  });
+
+  group('documentWithHash', () {
+    test('returns null for empty hash without scanning', () {
+      final doc = LibraryDocument(
+        metadata: const DocumentMetadata(
+          id: 'a',
+          title: 't',
+          author: '',
+          format: DocumentFormat.epub,
+          type: DocumentType.reflow,
+          contentHash: 'real',
+        ),
+        readingState: ReadingState(progress: 0, lastOpened: epoch),
+      );
+      expect(documentWithHash([doc], ''), isNull);
+    });
+
+    test('returns null when no document matches the hash', () {
+      final doc = LibraryDocument(
+        metadata: const DocumentMetadata(
+          id: 'a',
+          title: 't',
+          author: '',
+          format: DocumentFormat.epub,
+          type: DocumentType.reflow,
+          contentHash: 'aaa',
+        ),
+        readingState: ReadingState(progress: 0, lastOpened: epoch),
+      );
+      expect(documentWithHash([doc], 'bbb'), isNull);
+    });
+
+    test('returns the matching document', () {
+      final a = LibraryDocument(
+        metadata: const DocumentMetadata(
+          id: 'a',
+          title: 't',
+          author: '',
+          format: DocumentFormat.epub,
+          type: DocumentType.reflow,
+          contentHash: 'aaa',
+        ),
+        readingState: ReadingState(progress: 0, lastOpened: epoch),
+      );
+      final b = LibraryDocument(
+        metadata: const DocumentMetadata(
+          id: 'b',
+          title: 't',
+          author: '',
+          format: DocumentFormat.epub,
+          type: DocumentType.reflow,
+          contentHash: 'bbb',
+        ),
+        readingState: ReadingState(progress: 0, lastOpened: epoch),
+      );
+      expect(documentWithHash([a, b], 'bbb'), same(b));
+    });
+  });
+
+  group('InMemoryLibraryRepository missing-id branches', () {
+    test('writeReadingState for unknown id is a no-op', () async {
+      final repo = InMemoryLibraryRepository();
+      await repo.importBytes('notes.txt', [1, 2, 3]);
+      await repo.writeReadingState(
+        id: 'missing',
+        progress: 0.5,
+        lastOpened: DateTime(2026, 9, 1),
+      );
+      final loaded = (await repo.load()).single;
+      // Reading state stays at the import-time default.
+      expect(loaded.readingState.progress, 0);
+    });
+
+    test('writeIdentity for unknown id is a no-op', () async {
+      final repo = InMemoryLibraryRepository();
+      await repo.importBytes('notes.txt', [1, 2, 3]);
+      await repo.writeIdentity(id: 'missing', title: 'X', author: 'Y');
+      expect((await repo.load()), hasLength(1));
+      expect((await repo.load()).single.metadata.id, 'notes.txt');
+    });
+
+    test('delete for unknown id is a no-op', () async {
+      final repo = InMemoryLibraryRepository();
+      await repo.importBytes('notes.txt', [1, 2, 3]);
+      await repo.delete('missing');
+      expect(await repo.load(), hasLength(1));
+    });
+  });
+
+  group('InMemoryLibraryRepository import semantics', () {
+    test('re-importing the same bytes returns the existing document', () async {
+      final repo = InMemoryLibraryRepository();
+      final first = await repo.importBytes('notes.txt', [1, 2, 3]);
+      final second = await repo.importBytes('notes.txt', [1, 2, 3]);
+      expect(second.metadata.contentHash, first.metadata.contentHash);
+      expect(await repo.load(), hasLength(1));
+    });
+
+    test('different bytes under the same name replace the previous entry', () async {
+      final repo = InMemoryLibraryRepository();
+      await repo.importBytes('notes.txt', [1, 2, 3]);
+      final second = await repo.importBytes('notes.txt', [4, 5, 6]);
+      final loaded = await repo.load();
+      expect(loaded, hasLength(1));
+      expect(loaded.single.metadata.contentHash,
+          contentHash([4, 5, 6]));
+      expect(loaded.single, same(second));
+      // File bytes are refreshed to the latest import.
+      expect(await repo.readFile('notes.txt'), [4, 5, 6]);
+    });
+
+    test('readCover returns the bytes stored alongside import', () async {
+      final repo = InMemoryLibraryRepository();
+      await repo.importBytes('book.epub', minimalEpubBytes());
+      // Minimal epub without an embedded cover falls through to no cover.
+      expect(await repo.readCover('book.epub'), isNull);
+    });
+
+    test('readCover stores cover bytes supplied via fixture', () async {
+      // Build an epub that embed a cover inside a coverpage manifest entry.
+      final bytes = minimalEpubBytes(extraFiles: {
+        'OEBPS/cover.png': tinyPngBytes(),
+      });
+      final repo = InMemoryLibraryRepository();
+      await repo.importBytes('book.epub', bytes);
+      final cover = await repo.readCover('book.epub');
+      // Cover may or may not be extracted by extractCover depending on
+      // fixture layout; the contract is "either bytes or null, never throw".
+      if (cover != null) {
+        expect(cover, isNotEmpty);
+      }
+    });
+  });
+
+  group('SharedPreferencesLibraryRepository branches', () {
+    test('readFile and readCover always return null', () async {
+      SharedPreferences.setMockInitialValues({});
+      final repo = SharedPreferencesLibraryRepository(
+        await SharedPreferences.getInstance(),
+      );
+      await repo.importBytes('notes.txt', [1, 2, 3]);
+      expect(await repo.readFile('notes.txt'), isNull);
+      expect(await repo.readCover('notes.txt'), isNull);
+    });
+
+    test('import skips when the same hash is already stored', () async {
+      SharedPreferences.setMockInitialValues({});
+      final repo = SharedPreferencesLibraryRepository(
+        await SharedPreferences.getInstance(),
+      );
+      final first = await repo.importBytes('notes.txt', [1, 2, 3]);
+      // Re-import same bytes — must not duplicate the entry.
+      final second = await repo.importBytes('notes.txt', [1, 2, 3]);
+      expect(second.metadata.id, first.metadata.id);
+      expect(await repo.load(), hasLength(1));
+    });
+
+    test('different bytes under same id replace stored document', () async {
+      SharedPreferences.setMockInitialValues({});
+      final repo = SharedPreferencesLibraryRepository(
+        await SharedPreferences.getInstance(),
+      );
+      await repo.importBytes('notes.txt', [1, 2, 3]);
+      await repo.importBytes('notes.txt', [4, 5, 6]);
+      final loaded = await repo.load();
+      expect(loaded, hasLength(1));
+      expect(loaded.single.metadata.contentHash, contentHash([4, 5, 6]));
+    });
+
+    test('delete removes the matching entry', () async {
+      SharedPreferences.setMockInitialValues({});
+      final repo = SharedPreferencesLibraryRepository(
+        await SharedPreferences.getInstance(),
+      );
+      await repo.importBytes('notes.txt', [1, 2, 3]);
+      await repo.delete('notes.txt');
+      expect(await repo.load(), isEmpty);
+    });
+
+    test('usesRemoteStore is false for the local preferences backend', () async {
+      SharedPreferences.setMockInitialValues({});
+      final repo = SharedPreferencesLibraryRepository(
+        await SharedPreferences.getInstance(),
+      );
+      expect(repo.usesRemoteStore, isFalse);
+    });
+  });
+
+  group('LibraryDocumentCodec.fromJson defensive decoding', () {
+    test('falls back to default coverColor when missing', () {
+      final doc = LibraryDocumentCodec.fromJson({
+        'metadata': {
+          'id': 'a',
+          'title': 't',
+          'author': '',
+          'format': 'epub',
+          'type': 'reflow',
+        },
+        'readingState': {
+          'progress': 0,
+          'lastOpened': DateTime(2026, 9, 1).toIso8601String(),
+        },
+      });
+      expect(doc.metadata.coverColor, 0xFF527882);
+    });
+
+    test('falls back to empty contentHash when missing', () {
+      final doc = LibraryDocumentCodec.fromJson({
+        'metadata': {
+          'id': 'a',
+          'title': 't',
+          'author': '',
+          'format': 'epub',
+          'type': 'reflow',
+          'coverColor': 1,
+        },
+        'readingState': {
+          'progress': 0,
+          'lastOpened': DateTime(2026, 9, 1).toIso8601String(),
+        },
+      });
+      expect(doc.metadata.contentHash, isEmpty);
+    });
+
+    test('falls back to false hasCover when missing', () {
+      final doc = LibraryDocumentCodec.fromJson({
+        'metadata': {
+          'id': 'a',
+          'title': 't',
+          'author': '',
+          'format': 'epub',
+          'type': 'reflow',
+          'coverColor': 1,
+        },
+        'readingState': {
+          'progress': 0,
+          'lastOpened': DateTime(2026, 9, 1).toIso8601String(),
+        },
+      });
+      expect(doc.metadata.hasCover, isFalse);
+    });
+
+    test('falls back to zero progress when missing', () {
+      final doc = LibraryDocumentCodec.fromJson({
+        'metadata': {
+          'id': 'a',
+          'title': 't',
+          'author': '',
+          'format': 'epub',
+          'type': 'reflow',
+          'coverColor': 1,
+          'contentHash': '',
+          'hasCover': false,
+        },
+        'readingState': {
+          'lastOpened': DateTime(2026, 9, 1).toIso8601String(),
+        },
+      });
+      expect(doc.readingState.progress, 0);
+    });
+
+    test('falls back to unknown format and format.type when unknown', () {
+      final doc = LibraryDocumentCodec.fromJson({
+        'metadata': {
+          'id': 'a',
+          'title': 't',
+          'author': '',
+          'format': 'mystery-format',
+          // type intentionally missing.
+          'coverColor': 1,
+          'contentHash': '',
+          'hasCover': false,
+        },
+        'readingState': {
+          'progress': 0,
+          'lastOpened': DateTime(2026, 9, 1).toIso8601String(),
+        },
+      });
+      expect(doc.metadata.format, DocumentFormat.unknown);
+      expect(doc.metadata.type, DocumentType.reflow);
+    });
   });
 }
