@@ -1,0 +1,24 @@
+# Normalize line endings to LF for all text files.
+# This prevents the "LF will be replaced by CRLF" warnings on Windows
+# and ensures consistent behavior across all platforms.
+* text=auto
+
+# Force these to LF (no conversion to CRLF)
+*.dart  eol=lf
+*.yaml  eol=lf
+*.yml   eol=lf
+*.json  eol=lf
+*.md    eol=lf
+*.sh    eol=lf
+
+# Binary files — do not attempt any conversion
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.pdf   binary
+*.ttf   binary
+*.otf   binary
+*.woff  binary
+*.woff2 binary
