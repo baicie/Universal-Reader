@@ -350,6 +350,46 @@ void main() {
       );
       await repo.save(const []);
     });
+
+    test('readFile URL-encodes document ids with reserved characters', () async {
+      // Document ids often come from filenames; Chinese, spaces, '#' or '%'
+      // in an id would otherwise produce an ambiguous URL. Encode the id so
+      // the server receives the original characters verbatim.
+      late http.Request seen;
+      final repo = HttpLibraryRepository(
+        baseUrl: 'http://x',
+        httpClient: MockClient((req) async {
+          seen = req;
+          if (req.url.path.endsWith('/file')) {
+            return http.Response.bytes([1, 2, 3], 200);
+          }
+          return http.Response('', 404);
+        }),
+      );
+      await repo.readFile('书 名 #1.epub');
+      expect(seen.url.path, '/v1/library/documents/${Uri.encodeComponent('书 名 #1.epub')}/file');
+    });
+
+    test('writeReadingState URL-encodes document ids with reserved characters',
+        () async {
+      late http.Request seen;
+      final repo = HttpLibraryRepository(
+        baseUrl: 'http://x',
+        httpClient: MockClient((req) async {
+          seen = req;
+          return http.Response('', 200);
+        }),
+      );
+      await repo.writeReadingState(
+        id: 'book with space',
+        progress: 0,
+        lastOpened: DateTime.utc(2026, 1, 1),
+      );
+      expect(
+        seen.url.path,
+        '/v1/library/documents/${Uri.encodeComponent('book with space')}',
+      );
+    });
   });
 
   group('resolveLibraryRepository', () {

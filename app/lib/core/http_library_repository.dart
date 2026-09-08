@@ -101,7 +101,7 @@ class HttpLibraryRepository implements LibraryRepository {
   @override
   Future<List<int>?> readFile(String id) async {
     final response = await httpClient.get(
-      uri('/v1/library/documents/$id/file'),
+      uri('/v1/library/documents/${Uri.encodeComponent(id)}/file'),
     );
     if (response.statusCode == 404) return null;
     if (response.statusCode != 200) {
@@ -113,7 +113,7 @@ class HttpLibraryRepository implements LibraryRepository {
   @override
   Future<List<int>?> readCover(String id) async {
     final response = await httpClient.get(
-      uri('/v1/library/documents/$id/cover'),
+      uri('/v1/library/documents/${Uri.encodeComponent(id)}/cover'),
     );
     if (response.statusCode == 404) return null;
     if (response.statusCode != 200) {
@@ -129,7 +129,7 @@ class HttpLibraryRepository implements LibraryRepository {
     required DateTime lastOpened,
   }) async {
     final response = await httpClient.patch(
-      uri('/v1/library/documents/$id'),
+      uri('/v1/library/documents/${Uri.encodeComponent(id)}'),
       headers: const {'Content-Type': 'application/json'},
       body: jsonEncode({
         'progress': progress,
@@ -148,7 +148,7 @@ class HttpLibraryRepository implements LibraryRepository {
     required String author,
   }) async {
     final response = await httpClient.patch(
-      uri('/v1/library/documents/$id'),
+      uri('/v1/library/documents/${Uri.encodeComponent(id)}'),
       headers: const {'Content-Type': 'application/json'},
       body: jsonEncode({'title': title, 'author': author}),
     );
@@ -159,7 +159,8 @@ class HttpLibraryRepository implements LibraryRepository {
 
   @override
   Future<void> delete(String id) async {
-    final response = await httpClient.delete(uri('/v1/library/documents/$id'));
+    final response = await httpClient
+        .delete(uri('/v1/library/documents/${Uri.encodeComponent(id)}'));
     if (response.statusCode == 204 ||
         response.statusCode == 200 ||
         response.statusCode == 404) {
