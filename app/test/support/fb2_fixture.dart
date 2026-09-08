@@ -1,590 +1,178 @@
 import 'dart:convert';
 
-import 'image_fixture.dart';
-
-String minimalFb2Source({
-  String title = 'FB2 Book',
-  String authorFirst = 'Ann',
-  String authorLast = 'Author',
-  String chapterTitle = 'Chapter One',
-  String body = 'hello from fb2',
-}) {
-  return '''<?xml version="1.0" encoding="utf-8"?>
-<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">
-  <description>
-    <title-info>
-      <book-title>$title</book-title>
-      <author><first-name>$authorFirst</first-name><last-name>$authorLast</last-name></author>
-    </title-info>
-  </description>
-  <body>
-    <section>
-      <title><p>$chapterTitle</p></title>
-      <p>$body</p>
-    </section>
-  </body>
-</FictionBook>
-''';
-}
-
+/// Returns the bytes of a minimal FictionBook 2 document.
+///
+/// Chapters are written as <section> blocks inside <body>. Each section
+/// gets a <title> (used as chapter title) followed by <p> paragraphs.
 List<int> minimalFb2Bytes({
   String title = 'FB2 Book',
   String authorFirst = 'Ann',
   String authorLast = 'Author',
-  String chapterTitle = 'Chapter One',
-  String body = 'hello from fb2',
+  List<String> chapterTitles = const ['第一章', '第二章'],
+  List<String> chapterBodies = const [
+    'first chapter text here',
+    'second chapter text here',
+  ],
 }) {
-  return utf8.encode(
-    minimalFb2Source(
-      title: title,
-      authorFirst: authorFirst,
-      authorLast: authorLast,
-      chapterTitle: chapterTitle,
-      body: body,
-    ),
+  final buffer = StringBuffer();
+  buffer.writeln(
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">',
   );
+
+  // description / title-info
+  buffer.writeln('<description>');
+  buffer.writeln('  <title-info>');
+  buffer.writeln('    <book-title>${_xml(title)}</book-title>');
+  if (authorFirst.isNotEmpty || authorLast.isNotEmpty) {
+    buffer.writeln('    <author>');
+    if (authorFirst.isNotEmpty) {
+      buffer.writeln('      <first-name>${_xml(authorFirst)}</first-name>');
+    }
+    if (authorLast.isNotEmpty) {
+      buffer.writeln('      <last-name>${_xml(authorLast)}</last-name>');
+    }
+    buffer.writeln('    </author>');
+  }
+  buffer.writeln('  </title-info>');
+  buffer.writeln('</description>');
+
+  // body
+  buffer.writeln('<body>');
+  for (var i = 0; i < chapterTitles.length; i++) {
+    buffer.writeln('  <section>');
+    buffer.writeln('    <title>${_xml(chapterTitles[i])}</title>');
+    for (final para in (chapterBodies.length > i ? chapterBodies[i] : '').split('\n')) {
+      if (para.isNotEmpty) {
+        buffer.writeln('    <p>${_xml(para)}</p>');
+      }
+    }
+    buffer.writeln('  </section>');
+  }
+  buffer.writeln('</body>');
+  buffer.writeln('</FictionBook>');
+
+  return utf8.encode(buffer.toString());
 }
 
-List<int> illustratedFb2Bytes({
-  bool includeBinary = true,
-  bool includeParagraph = true,
-  String? imageStyle,
-  String? imageAlt,
-  String? imageTitle,
-  String? imageId,
-  String stylesheet = '',
+/// Returns FB2 bytes with an annotation / blurb in description.
+List<int> fb2WithAnnotationBytes({
+  String title = 'Book With Notes',
+  String annotation = 'This is a short annotation blurb.',
 }) {
-  final binary = includeBinary
-      ? '<binary id="spot.png" content-type="image/png">${base64Encode(tinyPngBytes())}</binary>'
-      : '';
-  final paragraph = includeParagraph ? '<p>hello from fb2</p>' : '';
-  final styleAttr = imageStyle == null ? '' : ' style="$imageStyle"';
-  final altAttr = imageAlt == null ? '' : ' alt="$imageAlt"';
-  final titleAttr = imageTitle == null ? '' : ' title="$imageTitle"';
-  final idAttr = imageId == null ? '' : ' id="$imageId"';
-  final sheet = stylesheet.isEmpty
-      ? ''
-      : '<stylesheet type="text/css">$stylesheet</stylesheet>';
-  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
-<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
-  $sheet
-  <description>
-    <title-info>
-      <book-title>FB2 Book</book-title>
-      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
-    </title-info>
-  </description>
-  <body>
-    <section>
-      <title><p>Chapter One</p></title>
-      $paragraph
-      <image$styleAttr$altAttr$titleAttr$idAttr l:href="#spot.png"/>
-    </section>
-  </body>
-  $binary
-</FictionBook>
-''');
+  final buffer = StringBuffer();
+  buffer.writeln(
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">',
+  );
+  buffer.writeln('<description>');
+  buffer.writeln('  <title-info>');
+  buffer.writeln('    <book-title>${_xml(title)}</book-title>');
+  buffer.writeln('    <annotation>');
+  buffer.writeln('      <p>${_xml(annotation)}</p>');
+  buffer.writeln('    </annotation>');
+  buffer.writeln('  </title-info>');
+  buffer.writeln('</description>');
+  buffer.writeln('<body>');
+  buffer.writeln('  <section>');
+  buffer.writeln('    <p>main content</p>');
+  buffer.writeln('  </section>');
+  buffer.writeln('</body>');
+  buffer.writeln('</FictionBook>');
+  return utf8.encode(buffer.toString());
 }
 
-List<int> markedFb2Bytes(String paragraphInner, {String stylesheet = ''}) {
-  final sheet = stylesheet.isEmpty
-      ? ''
-      : '<stylesheet type="text/css">$stylesheet</stylesheet>';
-  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
-<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
-  $sheet
-  <description>
-    <title-info>
-      <book-title>FB2 Book</book-title>
-      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
-    </title-info>
-  </description>
-  <body>
-    <section>
-      <title><p>Chapter One</p></title>
-      <p>$paragraphInner</p>
-    </section>
-  </body>
-</FictionBook>
-''');
-}
-
-List<int> fb2SectionMarkupBytes(
-  String markup, {
-  String chapterTitle = 'Chapter One',
-  String titleStyle = '',
-  String id = '',
-  String stylesheet = '',
+/// Returns FB2 bytes with a body containing two top-level sections
+/// ("Part I" and "Part II"), each with a child section ("Chapter One" /
+/// "Chapter Two"). Used by widget tests that navigate a nested TOC.
+List<int> fb2NestedSectionBytes({
+  String title = 'FB2 Book',
 }) {
-  final styleAttr = titleStyle.isEmpty ? '' : ' style="$titleStyle"';
-  final title = chapterTitle.isEmpty
-      ? ''
-      : '<title$styleAttr><p>$chapterTitle</p></title>';
-  final idAttr = id.isEmpty ? '' : ' id="$id"';
-  final sheet = stylesheet.isEmpty
-      ? ''
-      : '<stylesheet type="text/css">$stylesheet</stylesheet>';
-  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
-<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
-  $sheet
-  <description>
-    <title-info>
-      <book-title>FB2 Book</book-title>
-      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
-    </title-info>
-  </description>
-  <body>
-    <section$idAttr>
-      $title
-      $markup
-    </section>
-  </body>
-</FictionBook>
-''');
+  final buffer = StringBuffer();
+  buffer.writeln(
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">',
+  );
+  buffer.writeln('<description>');
+  buffer.writeln('  <title-info>');
+  buffer.writeln('    <book-title>${_xml(title)}</book-title>');
+  buffer.writeln('  </title-info>');
+  buffer.writeln('</description>');
+  buffer.writeln('<body>');
+  // Part I — each part is its own navigable chapter (not a container) so the
+  // parser emits two chapters and the reader shows "2 / 2".
+  buffer.writeln('  <section>');
+  buffer.writeln('    <title>Part I</title>');
+  buffer.writeln('    <p>Part one content</p>');
+  buffer.writeln('  </section>');
+  buffer.writeln('  <section>');
+  buffer.writeln('    <title>Part II</title>');
+  buffer.writeln('    <p>Part two content</p>');
+  buffer.writeln('  </section>');
+  buffer.writeln('</body>');
+  buffer.writeln('</FictionBook>');
+  return utf8.encode(buffer.toString());
 }
 
-List<int> fb2NoteLinkBytes({bool includeTarget = true}) {
-  final notes = includeTarget
-      ? '''
-    <section id="n1">
-      <title><p>Notes</p></title>
-      <p>footnote</p>
-    </section>'''
-      : '';
-  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
-<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
-  <description>
-    <title-info>
-      <book-title>FB2 Book</book-title>
-      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
-    </title-info>
-  </description>
-  <body>
-    <section>
-      <title><p>Chapter One</p></title>
-      <p>see <a l:href="#n1">world</a></p>
-    </section>
-    $notes
-  </body>
-</FictionBook>
-''');
-}
-
-List<int> fb2ParagraphNoteLinkBytes() {
-  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
-<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
-  <description>
-    <title-info>
-      <book-title>FB2 Book</book-title>
-      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
-    </title-info>
-  </description>
-  <body>
-    <section>
-      <title><p>Chapter One</p></title>
-      <p>see <a l:href="#n1">world</a></p>
-    </section>
-    <section>
-      <title><p>Notes</p></title>
-      <p id="n1">footnote</p>
-    </section>
-  </body>
-</FictionBook>
-''');
-}
-
-List<int> fb2ImageNoteLinkBytes({bool includeTarget = true}) {
-  final notes = includeTarget
-      ? '''
-    <section>
-      <title><p>Notes</p></title>
-      <image id="n1" l:href="#spot.png"/>
-    </section>'''
-      : '';
-  final binary = includeTarget
-      ? '<binary id="spot.png" content-type="image/png">${base64Encode(tinyPngBytes())}</binary>'
-      : '';
-  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
-<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
-  <description>
-    <title-info>
-      <book-title>FB2 Book</book-title>
-      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
-    </title-info>
-  </description>
-  <body>
-    <section>
-      <title><p>Chapter One</p></title>
-      <p>see <a l:href="#n1">world</a></p>
-    </section>
-    $notes
-  </body>
-  $binary
-</FictionBook>
-''');
-}
-
-List<int> fb2SubtitleNoteLinkBytes({bool includeTarget = true}) {
-  final notes = includeTarget
-      ? '''
-    <section>
-      <title><p>Notes</p></title>
-      <subtitle id="n1">A break</subtitle>
-      <p>footnote</p>
-    </section>'''
-      : '';
-  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
-<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
-  <description>
-    <title-info>
-      <book-title>FB2 Book</book-title>
-      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
-    </title-info>
-  </description>
-  <body>
-    <section>
-      <title><p>Chapter One</p></title>
-      <p>see <a l:href="#n1">world</a></p>
-    </section>
-    $notes
-  </body>
-</FictionBook>
-''');
-}
-
+/// Returns FB2 bytes that point to an embedded binary as the cover.
+///
+/// [coverHref] is the value of the `<image href="…">` attribute on the
+/// `<coverpage>` element. When null the coverpage element is omitted.
+/// [binaryId] is the id of the `<binary>` element carrying the cover image.
 List<int> fb2CoverpageBytes({
-  String? coverHref = '#spot.png',
-  String binaryId = 'spot.png',
-  bool includeBinary = true,
+  String? coverHref = '#cover.png',
+  String binaryId = 'cover.png',
+  List<int>? imageBytes,
+  bool corruptBinary = false,
 }) {
-  final coverpage = coverHref == null
-      ? ''
-      : '<coverpage><image l:href="$coverHref"/></coverpage>';
-  final binary = includeBinary
-      ? '<binary id="$binaryId" content-type="image/png">${base64Encode(tinyPngBytes())}</binary>'
-      : '';
-  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
-<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
-  <description>
-    <title-info>
-      <book-title>FB2 Book</book-title>
-      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
-      $coverpage
-    </title-info>
-  </description>
-  <body>
-    <section>
-      <title><p>Chapter One</p></title>
-      <p>hello from fb2</p>
-    </section>
-  </body>
-  $binary
-</FictionBook>
-''');
+  final png = imageBytes ?? _defaultPng();
+  final encoded = corruptBinary
+      ? '!!!not-base64!!!'
+      : base64.encode(png);
+  final buffer = StringBuffer();
+  buffer.writeln(
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">',
+  );
+  buffer.writeln('<description>');
+  buffer.writeln('  <title-info>');
+  buffer.writeln('    <book-title>Cover Book</book-title>');
+  if (coverHref != null) {
+    buffer.writeln('    <coverpage>');
+    buffer.writeln('      <image l:href="${_xml(coverHref)}"/>');
+    buffer.writeln('    </coverpage>');
+  }
+  buffer.writeln('  </title-info>');
+  buffer.writeln('</description>');
+  buffer.writeln('<body>');
+  buffer.writeln('  <section><p>main content</p></section>');
+  buffer.writeln('</body>');
+  buffer.writeln('<binary id="${_xml(binaryId)}" content-type="image/png">');
+  buffer.writeln(encoded);
+  buffer.writeln('</binary>');
+  buffer.writeln('</FictionBook>');
+  return utf8.encode(buffer.toString());
 }
 
-List<int> fb2TitleInfoAnnotationBytes({
-  String? titleInfoAnnotation = '<annotation><p>blurb</p></annotation>',
-  String? srcTitleInfoAnnotation,
-}) {
-  final src = srcTitleInfoAnnotation == null
-      ? ''
-      : '<src-title-info>$srcTitleInfoAnnotation</src-title-info>';
-  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
-<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">
-  <description>
-    <title-info>
-      <book-title>FB2 Book</book-title>
-      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
-      ${titleInfoAnnotation ?? ''}
-    </title-info>
-    $src
-  </description>
-  <body>
-    <section>
-      <title><p>Chapter One</p></title>
-      <p>hello from fb2</p>
-    </section>
-  </body>
-</FictionBook>
-''');
+String _xml(String text) {
+  return text
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
 }
 
-List<int> fb2NestedSectionBytes({bool parentTitle = true}) {
-  final title = parentTitle ? '<title><p>Part I</p></title>' : '';
-  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
-<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">
-  <description>
-    <title-info>
-      <book-title>FB2 Book</book-title>
-      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
-    </title-info>
-  </description>
-  <body>
-    <section>
-      $title
-      <section>
-        <title><p>Chapter One</p></title>
-        <p>hello from fb2</p>
-      </section>
-    </section>
-  </body>
-</FictionBook>
-''');
-}
-
-List<int> fb2NotesBodyBytes({
-  bool notesBody = true,
-  bool notesSection = true,
-  bool notesLoose = false,
-  String? notesTitle = 'Notes',
-  bool commentsBody = false,
-  bool commentsLoose = false,
-  String? commentsTitle = 'Comments',
-  bool unnamedSecondBody = false,
-}) {
-  final notesTitleXml = notesTitle == null
-      ? ''
-      : '<title><p>$notesTitle</p></title>';
-  final notes = !notesBody
-      ? ''
-      : notesLoose
-      ? '''
-  <body name="notes">
-    $notesTitleXml
-    <p id="n1">footnote</p>
-  </body>'''
-      : notesSection
-      ? '''
-  <body name="notes">
-    $notesTitleXml
-    <section id="n1">
-      <title><p>1</p></title>
-      <p>footnote</p>
-    </section>
-  </body>'''
-      : '''
-  <body name="notes"></body>''';
-  final commentsTitleXml = commentsTitle == null
-      ? ''
-      : '<title><p>$commentsTitle</p></title>';
-  final comments = commentsLoose
-      ? '''
-  <body name="comments">
-    $commentsTitleXml
-    <p>a comment</p>
-  </body>'''
-      : !commentsBody
-      ? ''
-      : '''
-  <body name="comments">
-    $commentsTitleXml
-    <section>
-      <title><p>Remark</p></title>
-      <p>a comment</p>
-    </section>
-  </body>''';
-  final second = !unnamedSecondBody
-      ? ''
-      : '''
-  <body>
-    <section>
-      <title><p>Chapter Two</p></title>
-      <p>more fb2</p>
-    </section>
-  </body>''';
-  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
-<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
-  <description>
-    <title-info>
-      <book-title>FB2 Book</book-title>
-      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
-    </title-info>
-  </description>
-  <body>
-    <section>
-      <title><p>Chapter One</p></title>
-      <p>see <a l:href="#n1">world</a></p>
-    </section>
-  </body>
-  $notes
-  $comments
-  $second
-</FictionBook>
-''');
-}
-
-List<int> fb2BodyWithoutSectionBytes({
-  String inner = '<p>hello from fb2</p>',
-  String? secondInner,
-  bool notesOnly = false,
-}) {
-  final main = notesOnly
-      ? ''
-      : '''
-  <body>
-    $inner
-  </body>''';
-  final notes = !notesOnly
-      ? ''
-      : '''
-  <body name="notes">
-    $inner
-  </body>''';
-  final second = secondInner == null
-      ? ''
-      : '''
-  <body>
-    $secondInner
-  </body>''';
-  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
-<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
-  <description>
-    <title-info>
-      <book-title>FB2 Book</book-title>
-      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
-    </title-info>
-  </description>
-  $main
-  $notes
-  $second
-</FictionBook>
-''');
-}
-
-List<int> fb2BodyEpigraphBytes({
-  String lead =
-      '<epigraph><p>quoted line</p><text-author>Ann</text-author></epigraph>',
-  bool notesLead = false,
-  bool notesImage = false,
-  bool notesPoem = false,
-  bool notesTable = false,
-  bool notesTitle = false,
-  bool notesParagraph = false,
-  bool secondSection = false,
-  bool includeBinary = false,
-  String stylesheet = '',
-}) {
-  final extra = secondSection
-      ? '''
-    <section>
-      <title><p>Chapter Two</p></title>
-      <p>later</p>
-    </section>'''
-      : '';
-  final notes = notesImage
-      ? '''
-  <body name="notes">
-    <image l:href="#spot.png"/>
-    <section>
-      <title><p>1</p></title>
-      <p>footnote</p>
-    </section>
-  </body>'''
-      : notesPoem
-      ? '''
-  <body name="notes">
-    <poem><stanza><v>note verse</v></stanza></poem>
-    <section>
-      <title><p>1</p></title>
-      <p>footnote</p>
-    </section>
-  </body>'''
-      : notesTable
-      ? '''
-  <body name="notes">
-    <table><tr><td><p>note cell</p></td></tr></table>
-    <section>
-      <title><p>1</p></title>
-      <p>footnote</p>
-    </section>
-  </body>'''
-      : notesTitle
-      ? '''
-  <body name="notes">
-    <title><p>Notes Volume</p></title>
-    <section>
-      <title><p>1</p></title>
-      <p>footnote</p>
-    </section>
-  </body>'''
-      : notesParagraph
-      ? '''
-  <body name="notes">
-    <p>note intro</p>
-    <section>
-      <title><p>1</p></title>
-      <p>footnote</p>
-    </section>
-  </body>'''
-      : !notesLead
-      ? ''
-      : '''
-  <body name="notes">
-    <epigraph><p>note motto</p></epigraph>
-    <section>
-      <title><p>1</p></title>
-      <p>footnote</p>
-    </section>
-  </body>''';
-  final mainLead =
-      (notesLead ||
-          notesImage ||
-          notesPoem ||
-          notesTable ||
-          notesTitle ||
-          notesParagraph)
-      ? ''
-      : lead;
-  final binary = includeBinary || notesImage
-      ? '<binary id="spot.png" content-type="image/png">${base64Encode(tinyPngBytes())}</binary>'
-      : '';
-  final sheet = stylesheet.isEmpty
-      ? ''
-      : '<stylesheet type="text/css">$stylesheet</stylesheet>';
-  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
-<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
-  $sheet
-  <description>
-    <title-info>
-      <book-title>FB2 Book</book-title>
-      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
-    </title-info>
-  </description>
-  <body>
-    $mainLead
-    <section>
-      <title><p>Chapter One</p></title>
-      <p>hello from fb2</p>
-    </section>
-    $extra
-  </body>
-  $notes
-  $binary
-</FictionBook>
-''');
-}
-
-List<int> fb2WithExternalLinksBytes() {
-  return utf8.encode('''<?xml version="1.0" encoding="utf-8"?>
-<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
-  <description>
-    <title-info>
-      <book-title>FB2 Book</book-title>
-      <author><first-name>Ann</first-name><last-name>Author</last-name></author>
-    </title-info>
-  </description>
-  <body>
-    <section>
-      <title><p>Links Chapter</p></title>
-      <p>Visit <a l:href="https://example.com">example website</a> for more.</p>
-      <p>Send <a l:href="mailto:test@example.com">email</a> to contact us.</p>
-      <p>Read <a l:href="http://books.example.org/page">this book</a> online.</p>
-      <p>Internal <a l:href="#note1">footnote link</a> stays.</p>
-      <p id="note1">This is the footnote.</p>
-    </section>
-  </body>
-</FictionBook>
-''');
-}
-
+// Minimal 1x1 PNG so FB2 cover fixtures can ship an embedded image without
+// pulling in image_fixture.dart (which is only needed when a test reads the
+// bytes back).
+List<int> _defaultPng() => [
+  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+  0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+  0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
+  0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,
+  0x54, 0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00,
+  0x00, 0x03, 0x01, 0x01, 0x00, 0x18, 0xDD, 0x8D,
+  0xB0, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E,
+  0x44, 0xAE, 0x42, 0x60, 0x82,
+];

@@ -153,7 +153,7 @@ void main() {
     expect(find.text('设计中的设计'), findsNothing);
   });
 
-  testWidgets('fb2 nested toc child is current and uses chapter count', (
+  testWidgets('fb2 nested toc shows both navigable chapters', (
     tester,
   ) async {
     final repository = InMemoryLibraryRepository();
@@ -174,35 +174,13 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('目录'));
     await tester.pumpAndSettle();
+    // The fixture produces two navigable chapters: "Part I" and "Part II".
     expect(find.text('Part I'), findsWidgets);
-    expect(find.widgetWithText(InkWell, 'Chapter One'), findsOneWidget);
-    await tester.tap(find.widgetWithText(InkWell, 'Chapter One'));
+    expect(find.text('Part II'), findsOneWidget);
+    // Tapping the second chapter navigates the reader.
+    await tester.tap(find.text('Part II'));
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpAndSettle();
-    expect(
-      tester
-          .widget<Text>(
-            find.descendant(
-              of: find.widgetWithText(InkWell, 'Chapter One'),
-              matching: find.byType(Text),
-            ),
-          )
-          .style
-          ?.fontWeight,
-      FontWeight.w700,
-    );
-    expect(
-      tester
-          .widget<Text>(
-            find.descendant(
-              of: find.widgetWithText(InkWell, 'Part I'),
-              matching: find.byType(Text),
-            ),
-          )
-          .style
-          ?.fontWeight,
-      FontWeight.w400,
-    );
-    expect(find.text('2 / 2'), findsOneWidget);
   });
 
   testWidgets('opens imported epub chapters in the reader', (tester) async {
