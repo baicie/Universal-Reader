@@ -168,4 +168,90 @@ void main() {
     await tester.pump();
     expect(find.text(l10n.readerSection(1, 5)), findsOneWidget);
   });
+
+  testWidgets(
+    'ready state without toc shows formatLabel instead of section label',
+    (tester) async {
+      await tester.pumpWidget(_wrap(ReaderChapterBody(
+        state: const ReaderChapterState.ready(truncated: false),
+        surface: _surface(),
+        surfaceColor: Colors.black,
+        mutedColor: Colors.grey,
+        heading: 'Chapter 1',
+        showHeading: false,
+        hasToc: false,
+        currentIndex: 0,
+        chapterCount: 0,
+        formatLabel: 'TXT',
+        child: const SizedBox.shrink(),
+      )));
+      await tester.pump();
+      expect(find.text('TXT'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'ready state with toc but chapterCount<=0 falls back to chapter 1',
+    (tester) async {
+      final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
+      await tester.pumpWidget(_wrap(ReaderChapterBody(
+        state: const ReaderChapterState.ready(truncated: false),
+        surface: _surface(),
+        surfaceColor: Colors.black,
+        mutedColor: Colors.grey,
+        heading: 'Chapter 1',
+        showHeading: false,
+        hasToc: true,
+        currentIndex: 0,
+        chapterCount: 0,
+        formatLabel: 'EPUB',
+        child: const SizedBox.shrink(),
+      )));
+      await tester.pump();
+      expect(find.text(l10n.readerSection(1, 1)), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'ready state with showHeading=false omits the heading text',
+    (tester) async {
+      await tester.pumpWidget(_wrap(ReaderChapterBody(
+        state: const ReaderChapterState.ready(truncated: false),
+        surface: _surface(),
+        surfaceColor: Colors.black,
+        mutedColor: Colors.grey,
+        heading: 'Hidden heading',
+        showHeading: false,
+        hasToc: false,
+        currentIndex: 0,
+        chapterCount: 0,
+        formatLabel: 'EPUB',
+        child: const SizedBox.shrink(),
+      )));
+      await tester.pump();
+      expect(find.text('Hidden heading'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'ready state omits the truncated notice when truncated=false',
+    (tester) async {
+      final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
+      await tester.pumpWidget(_wrap(ReaderChapterBody(
+        state: const ReaderChapterState.ready(truncated: false),
+        surface: _surface(),
+        surfaceColor: Colors.black,
+        mutedColor: Colors.grey,
+        heading: 'Chapter 1',
+        showHeading: false,
+        hasToc: false,
+        currentIndex: 0,
+        chapterCount: 0,
+        formatLabel: 'EPUB',
+        child: const SizedBox.shrink(),
+      )));
+      await tester.pump();
+      expect(find.text(l10n.readerTruncated), findsNothing);
+    },
+  );
 }

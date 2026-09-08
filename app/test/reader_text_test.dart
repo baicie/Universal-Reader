@@ -35,6 +35,16 @@ void main() {
       chaptered.sectionIndex = 1;
       expect(readerCurrentBody(chaptered), 'Line 3');
     });
+
+    test(
+      'returns empty string for an unavailable (non-chaptered) opener',
+      () {
+        final unavailable = UnavailableReaderDocument(
+          metadata: _metadata(DocumentFormat.epub),
+        );
+        expect(readerCurrentBody(unavailable), '');
+      },
+    );
   });
 
   group('splitTextParagraphs', () {
