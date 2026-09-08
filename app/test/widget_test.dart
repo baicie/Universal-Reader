@@ -7,6 +7,7 @@ import 'package:app/core/library_repository.dart';
 import 'package:app/core/locale_controller.dart';
 import 'package:app/core/locator_codec.dart';
 import 'package:app/core/models.dart';
+import 'package:app/core/providers.dart';
 import 'package:app/features/library/annotation_store.dart';
 import 'package:app/features/reader/reader_bookmarks_pane.dart';
 import 'package:app/features/reader/reader_notes_pane.dart';
@@ -1354,6 +1355,77 @@ void main() {
     );
     expect(renamed.metadata.title, '设计笔记');
     expect(renamed.metadata.author, '某作者');
+  });
+
+  testWidgets('epub bookmark with CFI locator jumps to the right page', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('story.epub', minimalEpubBytes());
+    // Open the document to discover chapter 2's normalized href.
+    final doc = EpubReaderDocument.parse(
+      metadata: const DocumentMetadata(
+        id: 'story.epub',
+        title: 'Fixture Book',
+        author: '',
+        format: DocumentFormat.epub,
+        type: DocumentType.reflow,
+      ),
+      bytes: minimalEpubBytes(),
+    );
+    await doc.goTo(EpubLocator(href: doc.parsed.chapters[1].href));
+    final ch2Href = doc.currentChapterHref;
+    // A bookmark in chapter 2 whose locator encodes a CFI pointer; opening it
+    // should exercise _goTo's `EpubLocator.cfi != null` branch.
+    final bookmarkLocator = EpubLocator(
+      href: ch2Href,
+      cfi: 'epubcfi($ch2Href:0)',
+    );
+    final notes = InMemoryAnnotationRepository();
+    await notes.save(
+      'story.epub',
+      [
+        ReaderAnnotation(
+          id: 'bm-1',
+          note: '',
+          quote: 'second chapter text',
+          locatorLabel: encodeLocator(bookmarkLocator),
+          source: bookmarkSource,
+          createdAt: DateTime(2026, 9, 8),
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+          aiRuntimeProvider.overrideWithValue(
+            AiRuntime.local(
+              InMemoryConversationRepository(),
+              annotations: notes,
+            ),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('Fixture Book').first);
+    await tester.pumpAndSettle();
+    // Tap the bookmarks icon in the app bar to open the bookmarks panel.
+    // The panel is fed from annotations loaded at open time, so the
+    // pre-saved bookmark is the only one shown.
+    await tester.tap(find.byTooltip('书签'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(bookmarksPanelKey), findsOneWidget);
+    final encodedLabel = encodeLocator(bookmarkLocator);
+    expect(find.text(encodedLabel), findsOneWidget);
+    await tester.tap(find.text(encodedLabel));
+    await tester.pumpAndSettle();
+    // Chapter 2's content should now be on screen (not chapter 1).
+    expect(find.textContaining('second chapter text'), findsOneWidget);
+    expect(find.textContaining('hello from epub'), findsNothing);
   });
 }
 
