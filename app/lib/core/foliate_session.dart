@@ -145,6 +145,18 @@ List<FoliatePage> paginateReflow({
       ),
     ];
   }
+  if (pageCharLimit <= 0) {
+    // Defensive: a non-positive pageCharLimit would make the loop below
+    // unable to advance `start`, hanging the paginator forever. Treat the
+    // request as "no limit" and return the whole chapter as one page.
+    return [
+      FoliatePage(
+        html: html.isEmpty ? _paragraph(text) : html,
+        startOffset: 0,
+        endOffset: text.length,
+      ),
+    ];
+  }
   final pages = <FoliatePage>[];
   var start = 0;
   while (start < text.length) {

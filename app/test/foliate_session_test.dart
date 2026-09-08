@@ -222,4 +222,21 @@ void main() {
     expect(pages.map((p) => p.endOffset).toList(), [1, 2, 3]);
     expect(pages.last.endOffset, 3);
   });
+
+  test(
+    'paginateReflow returns a single page when pageCharLimit is zero',
+    () {
+      // A zero pageCharLimit is an invalid configuration, but paginateReflow
+      // must not hang on it. The text length guard must catch this case and
+      // short-circuit before the loop tries to advance the cursor by zero.
+      final pages = paginateReflow(
+        text: 'non-empty',
+        html: '',
+        pageCharLimit: 0,
+      );
+      expect(pages, hasLength(1));
+      expect(pages.single.startOffset, 0);
+      expect(pages.single.endOffset, 'non-empty'.length);
+    },
+  );
 }
