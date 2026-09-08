@@ -436,7 +436,7 @@ void main() {
     GoRouter.of(context).go('/reader/missing-book');
     await tester.pumpAndSettle();
     expect(find.text('设计中的设计'), findsNothing);
-    expect(find.text('找不到这本书的原文件。'), findsOneWidget);
+    expect(find.text('找不到这本书的原文件。'), findsNWidgets(2));
   });
 
   testWidgets('reading settings expose body type and paper controls', (
@@ -578,8 +578,9 @@ void main() {
     expect(find.text('设计中的设计'), findsNothing);
   });
 
-  testWidgets('library search field filters imported books by title',
-      (tester) async {
+  testWidgets('library search field filters imported books by title', (
+    tester,
+  ) async {
     final repository = InMemoryLibraryRepository();
     await repository.importBytes('alpha.txt', utf8.encode('first body'));
     await repository.importBytes('beta.txt', utf8.encode('second body'));
@@ -636,8 +637,9 @@ void main() {
     expect(find.text('alpha'), findsAtLeastNWidgets(1));
   });
 
-  testWidgets('clearing the library search field restores every book',
-      (tester) async {
+  testWidgets('clearing the library search field restores every book', (
+    tester,
+  ) async {
     final repository = InMemoryLibraryRepository();
     await repository.importBytes('alpha.txt', utf8.encode('first body'));
     await repository.importBytes('beta.txt', utf8.encode('second body'));
@@ -661,17 +663,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('alpha'), findsNothing);
 
-    await tester.enterText(
-      find.byKey(const Key('library-search-field')),
-      '',
-    );
+    await tester.enterText(find.byKey(const Key('library-search-field')), '');
     await tester.pumpAndSettle();
     expect(find.text('alpha'), findsWidgets);
     expect(find.text('beta'), findsWidgets);
   });
 
-  testWidgets('library search field hides books that match nothing',
-      (tester) async {
+  testWidgets('library search field hides books that match nothing', (
+    tester,
+  ) async {
     final repository = InMemoryLibraryRepository();
     await repository.importBytes('alpha.txt', utf8.encode('first body'));
     await tester.pumpWidget(

@@ -72,7 +72,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           document: UnavailableReaderDocument(
             metadata: DocumentMetadata(
               id: widget.id,
-              title: widget.id,
+              // Title is filled by the view from a localized "missing" string
+              // so we don't surface internal ids or unrelated seeds.
+              title: '',
               author: '',
               format: DocumentFormat.unknown,
               type: DocumentType.reflow,
@@ -532,7 +534,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final currentTitle = derived.currentTitle;
     final heading = derived.heading;
     final paragraphs = derived.paragraphs;
-    final title = document?.metadata.title ?? widget.id;
+    final title = document?.metadata.title ?? l10n.readerMissingFile;
     final formatLabel = document?.metadata.format.label ?? '';
     final chapterState = resolveReaderChapterState(
       loading: runtime.loading,
