@@ -254,6 +254,33 @@ void main() {
     // The reader should still render the book body despite the broken store.
     expect(find.textContaining('hello from epub'), findsOneWidget);
   });
+
+  testWidgets(
+    'shows the missing-file surface when the repository cannot read the book',
+    (tester) async {
+      final repository = _MissingFileRepository();
+      await repository.importBytes('story.epub', minimalEpubBytes());
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            libraryRepositoryProvider.overrideWithValue(repository),
+            aiSettingsRepositoryProvider.overrideWithValue(
+              InMemoryAiSettingsRepository(),
+            ),
+          ],
+          child: const UniversalReaderApp(),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.tap(find.text('Fixture Book').first);
+      await tester.pumpAndSettle();
+      // Reader must not crash; it should show the missing-file message
+      // rather than the book body.
+      expect(find.textContaining('hello from epub'), findsNothing);
+      expect(find.textContaining('文件'), findsWidgets);
+    },
+  );
+
   testWidgets('epub tap turns pages then the next chapter', (tester) async {
     final repository = InMemoryLibraryRepository();
     await repository.importBytes(
@@ -1278,5 +1305,12 @@ class _ThrowingAnnotationRepository implements AnnotationRepository {
   @override
   Future<void> save(String documentId, List<ReaderAnnotation> notes) async {
     throw StateError('annotation store unwritable');
+  }
+}
+
+class _MissingFileRepository extends InMemoryLibraryRepository {
+  @override
+  Future<List<int>?> readFile(String id) async {
+    throw StateError('file read failed');
   }
 }
