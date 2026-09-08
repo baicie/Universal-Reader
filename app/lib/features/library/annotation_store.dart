@@ -35,12 +35,16 @@ class ReaderAnnotation {
   };
 
   factory ReaderAnnotation.fromJson(Map<String, dynamic> json) {
+    final id = json['id'] as String?;
+    if (id == null || id.isEmpty) {
+      throw const FormatException('annotation missing id');
+    }
     final createdAtMs =
         (json['createdAtMs'] as num?)?.toInt() ??
         (json['created_at_ms'] as num?)?.toInt() ??
         0;
     return ReaderAnnotation(
-      id: json['id'] as String? ?? '',
+      id: id,
       note: json['note'] as String? ?? '',
       quote: json['quote'] as String? ?? '',
       locatorLabel:

@@ -165,10 +165,7 @@ void main() {
       late http.Request seen;
       final client = MockClient((req) async {
         seen = req;
-        return http.Response(
-          jsonEncode({'notes': []}),
-          200,
-        );
+        return http.Response(jsonEncode({'notes': []}), 200);
       });
       final store = HttpAnnotationRepository(
         baseUrl: 'http://127.0.0.1:8787/',
@@ -201,8 +198,11 @@ void main() {
               {
                 'id': 'a',
                 'note': 'reply',
-                'created_at_ms':
-                    DateTime.utc(2026, 1, 1).millisecondsSinceEpoch,
+                'created_at_ms': DateTime.utc(
+                  2026,
+                  1,
+                  1,
+                ).millisecondsSinceEpoch,
               },
             ],
           }),
@@ -314,12 +314,25 @@ void main() {
       expect(annotation.createdAt, DateTime.utc(2026, 1, 1));
     });
 
-    test('fromJson defaults missing fields to empty strings', () {
-      final annotation = ReaderAnnotation.fromJson({});
-      expect(annotation.id, '');
-      expect(annotation.note, '');
-      expect(annotation.quote, '');
-      expect(annotation.locatorLabel, '');
+    test(
+      'fromJson defaults optional fields to empty strings when id is present',
+      () {
+        // id is required; note/quote/locatorLabel are optional.
+        final annotation = ReaderAnnotation.fromJson({
+          'id': 'a',
+          'createdAtMs': 1,
+        });
+        expect(annotation.note, '');
+        expect(annotation.quote, '');
+        expect(annotation.locatorLabel, '');
+      },
+    );
+
+    test('fromJson throws when id is missing', () {
+      expect(
+        () => ReaderAnnotation.fromJson({'note': 'r', 'createdAtMs': 1}),
+        throwsA(isA<FormatException>()),
+      );
     });
   });
 
