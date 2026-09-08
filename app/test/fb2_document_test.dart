@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:app/core/fb2_document.dart';
 import 'package:app/core/foliate_session.dart';
 import 'package:app/core/models.dart';
@@ -469,6 +471,278 @@ void main() {
     test('goToCfi returns false for malformed cfi', () {
       final session = FoliateSession.open(buildDoc());
       expect(session.goToCfi('not-a-cfi'), isFalse);
+    });
+  });
+
+  group('parseFb2 block elements', () {
+    // All tests in this group feed a single chapter via fb2WithChapterBlocksBytes
+    // and assert the rendered HTML for one specific block element branch.
+    String firstHtml(String blocks) => parseFb2(
+          fb2WithChapterBlocksBytes([blocks]),
+        ).chapters.first.html;
+
+    test('section-level <subtitle> renders as <h2>', () {
+      final html = firstHtml('<subtitle>A subtitle line</subtitle>'
+          '<p>body</p>');
+      expect(html, contains('<h2>A subtitle line</h2>'));
+    });
+
+    test('section-level <subtitle style=…> renders with class attribute', () {
+      final html = firstHtml(
+        '<subtitle style="accent">fancy</subtitle><p>body</p>',
+      );
+      expect(html, contains('<h2 class="accent">fancy</h2>'));
+    });
+
+    test('section-level <image> with style adds class', () {
+      const pngBase64 =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+      final raw = '<?xml version="1.0"?>'
+          '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"'
+          ' xmlns:l="http://www.w3.org/1999/xlink">'
+          '<description><title-info><book-title>t</book-title></title-info>'
+          '</description>'
+          '<binary id="cover.png" content-type="image/png">$pngBase64</binary>'
+          '<body><section><title>ch</title>'
+          '<image l:href="#cover.png" style="wide" alt="cover" title="A"/>'
+          '</section></body>'
+          '</FictionBook>';
+      final html = parseFb2(utf8.encode(raw)).chapters.first.html;
+      expect(html, contains('<img'));
+      expect(html, contains('class="wide"'));
+      expect(html, contains('alt="cover"'));
+      expect(html, contains('title="A"'));
+      expect(html, contains('src="data:image/png;base64,'));
+    });
+
+    test('empty-line inside section emits <p><br/></p>', () {
+      final html = firstHtml('<empty-line/><p>after</p>');
+      expect(html, contains('<p><br/></p>'));
+      expect(html, contains('after'));
+    });
+
+    test('poem with title/subtitle/text-author/date renders all parts', () {
+      final html = firstHtml(
+        '<poem>'
+        '<title>Poem Title</title>'
+        '<subtitle>Subhead</subtitle>'
+        '<text-author>Anon</text-author>'
+        '<date value="1900-01-01">New Year 1900</date>'
+        '<stanza>'
+        '<title>Stanza Head</title>'
+        '<v>line one</v>'
+        '<v>line two</v>'
+        '</stanza>'
+        '</poem>',
+      );
+      expect(html, contains('<blockquote>'));
+      expect(html, contains('<h3>Poem Title</h3>'));
+      expect(html, contains('<h4>Subhead</h4>'));
+      expect(html, contains('Anon'));
+      expect(html, contains('New Year 1900'));
+      expect(html, contains('<h4>Stanza Head</h4>'));
+      expect(html, contains('line one<br/>line two'));
+    });
+
+    test('stanza subtitle carries id attribute', () {
+      final html = firstHtml(
+        '<poem><stanza>'
+        '<subtitle id="s1">anchor inside stanza</subtitle>'
+        '<v>verse</v>'
+        '</stanza></poem>',
+      );
+      expect(html, contains('<h5'));
+      expect(html, contains('id="s1"'));
+    });
+
+    test('stanza <v style=…> wraps line in <span class>', () {
+      final html = firstHtml(
+        '<poem><stanza>'
+        '<v style="indent">indented verse</v>'
+        '</stanza></poem>',
+      );
+      expect(html, contains('<span class="indent">indented verse</span>'));
+    });
+
+    test('stanza <v> with only whitespace is dropped', () {
+      final html = firstHtml(
+        '<poem><stanza><v>kept</v><v>   </v></stanza></poem>',
+      );
+      // The kept line is present, the whitespace-only line is dropped.
+      expect(html, contains('kept'));
+      expect(html, isNot(contains('   ')));
+    });
+
+    test('stanza without any <v> yields null stanza part', () {
+      final html = firstHtml(
+        '<poem><stanza><title>only a title</title></stanza></poem>',
+      );
+      // Title should still render.
+      expect(html, contains('only a title'));
+    });
+
+    test('poem <date> with empty inner uses value attribute', () {
+      final html = firstHtml(
+        '<poem><date value="2024-05"/></poem>',
+      );
+      expect(html, contains('2024-05'));
+    });
+
+    test('poem <date> with no inner and no value returns null', () {
+      final html = firstHtml('<poem><date/></poem>');
+      // No <p>…</p> added by the date branch.
+      expect(html, isNot(contains('<p></p>')));
+    });
+
+    test('epigraph inside poem stanza is silently dropped from HTML', () {
+      // Documenting the current behaviour: stanza's child loop only knows
+      // about title/subtitle/v. An epigraph nested in a stanza gets ignored
+      // in HTML (its inline text does still appear in the chapter's
+      // fullText via XmlElement.innerText but not in the rendered HTML).
+      final html = firstHtml(
+        '<poem><stanza>'
+        '<v>verse</v>'
+        '<epigraph><p>attr line</p></epigraph>'
+        '</stanza></poem>',
+      );
+      expect(html, contains('<blockquote>'));
+      expect(html, contains('verse'));
+      expect(html, isNot(contains('attr line')));
+    });
+
+    test('cite inside quote nests another blockquote', () {
+      final html = firstHtml(
+        '<cite>'
+        '<p>outer</p>'
+        '<cite><p>inner</p></cite>'
+        '</cite>',
+      );
+      final openCount = '<blockquote>'.allMatches(html).length;
+      expect(openCount, greaterThanOrEqualTo(2));
+      expect(html, contains('outer'));
+      expect(html, contains('inner'));
+    });
+
+    test('text-author inside quote with style renders <p class>', () {
+      final html = firstHtml(
+        '<cite><p>quote</p><text-author style="by">By X</text-author></cite>',
+      );
+      expect(html, contains('By X'));
+      expect(html, contains('class="by"'));
+    });
+
+    test('quote <subtitle> renders as <h2>', () {
+      final html = firstHtml(
+        '<cite><subtitle>Q-Sub</subtitle><p>body</p></cite>',
+      );
+      expect(html, contains('<h2'));
+      expect(html, contains('Q-Sub'));
+    });
+
+    test('quote <poem> embeds poem as nested blockquote', () {
+      final html = firstHtml(
+        '<cite>'
+        '<poem><stanza><v>quoted verse</v></stanza></poem>'
+        '<text-author>Y</text-author>'
+        '</cite>',
+      );
+      expect(html, contains('quoted verse'));
+      expect(html, contains('Y'));
+    });
+
+    test('table renders caption + <tr><th> + <tr><td> with styles', () {
+      final html = firstHtml(
+        '<table>'
+        '<title style="cap">My Table</title>'
+        '<tr style="header"><th>H1</th><th>H2</th></tr>'
+        '<tr><td style="hl">a</td><td>b</td></tr>'
+        '</table>',
+      );
+      expect(html, contains('<table'));
+      expect(html, contains('<caption class="cap">My Table</caption>'));
+      expect(html, contains('<th'));
+      expect(html, contains('H1'));
+      expect(html, contains('class="header"'));
+      expect(html, contains('class="hl"'));
+      expect(html, contains('<td'));
+    });
+
+    test('table with no <tr> yields null', () {
+      final html = firstHtml('<table><title>empty</title></table>');
+      // Table is dropped because no rows.
+      expect(html, isNot(contains('<table')));
+    });
+
+    test('table <tr> with no <th>/<td> is skipped', () {
+      final html = firstHtml(
+        '<table>'
+        '<tr><v>not a cell</v></tr>'
+        '<tr><td>kept</td></tr>'
+        '</table>',
+      );
+      expect(html, contains('<table'));
+      expect(html, contains('kept'));
+      expect(html, isNot(contains('not a cell')));
+    });
+
+    test('table cell <p> fragments joined with <br/>', () {
+      final html = firstHtml(
+        '<table>'
+        '<tr><td><p>one</p><p>two</p></td></tr>'
+        '</table>',
+      );
+      expect(html, contains('one<br/>two'));
+    });
+
+    test('annotation inside chapter renders as <aside>', () {
+      final html = firstHtml(
+        '<annotation>'
+        '<subtitle>A-Sub</subtitle>'
+        '<p>note body</p>'
+        '</annotation>',
+      );
+      expect(html, contains('<aside>'));
+      expect(html, contains('A-Sub'));
+      expect(html, contains('note body'));
+    });
+
+    test('annotation <empty-line> emits a <p><br/></p>', () {
+      final html = firstHtml(
+        '<annotation><empty-line/><p>after</p></annotation>',
+      );
+      expect(html, contains('<aside>'));
+      expect(html, contains('<p><br/></p>'));
+    });
+
+    test('annotation <cite> embeds blockquote', () {
+      final html = firstHtml(
+        '<annotation><cite><p>quoted inside</p></cite></annotation>',
+      );
+      expect(html, contains('<aside>'));
+      expect(html, contains('<blockquote>'));
+      expect(html, contains('quoted inside'));
+    });
+
+    test('annotation <poem> embeds poem', () {
+      final html = firstHtml(
+        '<annotation>'
+        '<poem><stanza><v>v1</v><v>v2</v></stanza></poem>'
+        '</annotation>',
+      );
+      expect(html, contains('<aside>'));
+      expect(html, contains('<blockquote>'));
+      expect(html, contains('v1<br/>v2'));
+    });
+
+    test('annotation <table> embeds table', () {
+      final html = firstHtml(
+        '<annotation>'
+        '<table><tr><td>cell</td></tr></table>'
+        '</annotation>',
+      );
+      expect(html, contains('<aside>'));
+      expect(html, contains('<table'));
+      expect(html, contains('cell'));
     });
   });
 }
