@@ -82,6 +82,78 @@ List<int> fb2WithAnnotationBytes({
   return utf8.encode(buffer.toString());
 }
 
+/// Returns FB2 bytes whose main body has [bodyLead] as the first children
+/// (epigraph / cite / subtitle / empty-line / poem / table / annotation /
+/// title / p) followed by a single chapter section.
+///
+/// Used to test that block-level FB2 elements like `<epigraph>`, `<cite>`,
+/// `<subtitle>`, and `<empty-line/>` are rendered into the first chapter's
+/// text and html.
+List<int> fb2WithBodyLeadBytes({
+  String title = 'Lead Body Book',
+  String bodyLead = '',
+  String chapterTitle = 'Chapter 1',
+  List<String> chapterParagraphs = const ['main paragraph'],
+}) {
+  final buffer = StringBuffer();
+  buffer.writeln(
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">',
+  );
+  buffer.writeln('<description>');
+  buffer.writeln('  <title-info>');
+  buffer.writeln('    <book-title>${_xml(title)}</book-title>');
+  buffer.writeln('  </title-info>');
+  buffer.writeln('</description>');
+  buffer.writeln('<body>');
+  if (bodyLead.isNotEmpty) {
+    for (final line in bodyLead.split('\n')) {
+      buffer.writeln('  $line');
+    }
+  }
+  buffer.writeln('  <section>');
+  buffer.writeln('    <title>${_xml(chapterTitle)}</title>');
+  for (final para in chapterParagraphs) {
+    buffer.writeln('    <p>${_xml(para)}</p>');
+  }
+  buffer.writeln('  </section>');
+  buffer.writeln('</body>');
+  buffer.writeln('</FictionBook>');
+  return utf8.encode(buffer.toString());
+}
+
+/// Returns FB2 bytes with a single section made of [blocks] (raw XML
+/// fragments). Used to embed constructs like `<poem><stanza>…</stanza></poem>`
+/// that the simpler [fb2WithBodyLeadBytes] cannot express.
+List<int> fb2WithChapterBlocksBytes(
+  List<String> blocks, {
+  String title = 'Blocks Book',
+  String chapterTitle = 'Chapter 1',
+}) {
+  final buffer = StringBuffer();
+  buffer.writeln(
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">',
+  );
+  buffer.writeln('<description>');
+  buffer.writeln('  <title-info>');
+  buffer.writeln('    <book-title>${_xml(title)}</book-title>');
+  buffer.writeln('  </title-info>');
+  buffer.writeln('</description>');
+  buffer.writeln('<body>');
+  buffer.writeln('  <section>');
+  buffer.writeln('    <title>${_xml(chapterTitle)}</title>');
+  for (final block in blocks) {
+    for (final line in block.split('\n')) {
+      buffer.writeln('    $line');
+    }
+  }
+  buffer.writeln('  </section>');
+  buffer.writeln('</body>');
+  buffer.writeln('</FictionBook>');
+  return utf8.encode(buffer.toString());
+}
+
 /// Returns FB2 bytes with a body containing two top-level sections
 /// ("Part I" and "Part II"), each with a child section ("Chapter One" /
 /// "Chapter Two"). Used by widget tests that navigate a nested TOC.

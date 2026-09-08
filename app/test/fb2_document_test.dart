@@ -90,6 +90,88 @@ void main() {
       // Should not throw — case-insensitive check.
       expect(() => parseFb2(bytes.codeUnits), returnsNormally);
     });
+
+    test('epigraph text is prepended to the first chapter text', () {
+      final parsed = parseFb2(fb2WithBodyLeadBytes(
+        bodyLead: '<epigraph><p>Quote from a friend.</p></epigraph>',
+        chapterTitle: '正文',
+        chapterParagraphs: ['main paragraph'],
+      ));
+      expect(parsed.chapters, hasLength(1));
+      expect(parsed.chapters.first.text, contains('Quote from a friend'));
+    });
+
+    test('cite text is prepended to the first chapter text', () {
+      final parsed = parseFb2(fb2WithBodyLeadBytes(
+        bodyLead: '<cite><p>Cited reference.</p></cite>',
+        chapterTitle: '正文',
+        chapterParagraphs: ['main paragraph'],
+      ));
+      expect(parsed.chapters.first.text, contains('Cited reference'));
+    });
+
+    test('subtitle text is prepended to the first chapter text', () {
+      final parsed = parseFb2(fb2WithBodyLeadBytes(
+        bodyLead: '<subtitle>subtitle text</subtitle>',
+        chapterTitle: '正文',
+        chapterParagraphs: ['main paragraph'],
+      ));
+      expect(parsed.chapters.first.text, contains('subtitle text'));
+    });
+
+    test('empty-line lead does not add visible text', () {
+      final parsed = parseFb2(fb2WithBodyLeadBytes(
+        bodyLead: '<empty-line/>',
+        chapterTitle: '正文',
+        chapterParagraphs: ['only main paragraph'],
+      ));
+      expect(parsed.chapters.first.text, contains('only main paragraph'));
+      // The chapter html should still render the empty line as a break.
+      expect(parsed.chapters.first.html, contains('<br'));
+    });
+
+    test('poem body content becomes part of the chapter text', () {
+      final parsed = parseFb2(fb2WithChapterBlocksBytes([
+        '<title>Poem Chapter</title>',
+        '<poem><stanza><v>line one</v><v>line two</v></stanza></poem>',
+      ]));
+      expect(parsed.chapters.first.text, contains('line one'));
+      expect(parsed.chapters.first.text, contains('line two'));
+    });
+
+    test('epigraph inside a poem stanza still survives', () {
+      final parsed = parseFb2(fb2WithChapterBlocksBytes([
+        '<title>Stanza Epigraph</title>',
+        '<poem>'
+            '<stanza><v>main verse</v>'
+            '<epigraph><p>attribution line</p></epigraph>'
+            '</stanza>'
+            '</poem>',
+      ]));
+      expect(parsed.chapters.first.text, contains('main verse'));
+      expect(parsed.chapters.first.text, contains('attribution line'));
+    });
+
+    test('a notes body becomes chapters deferred until main sections exist',
+        () {
+      // main body has a section, the secondary body has name="notes" — both
+      // should end up as chapters since index > 0 by the time notes is
+      // emitted.
+      final bytes = '<?xml version="1.0"?>'
+          '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">'
+          '<description><title-info><book-title>Notes Book</book-title>'
+          '</title-info></description>'
+          '<body><section><title>Main</title><p>main text</p></section></body>'
+          '<body name="notes">'
+          '<section><title>Note 1</title><p>note text</p></section>'
+          '</body>'
+          '</FictionBook>';
+      final parsed = parseFb2(bytes.codeUnits);
+      expect(parsed.chapters.length, greaterThanOrEqualTo(2));
+      final titles = parsed.chapters.map((c) => c.title).toList();
+      expect(titles, contains('Main'));
+      expect(titles, contains('Note 1'));
+    });
   });
 
   group('Fb2ReaderDocument', () {
