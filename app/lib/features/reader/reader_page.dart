@@ -318,8 +318,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           if (await canLaunchUrl(uri)) {
             await launchUrl(uri, mode: LaunchMode.externalApplication);
           }
-        } catch (_) {
-          // Invalid URL or launch failed - ignore
+        } catch (error) {
+          // Invalid URL or launch failed - keep external link a no-op
+          debugPrint('reflow link launch failed: $error');
         }
       }
       return;
