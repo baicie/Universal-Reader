@@ -109,15 +109,25 @@ void main() {
     });
 
     test('falls back to empty format label when document is null', () {
+      // Open the unavailable branch using a metadata-less UnavailableReaderDocument;
+      // the document parameter is null, so formatLabel must default to empty.
       final state = resolveReaderChapterState(
         loading: false,
-        opened: null,
+        opened: UnavailableReaderDocument(
+          metadata: const DocumentMetadata(
+            id: 'x',
+            title: 't',
+            author: '',
+            format: DocumentFormat.epub,
+            type: DocumentType.reflow,
+          ),
+        ),
         document: null,
         isTruncated: false,
       );
-      // With no opened document and not loading, we drop to ready — so this
-      // case is covered by the ready group. Here just assert it never crashes.
-      expect(state.kind, ReaderChapterKind.ready);
+      expect(state.kind, ReaderChapterKind.unavailable);
+      expect(state.missingFile, isTrue);
+      expect(state.formatLabel, isEmpty);
     });
   });
 
@@ -142,6 +152,33 @@ void main() {
         isTruncated: false,
       );
       expect(state.kind, ReaderChapterKind.ready);
+      expect(state.truncated, isFalse);
+    });
+
+    test('null opener + null document drops straight to ready', () {
+      final state = resolveReaderChapterState(
+        loading: false,
+        opened: null,
+        document: null,
+        isTruncated: false,
+      );
+      expect(state.kind, ReaderChapterKind.ready);
+      expect(state.formatLabel, isEmpty);
+      expect(state.missingFile, isFalse);
+    });
+
+    test('truncated=false survives a corrupt opener when loading=false', () {
+      // Documented behaviour: the corrupt branch ignores isTruncated and
+      // pins the truncated flag to false because corrupt shows its own copy.
+      final state = resolveReaderChapterState(
+        loading: false,
+        opened: CorruptReaderDocument(
+          metadata: _library(DocumentFormat.epub).metadata,
+        ),
+        document: _library(DocumentFormat.epub),
+        isTruncated: true,
+      );
+      expect(state.kind, ReaderChapterKind.corrupt);
       expect(state.truncated, isFalse);
     });
   });
