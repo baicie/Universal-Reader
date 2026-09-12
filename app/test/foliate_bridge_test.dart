@@ -141,4 +141,25 @@ void main() {
       'hello from epub',
     );
   });
+
+  test('openChapter builds the chapter command with its inputs only', () {
+    final command = FoliateBridge.openChapter(
+      href: 'ch1.xhtml',
+      html: '<p>hello</p>',
+      title: 'Chapter One',
+    );
+    expect(command, {
+      'type': 'openChapter',
+      'href': 'ch1.xhtml',
+      'html': '<p>hello</p>',
+      'title': 'Chapter One',
+    });
+    // No surface defaults leak into a chapter command: typography,
+    // quotes, fragment, scrollQuote, etc. must not appear here.
+    expect(command.containsKey('quotes'), isFalse);
+    expect(command.containsKey('fontSize'), isFalse);
+    expect(command.containsKey('fragment'), isFalse);
+    expect(command.containsKey('scrollQuote'), isFalse);
+    expect(command.containsKey('pageIndex'), isFalse);
+  });
 }
