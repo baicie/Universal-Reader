@@ -516,6 +516,23 @@ void main() {
     expect(text, contains('second chapter text'));
   });
 
+  test('extractText defaults a missing start locator to the first chapter',
+      () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(),
+    );
+
+    final text = await document.extractText(
+      const DocumentRange(
+        start: TextLocator(offset: 0),
+        end: EpubLocator(href: 'OEBPS/ch2.xhtml'),
+      ),
+    );
+    expect(text, contains('hello from epub'));
+    expect(text, contains('second chapter text'));
+  });
+
   test('extractText returns empty when the text offset is past the end',
       () async {
     final document = EpubReaderDocument.parse(
@@ -544,6 +561,23 @@ void main() {
       const DocumentRange(
         start: TextLocator(offset: 0),
         end: TextLocator(offset: 99999999),
+      ),
+    );
+    expect(text, contains('hello from epub'));
+    expect(text, contains('second chapter text'));
+  });
+
+  test('extractText falls back to fullText.length when the end locator is '
+      'neither Epub nor Text', () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(),
+    );
+
+    final text = await document.extractText(
+      const DocumentRange(
+        start: TextLocator(offset: 0),
+        end: ComicLocator(page: 1),
       ),
     );
     expect(text, contains('hello from epub'));
@@ -765,6 +799,120 @@ void main() {
     expect(toc.map((item) => item.title), ['第一章', '第二章']);
   });
 
+  test(
+    'nav type declared only via the epub namespace prefix still resolves toc',
+    () async {
+      // The previous fixture declared both `xmlns:type` and the bare
+      // `type="toc"` attribute, which short-circuited the lookup before
+      // the namespace branch. Here the only marker is `epub:type="toc"`,
+      // so `_isTocNav` must walk past the bare-attribute and the
+      // unprefixed namespace check before matching.
+      final document = EpubReaderDocument.parse(
+        metadata: metadata,
+        bytes: minimalEpubBytes(
+          extraFiles: {
+            'OEBPS/nav.xhtml': utf8.encode('''<?xml version="1.0"?>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:epub="http://www.idpf.org/2007/ops">
+  <body>
+    <nav epub:type="toc">
+      <ol>
+        <li><a href="ch1.xhtml">第一章</a></li>
+        <li><a href="ch2.xhtml">第二章</a></li>
+      </ol>
+    </nav>
+  </body>
+</html>
+'''),
+          },
+        ),
+      );
+      final toc = await document.getToc();
+      expect(toc.map((item) => item.title), ['第一章', '第二章']);
+    },
+  );
+
+  test(
+    'nav marker is only present on a non-toc nav so the resolver falls '
+    'back to the document root',
+    () async {
+      // The pre-filter accepts any xhtml whose source text mentions
+      // `epub:type="toc"`; the actual `<nav>` carrying that marker has
+      // no `<ol>` inside, so the resolver must walk past `tocNav == null`
+      // and start scanning from `nav.rootElement` instead.
+      final document = EpubReaderDocument.parse(
+        metadata: metadata,
+        bytes: minimalEpubBytes(
+          extraFiles: {
+            'OEBPS/nav.xhtml': utf8.encode('''<?xml version="1.0"?>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:epub="http://www.idpf.org/2007/ops">
+  <body>
+    <nav epub:type="toc"></nav>
+    <nav>
+      <ol>
+        <li><a href="ch1.xhtml">第一章</a></li>
+        <li><a href="ch2.xhtml">第二章</a></li>
+      </ol>
+    </nav>
+  </body>
+</html>
+'''),
+          },
+        ),
+      );
+      final toc = await document.getToc();
+      expect(toc.map((item) => item.title), ['第一章', '第二章']);
+    },
+  );
+
+  test(
+    'nav marker only appears in prose so the resolver falls back to the root',
+    () async {
+      // The pre-filter looks at the raw text for `epub:type="toc"`; if
+      // that string only shows up inside a `<desc>` element, the
+      // `_isTocNav` selector will not match any `<nav>` and the resolver
+      // has to fall back to scanning from `nav.rootElement` to find the
+      // unordered `<ol>`.
+      final document = EpubReaderDocument.parse(
+        metadata: metadata,
+        bytes: minimalEpubBytes(
+          extraFiles: {
+            'OEBPS/nav.xhtml': utf8.encode('''<?xml version="1.0"?>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:epub="http://www.idpf.org/2007/ops">
+  <body>
+    <nav><desc>epub:type="toc"</desc></nav>
+    <ol>
+      <li><a href="ch1.xhtml">第一章</a></li>
+      <li><a href="ch2.xhtml">第二章</a></li>
+    </ol>
+  </body>
+</html>
+'''),
+          },
+        ),
+      );
+      final toc = await document.getToc();
+      expect(toc.map((item) => item.title), ['第一章', '第二章']);
+    },
+  );
+
+  test(
+    'a nav item without an anchor still drills into its nested list',
+    () async {
+      // The outer `<li>` carries only a `<span>` so the resolver walks
+      // past the missing anchor and recurses into the inner `<ol>` to
+      // recover the actual entries.
+      final document = EpubReaderDocument.parse(
+        metadata: metadata,
+        bytes: headerOnlyNestedNavEpubBytes(),
+      );
+      final toc = await document.getToc();
+      expect(toc.map((item) => item.title), ['注释', '第二章']);
+    },
+  );
+
   test('a chapter with no matching nav item falls back to a plain title',
       () async {
     // The spine declares ch1, ch2, ch3 but nav only lists ch1 and ch2; ch3
@@ -818,5 +966,71 @@ void main() {
     final toc = await document.getToc();
     expect(toc, hasLength(3));
     expect(toc.last.title, '第三章');
+  });
+
+  test('progress emits the chapter offset over total length', () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(),
+    );
+
+    final stream = document.progress;
+    expect(stream, isA<Stream<double>>());
+    final value = await stream.first;
+    expect(value, 0.0);
+
+    // After jumping past chapter 1, progress should reflect the new
+    // chapter's start offset rather than 0.
+    await document.goTo(const EpubLocator(href: 'OEBPS/ch2.xhtml'));
+    final after = await document.progress.first;
+    expect(after, greaterThan(0.0));
+    expect(after, lessThanOrEqualTo(1.0));
+  });
+
+  test('a chapter longer than the byte limit gets truncated and flagged',
+      () {
+    // The byte limit is 2 MiB, so a body of ~3 MiB has to be sliced in
+    // half. The truncated flag must be set and the surviving text length
+    // must equal the configured cap exactly.
+    final longBody = 'a' * (3 * 1024 * 1024);
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(
+        firstBody: longBody,
+        firstTitle: '',
+      ),
+    );
+    expect(document.truncated, isTrue);
+    expect(document.parsed.fullText.length, epubTextByteLimit);
+  });
+
+  test('chapterIndex, chapterCount, and chapter title getters surface values',
+      () {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(),
+    );
+    expect(document.chapterCount, document.parsed.chapters.length);
+    expect(document.chapterIndex, 0);
+    expect(document.currentChapterTitle, document.parsed.chapters.first.title);
+    document.sectionIndex = 1;
+    expect(document.chapterIndex, 1);
+    expect(document.currentChapterTitle, document.parsed.chapters[1].title);
+  });
+
+  test('chapter html keeps a data: img and a remote img as-is', () {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(
+        firstMarkup:
+            '<img src="data:image/png;base64,AAAA" alt="data"/>'
+            '<img src="https://example.com/remote.png" alt="remote"/>',
+      ),
+    );
+    final html = document.currentChapterHtml;
+    expect(html, contains('src="data:image/png;base64,AAAA"'));
+    expect(html, contains('src="https://example.com/remote.png"'));
+    expect(html, contains('alt="data"'));
+    expect(html, contains('alt="remote"'));
   });
 }

@@ -164,6 +164,30 @@ List<int> nestedNavEpubBytes() {
   );
 }
 
+List<int> headerOnlyNestedNavEpubBytes() {
+  return minimalEpubBytes(
+    extraFiles: {
+      'OEBPS/nav.xhtml': utf8.encode('''<?xml version="1.0"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <body>
+    <nav epub:type="toc">
+      <ol>
+        <li>
+          <span>第一章</span>
+          <ol>
+            <li><a href="ch1.xhtml">注释</a></li>
+          </ol>
+        </li>
+        <li><a href="ch2.xhtml">第二章</a></li>
+      </ol>
+    </nav>
+  </body>
+</html>
+'''),
+    },
+  );
+}
+
 List<int> tinyTtfBytes() => [0x00, 0x01, 0x00, 0x00];
 
 List<int> fontedEpubBytes({bool includeFont = true}) {
