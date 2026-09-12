@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:app/core/models.dart';
 import 'package:app/features/tools/ai/ai_reader_tool.dart';
 import 'package:app/features/tools/ai/ai_settings.dart';
@@ -9,6 +11,8 @@ import 'package:app/features/tools/sample_reader_document.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 AppLocalizations _stubL10n(Locale locale) => lookupAppLocalizations(locale);
 
@@ -379,6 +383,18 @@ void main() {
 
     test('falls back to default OpenAiCompatibleClient when no factory given',
         () async {
+      late http.Request seen;
+      final mock = MockClient((req) async {
+        seen = req;
+        return http.Response(
+          jsonEncode({
+            'choices': [
+              {'message': {'content': 'fallback reply'}},
+            ],
+          }),
+          200,
+        );
+      });
       final tool = AiReaderTool(
         settings: const AiSettings(
           enabled: true,
@@ -386,15 +402,53 @@ void main() {
           model: 'deepseek-chat',
           apiKey: 'sk-test',
         ),
+        httpClient: mock,
       );
 
-      // Build an OpenAiCompatibleClient the same way the tool would when no
-      // clientFactory is supplied. We exercise the same chatCompletionsUrl
-      // helper to confirm the URL composition path is reachable.
-      final url = OpenAiCompatibleClient.chatCompletionsUrl(
-        tool.settings.withProjectDefaults().endpoint,
+      // Without a clientFactory the tool must construct an
+      // OpenAiCompatibleClient inline, wiring the resolved settings and the
+      // injected httpClient into its HTTP request.
+      final result = await tool.run(
+        document: document,
+        request: const ReaderToolRequest(kind: ReaderToolKind.summarize),
       );
-      expect(url, 'https://api.deepseek.com/v1/chat/completions');
+
+      expect(result.text, 'fallback reply');
+      expect(result.unavailable, isFalse);
+      expect(seen.method, 'POST');
+      expect(
+        seen.url.toString(),
+        'https://api.deepseek.com/v1/chat/completions',
+      );
+      expect(seen.headers['authorization'], 'Bearer sk-test');
+      final body = jsonDecode(seen.body) as Map<String, dynamic>;
+      expect(body['model'], 'deepseek-chat');
     });
+
+    test(
+      'falls back to default OpenAiCompatibleClient without an httpClient',
+      () async {
+        // No clientFactory, no httpClient — the tool still runs but the
+        // inline client has nowhere to send. We only assert that the
+        // fallback path executes (the call surfaces the network failure
+        // rather than blowing up before reaching it).
+        final tool = AiReaderTool(
+          settings: const AiSettings(
+            enabled: true,
+            endpoint: 'http://127.0.0.1:1',
+            model: 'm',
+            apiKey: 'sk-x',
+          ),
+        );
+
+        await expectLater(
+          tool.run(
+            document: document,
+            request: const ReaderToolRequest(kind: ReaderToolKind.summarize),
+          ),
+          throwsA(isA<Object>()),
+        );
+      },
+    );
   });
 }

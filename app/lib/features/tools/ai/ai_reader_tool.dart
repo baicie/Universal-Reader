@@ -1,3 +1,5 @@
+import 'package:http/http.dart' as http;
+
 import '../../../core/reader_runtime.dart';
 import '../../../l10n/l10n.dart';
 import '../reader_tool.dart';
@@ -12,6 +14,7 @@ class AiReaderTool implements ReaderTool {
     this.grounding = const DocumentGrounding(),
     this.prompts = const ReaderPrompts(),
     this.clientFactory,
+    this.httpClient,
     this.allowMissingApiKey = false,
   });
 
@@ -19,6 +22,7 @@ class AiReaderTool implements ReaderTool {
   final DocumentGrounding grounding;
   final ReaderPrompts prompts;
   final ModelClient Function(AiSettings settings)? clientFactory;
+  final http.Client? httpClient;
   final bool allowMissingApiKey;
 
   @override
@@ -72,6 +76,7 @@ class AiReaderTool implements ReaderTool {
           endpoint: resolved.endpoint,
           model: resolved.model,
           apiKey: resolved.apiKey,
+          httpClient: httpClient,
         );
     final text = await client.complete(
       prompts.messages(
