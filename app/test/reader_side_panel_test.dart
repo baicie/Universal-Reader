@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:app/core/reader_runtime.dart';
 import 'package:app/core/models.dart';
-import 'package:app/features/library/annotation_store.dart';
 import 'package:app/features/reader/reader_side_panel.dart';
 import 'package:app/features/reader/reader_bookmarks_pane.dart';
 import 'package:app/features/reader/reader_notes_pane.dart';
@@ -11,7 +9,7 @@ import 'package:app/features/reader/reader_search_pane.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
 void main() {
-  Widget _wrap(Widget child) {
+  Widget wrap(Widget child) {
     return MaterialApp(
       locale: const Locale('zh'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -30,7 +28,7 @@ void main() {
       TocItem(title: title, locator: const TextLocator(offset: 0));
 
   testWidgets('renders nothing relevant when every toggle is off', (tester) async {
-    await tester.pumpWidget(_wrap(ReaderSidePanel(
+    await tester.pumpWidget(wrap(ReaderSidePanel(
       background: const Color(0xFFF0EADF),
       ink: Colors.black,
       muted: Colors.grey,
@@ -62,7 +60,7 @@ void main() {
   });
 
   testWidgets('renders only the search pane when showSearch is on', (tester) async {
-    await tester.pumpWidget(_wrap(ReaderSidePanel(
+    await tester.pumpWidget(wrap(ReaderSidePanel(
       background: const Color(0xFFF0EADF),
       ink: Colors.black,
       muted: Colors.grey,
@@ -93,7 +91,7 @@ void main() {
   });
 
   testWidgets('renders all four panes when every toggle is on', (tester) async {
-    await tester.pumpWidget(_wrap(ReaderSidePanel(
+    await tester.pumpWidget(wrap(ReaderSidePanel(
       background: const Color(0xFFF0EADF),
       ink: Colors.black,
       muted: Colors.grey,
@@ -126,7 +124,7 @@ void main() {
 
   testWidgets('toc tile invokes onTocOpen', (tester) async {
     TocItem? opened;
-    await tester.pumpWidget(_wrap(ReaderSidePanel(
+    await tester.pumpWidget(wrap(ReaderSidePanel(
       background: const Color(0xFFF0EADF),
       ink: Colors.black,
       muted: Colors.grey,
@@ -156,7 +154,7 @@ void main() {
   });
 
   testWidgets('empty toc renders the untitled fallback', (tester) async {
-    await tester.pumpWidget(_wrap(ReaderSidePanel(
+    await tester.pumpWidget(wrap(ReaderSidePanel(
       background: const Color(0xFFF0EADF),
       ink: Colors.black,
       muted: Colors.grey,
@@ -191,7 +189,7 @@ void main() {
 
   testWidgets('search query edits invoke onSearchQuery', (tester) async {
     String? lastQuery;
-    await tester.pumpWidget(_wrap(ReaderSidePanel(
+    await tester.pumpWidget(wrap(ReaderSidePanel(
       background: const Color(0xFFF0EADF),
       ink: Colors.black,
       muted: Colors.grey,

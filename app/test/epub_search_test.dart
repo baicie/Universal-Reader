@@ -1,6 +1,5 @@
 import 'package:app/core/epub_document.dart';
 import 'package:app/core/models.dart';
-import 'package:app/core/reader_runtime.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/epub_fixture.dart';

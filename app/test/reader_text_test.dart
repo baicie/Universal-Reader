@@ -4,7 +4,7 @@ import 'package:app/core/text_document.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  DocumentMetadata _metadata(DocumentFormat format) => DocumentMetadata(
+  DocumentMetadata metadata(DocumentFormat format) => DocumentMetadata(
         id: 'a',
         title: 'A',
         author: 'A',
@@ -19,14 +19,14 @@ void main() {
 
     test('returns an empty string for documents that are not chaptered', () {
       final corrupt = CorruptReaderDocument(
-        metadata: _metadata(DocumentFormat.epub),
+        metadata: metadata(DocumentFormat.epub),
       );
       expect(readerCurrentBody(corrupt), '');
     });
 
     test('returns the current chapter text when the document is chaptered', () {
       final chaptered = TextReaderDocument.parse(
-        metadata: _metadata(DocumentFormat.txt),
+        metadata: metadata(DocumentFormat.txt),
         bytes: 'Line 1\nLine 2\n\nLine 3'.codeUnits,
       );
       // section 0 is the first block; section 1 is the second block.
@@ -40,7 +40,7 @@ void main() {
       'returns empty string for an unavailable (non-chaptered) opener',
       () {
         final unavailable = UnavailableReaderDocument(
-          metadata: _metadata(DocumentFormat.epub),
+          metadata: metadata(DocumentFormat.epub),
         );
         expect(readerCurrentBody(unavailable), '');
       },

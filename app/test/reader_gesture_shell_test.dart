@@ -6,7 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  Widget _wrap({
+  Widget wrap({
     bool isReflowOpened = false,
     bool hasPendingQuote = false,
     VoidCallback? onToggleChrome,
@@ -38,7 +38,7 @@ void main() {
   testWidgets('routes arrowRight to onTurnNext when reflow is opened',
       (tester) async {
     var next = 0;
-    await tester.pumpWidget(_wrap(
+    await tester.pumpWidget(wrap(
       isReflowOpened: true,
       onTurnNext: () => next++,
     ));
@@ -49,7 +49,7 @@ void main() {
   testWidgets('routes pageDown to onTurnNext when reflow is opened',
       (tester) async {
     var next = 0;
-    await tester.pumpWidget(_wrap(
+    await tester.pumpWidget(wrap(
       isReflowOpened: true,
       onTurnNext: () => next++,
     ));
@@ -60,7 +60,7 @@ void main() {
   testWidgets('routes arrowLeft to onTurnPrevious when reflow is opened',
       (tester) async {
     var prev = 0;
-    await tester.pumpWidget(_wrap(
+    await tester.pumpWidget(wrap(
       isReflowOpened: true,
       onTurnPrevious: () => prev++,
     ));
@@ -70,7 +70,7 @@ void main() {
 
   testWidgets('does not bind keys when reflow is closed', (tester) async {
     var next = 0;
-    await tester.pumpWidget(_wrap(onTurnNext: () => next++));
+    await tester.pumpWidget(wrap(onTurnNext: () => next++));
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     expect(next, 0);
   });
@@ -78,7 +78,7 @@ void main() {
   testWidgets('tap toggles chrome when no selection is pending',
       (tester) async {
     var toggles = 0;
-    await tester.pumpWidget(_wrap(onToggleChrome: () => toggles++));
+    await tester.pumpWidget(wrap(onToggleChrome: () => toggles++));
     await tester.tap(find.byType(ReaderGestureShell));
     expect(toggles, 1);
   });
@@ -86,7 +86,7 @@ void main() {
   testWidgets('tap is suppressed while a selection is pending',
       (tester) async {
     var toggles = 0;
-    await tester.pumpWidget(_wrap(
+    await tester.pumpWidget(wrap(
       hasPendingQuote: true,
       onToggleChrome: () => toggles++,
     ));

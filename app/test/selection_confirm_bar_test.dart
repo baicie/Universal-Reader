@@ -2,31 +2,6 @@ import 'package:app/features/reader/selection_confirm_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-Future<void> _pumpBar(
-  WidgetTester tester, {
-  required String quote,
-  required String saveLabel,
-  int saveTaps = 0,
-  int dismissTaps = 0,
-}) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      home: Scaffold(
-        body: SelectionConfirmBar(
-          quote: quote,
-          saveLabel: saveLabel,
-          onSave: () {
-            saveCalls++;
-          },
-          onDismiss: () {
-            dismissCalls++;
-          },
-        ),
-      ),
-    ),
-  );
-}
-
 int saveCalls = 0;
 int dismissCalls = 0;
 

@@ -2,7 +2,6 @@ import 'package:app/core/annotated_text.dart';
 import 'package:app/core/comic_document.dart';
 import 'package:app/core/comic_layout.dart';
 import 'package:app/core/models.dart';
-import 'package:app/core/reader_chapter_state.dart';
 import 'package:app/core/reader_runtime.dart';
 import 'package:app/core/reading_surface.dart';
 import 'package:app/core/pdf_document.dart';
@@ -24,7 +23,7 @@ import 'support/image_fixture.dart';
 import 'support/pdf_fixture.dart';
 
 void main() {
-  DocumentMetadata _metadata(DocumentFormat format) => DocumentMetadata(
+  DocumentMetadata metadata(DocumentFormat format) => DocumentMetadata(
         id: 'a',
         title: 'A',
         author: 'A',
@@ -38,7 +37,7 @@ void main() {
 
   // Helper that builds a ReaderReadingPane wrapped in MaterialApp + l10n so
   // descendants can call AppLocalizations.of(context).
-  Widget _wrap(Widget child) {
+  Widget wrap(Widget child) {
     return MaterialApp(
       locale: const Locale('en'),
       supportedLocales: AppLocalizations.supportedLocales,
@@ -52,7 +51,7 @@ void main() {
     );
   }
 
-  ReaderReadingPane _pane({
+  ReaderReadingPane pane({
     required ReaderDocument? opened,
     bool chrome = true,
     List<int>? fileBytes,
@@ -98,11 +97,11 @@ void main() {
   group('comic branch', () {
     testWidgets('renders IsolatedComicView for a comic document', (tester) async {
       final comic = ComicReaderDocument.parse(
-        metadata: _metadata(DocumentFormat.cbz),
+        metadata: metadata(DocumentFormat.cbz),
         bytes: zipNamedFiles({'page-01.png': tinyPngBytes()}),
       );
 
-      await tester.pumpWidget(_wrap(_pane(opened: comic)));
+      await tester.pumpWidget(wrap(pane(opened: comic)));
 
       expect(find.byType(IsolatedComicView), findsOneWidget);
       expect(find.byType(IsolatedPdfView), findsNothing);
@@ -115,11 +114,11 @@ void main() {
         var toggled = 0;
         var turned = 0;
         final comic = ComicReaderDocument.parse(
-          metadata: _metadata(DocumentFormat.cbz),
+          metadata: metadata(DocumentFormat.cbz),
           bytes: zipNamedFiles({'page-01.png': tinyPngBytes()}),
         );
         await tester.pumpWidget(
-          _wrap(
+          wrap(
             ReaderReadingPane(
               opened: comic,
               chrome: true,
@@ -169,14 +168,14 @@ void main() {
   group('pdf branch', () {
     testWidgets('renders IsolatedPdfView for a pdf document', (tester) async {
       final pdf = openReaderDocument(
-        metadata: _metadata(DocumentFormat.pdf),
+        metadata: metadata(DocumentFormat.pdf),
         bytes: minimalPdfBytes(),
       );
       expect(pdf, isA<PdfReaderDocument>());
 
       await tester.pumpWidget(
-        _wrap(
-          _pane(
+        wrap(
+          pane(
             opened: pdf,
             fileBytes: minimalPdfBytes(),
           ),
@@ -193,13 +192,13 @@ void main() {
     testWidgets('renders IsolatedFoliateView for an epub document',
         (tester) async {
       final epub = openReaderDocument(
-        metadata: _metadata(DocumentFormat.epub),
+        metadata: metadata(DocumentFormat.epub),
         bytes: minimalEpubBytes(),
       );
       expect(epub, isA<HtmlChapteredDocument>());
 
       await tester.pumpWidget(
-        _wrap(_pane(opened: epub, fileBytes: minimalEpubBytes())),
+        wrap(pane(opened: epub, fileBytes: minimalEpubBytes())),
       );
 
       expect(find.byType(IsolatedFoliateView), findsOneWidget);
@@ -212,12 +211,12 @@ void main() {
     testWidgets('renders ReaderChapterBody for a plain-text document',
         (tester) async {
       final text = openReaderDocument(
-        metadata: _metadata(DocumentFormat.txt),
+        metadata: metadata(DocumentFormat.txt),
         bytes: 'Paragraph 1\nParagraph 2'.codeUnits,
       );
       expect(text, isA<TextReaderDocument>());
 
-      await tester.pumpWidget(_wrap(_pane(opened: text)));
+      await tester.pumpWidget(wrap(pane(opened: text)));
 
       expect(find.byType(ReaderChapterBody), findsOneWidget);
       expect(find.byType(IsolatedComicView), findsNothing);
@@ -227,7 +226,7 @@ void main() {
 
     testWidgets('renders ReaderChapterBody when no document is open',
         (tester) async {
-      await tester.pumpWidget(_wrap(_pane(opened: null)));
+      await tester.pumpWidget(wrap(pane(opened: null)));
 
       expect(find.byType(ReaderChapterBody), findsOneWidget);
     });
@@ -237,14 +236,14 @@ void main() {
     testWidgets('renders the fallback for UnavailableReaderDocument',
         (tester) async {
       final unavailable = openReaderDocument(
-        metadata: _metadata(DocumentFormat.txt),
+        metadata: metadata(DocumentFormat.txt),
         bytes: null,
       );
       // openReaderDocument returns UnavailableReaderDocument when no bytes
       // are provided for a plain-text format.
       expect(unavailable, isA<UnavailableReaderDocument>());
 
-      await tester.pumpWidget(_wrap(_pane(opened: unavailable)));
+      await tester.pumpWidget(wrap(pane(opened: unavailable)));
 
       expect(find.byType(ReaderChapterBody), findsOneWidget);
     });

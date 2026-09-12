@@ -2,8 +2,8 @@ import 'dart:convert';
 
 /// Returns the bytes of a minimal FictionBook 2 document.
 ///
-/// Chapters are written as <section> blocks inside <body>. Each section
-/// gets a <title> (used as chapter title) followed by <p> paragraphs.
+/// Chapters are written as `<section>` blocks inside `<body>`. Each section
+/// gets a `<title>` (used as chapter title) followed by `<p>` paragraphs.
 List<int> minimalFb2Bytes({
   String title = 'FB2 Book',
   String authorFirst = 'Ann',

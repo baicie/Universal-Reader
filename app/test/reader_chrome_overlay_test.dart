@@ -11,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  Widget _wrap({
+  Widget wrap({
     required ReaderRuntime runtime,
     bool ask = false,
     bool chrome = true,
@@ -57,14 +57,14 @@ void main() {
 
   testWidgets('shows the progress bar when nothing is pending', (tester) async {
     const runtime = ReaderRuntime(loading: false);
-    await tester.pumpWidget(_wrap(runtime: runtime));
+    await tester.pumpWidget(wrap(runtime: runtime));
     await tester.pump();
     expect(find.text('§2/5'), findsOneWidget);
   });
 
   testWidgets('progress bar fades out when chrome is hidden', (tester) async {
     const runtime = ReaderRuntime(loading: false);
-    await tester.pumpWidget(_wrap(runtime: runtime, chrome: false));
+    await tester.pumpWidget(wrap(runtime: runtime, chrome: false));
     await tester.pump();
     expect(find.text('§2/5'), findsNothing);
   });
@@ -72,7 +72,7 @@ void main() {
   testWidgets('selection bar replaces progress bar when pendingQuote is set',
       (tester) async {
     const runtime = ReaderRuntime(pendingQuote: 'a selected sentence');
-    await tester.pumpWidget(_wrap(runtime: runtime));
+    await tester.pumpWidget(wrap(runtime: runtime));
     await tester.pump();
     expect(find.text('§2/5'), findsNothing);
     expect(find.text('Save selection'), findsOneWidget);
@@ -82,7 +82,7 @@ void main() {
     'whitespace-only pendingQuote is treated as no selection',
     (tester) async {
       const runtime = ReaderRuntime(pendingQuote: '   \n   ');
-      await tester.pumpWidget(_wrap(runtime: runtime));
+      await tester.pumpWidget(wrap(runtime: runtime));
       await tester.pump();
       // Whitespace trim → no selection bar; progress bar still appears.
       expect(find.text('Save selection'), findsNothing);
@@ -92,7 +92,7 @@ void main() {
 
   testWidgets('selection bar fades out when chrome is hidden', (tester) async {
     const runtime = ReaderRuntime(pendingQuote: 'a real selection');
-    await tester.pumpWidget(_wrap(runtime: runtime, chrome: false));
+    await tester.pumpWidget(wrap(runtime: runtime, chrome: false));
     await tester.pump();
     // When chrome is false, the bottom overlay still shows the selection bar
     // because the selection bar is independent of the chrome visibility.
@@ -101,7 +101,7 @@ void main() {
 
   testWidgets('does not render AI panel when ask is false', (tester) async {
     const runtime = ReaderRuntime(loading: false);
-    await tester.pumpWidget(_wrap(runtime: runtime, ask: false));
+    await tester.pumpWidget(wrap(runtime: runtime, ask: false));
     await tester.pump();
     // No AI panel markers when ask is false — bottom overlay should still
     // show the progress label.
@@ -112,7 +112,7 @@ void main() {
     'does not render AI panel when no document is opened',
     (tester) async {
       const runtime = ReaderRuntime(loading: false);
-      await tester.pumpWidget(_wrap(runtime: runtime, ask: true));
+      await tester.pumpWidget(wrap(runtime: runtime, ask: true));
       await tester.pump();
       // ask=true but opened=null → no AI panel. The chrome overlay still
       // shows the bottom progress bar.

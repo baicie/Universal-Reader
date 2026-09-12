@@ -7,20 +7,20 @@ import 'package:app/features/reader/reader_annotated_body.dart';
 void main() {
   const style = TextStyle(fontSize: 16);
 
-  DateTime _at(int seconds) => DateTime.utc(2024, 1, 1).add(Duration(seconds: seconds));
+  DateTime at(int seconds) => DateTime.utc(2024, 1, 1).add(Duration(seconds: seconds));
 
-  ReaderAnnotation _note(String quote) => ReaderAnnotation(
+  ReaderAnnotation note(String quote) => ReaderAnnotation(
         id: 'a',
         note: '',
         quote: quote,
         source: userNoteSource,
-        createdAt: _at(0),
+        createdAt: at(0),
       );
 
-  Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
+  Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
   testWidgets('renders paragraphs with the given style', (tester) async {
-    await tester.pumpWidget(_wrap(ReaderAnnotatedBody(
+    await tester.pumpWidget(wrap(ReaderAnnotatedBody(
       paragraphs: const ['第一段', '第二段'],
       style: style,
       notes: const [],
@@ -33,7 +33,7 @@ void main() {
   });
 
   testWidgets('omits spacer before the first paragraph', (tester) async {
-    await tester.pumpWidget(_wrap(ReaderAnnotatedBody(
+    await tester.pumpWidget(wrap(ReaderAnnotatedBody(
       paragraphs: const ['仅一段'],
       style: style,
       notes: const [],
@@ -47,7 +47,7 @@ void main() {
   testWidgets('emits onSelectionChanged for non-empty selection',
       (tester) async {
     String? captured;
-    await tester.pumpWidget(_wrap(ReaderAnnotatedBody(
+    await tester.pumpWidget(wrap(ReaderAnnotatedBody(
       paragraphs: const ['一段可供选取的文字'],
       style: style,
       notes: const [],
@@ -68,7 +68,7 @@ void main() {
       (tester) async {
     var calls = 0;
     void onSelection(String _) => calls++;
-    await tester.pumpWidget(_wrap(ReaderAnnotatedBody(
+    await tester.pumpWidget(wrap(ReaderAnnotatedBody(
       paragraphs: const ['一段文字'],
       style: style,
       notes: const [],
@@ -93,10 +93,10 @@ void main() {
       (tester) async {
     final keyFinder = find.byKey(annotatedQuoteKey);
     expect(keyFinder, findsNothing);
-    await tester.pumpWidget(_wrap(ReaderAnnotatedBody(
+    await tester.pumpWidget(wrap(ReaderAnnotatedBody(
       paragraphs: const ['一些普通文字', '重要的是这一句'],
       style: style,
-      notes: [_note('重要的是这一句')],
+      notes: [note('重要的是这一句')],
       highlightKey: annotatedQuoteKey,
       onSelectionChanged: _noopSelection,
     )));
@@ -107,10 +107,10 @@ void main() {
   testWidgets('uses the provided highlightKey when a highlight is present',
       (tester) async {
     final customKey = const ValueKey('custom-highlight');
-    await tester.pumpWidget(_wrap(ReaderAnnotatedBody(
+    await tester.pumpWidget(wrap(ReaderAnnotatedBody(
       paragraphs: const ['some text with needle'],
       style: style,
-      notes: [_note('needle')],
+      notes: [note('needle')],
       highlightKey: customKey,
       onSelectionChanged: _noopSelection,
     )));
@@ -122,7 +122,7 @@ void main() {
   testWidgets('inserts the gap widget between consecutive paragraphs',
       (tester) async {
     const gap = SizedBox(height: 22);
-    await tester.pumpWidget(_wrap(ReaderAnnotatedBody(
+    await tester.pumpWidget(wrap(ReaderAnnotatedBody(
       paragraphs: const ['段一', '段二', '段三'],
       style: style,
       notes: const [],
@@ -141,7 +141,7 @@ void main() {
   testWidgets('omits the gap widget when there is only one paragraph',
       (tester) async {
     const gap = SizedBox(height: 22);
-    await tester.pumpWidget(_wrap(ReaderAnnotatedBody(
+    await tester.pumpWidget(wrap(ReaderAnnotatedBody(
       paragraphs: const ['only'],
       style: style,
       notes: const [],
@@ -158,7 +158,7 @@ void main() {
 
   testWidgets('falls back to the default gap when none is provided',
       (tester) async {
-    await tester.pumpWidget(_wrap(ReaderAnnotatedBody(
+    await tester.pumpWidget(wrap(ReaderAnnotatedBody(
       paragraphs: const ['a', 'b'],
       style: style,
       notes: const [],
@@ -179,7 +179,7 @@ void main() {
     (tester) async {
       // bookmark quotes must not trigger highlight spans, so the
       // annotatedQuoteKey is not used.
-      await tester.pumpWidget(_wrap(ReaderAnnotatedBody(
+      await tester.pumpWidget(wrap(ReaderAnnotatedBody(
         paragraphs: const ['plain text'],
         style: style,
         notes: [
@@ -188,7 +188,7 @@ void main() {
             note: '',
             quote: 'plain text',
             source: bookmarkSource,
-            createdAt: _at(0),
+            createdAt: at(0),
           ),
         ],
         highlightKey: annotatedQuoteKey,
@@ -202,7 +202,7 @@ void main() {
   testWidgets('skips quotes that are pure whitespace', (tester) async {
     // Whitespace-only quotes are filtered by quoteHighlights, so no spans
     // get the highlight colour and the highlightKey is not used.
-    await tester.pumpWidget(_wrap(ReaderAnnotatedBody(
+    await tester.pumpWidget(wrap(ReaderAnnotatedBody(
       paragraphs: const ['main text'],
       style: style,
       notes: [
@@ -211,7 +211,7 @@ void main() {
           note: '',
           quote: '   \n  ',
           source: userNoteSource,
-          createdAt: _at(0),
+          createdAt: at(0),
         ),
       ],
       highlightKey: annotatedQuoteKey,
@@ -255,7 +255,7 @@ void main() {
           note: '',
           quote: 'aa',
           source: userNoteSource,
-          createdAt: _at(0),
+          createdAt: at(0),
         ),
       ]);
       // 4 spans: aa(highlight) + ' bb ' + aa(highlight) + ' bb'.
@@ -279,14 +279,14 @@ void main() {
           note: '',
           quote: 'ne',
           source: userNoteSource,
-          createdAt: _at(0),
+          createdAt: at(0),
         ),
         ReaderAnnotation(
           id: 'l',
           note: '',
           quote: 'needle',
           source: userNoteSource,
-          createdAt: _at(0),
+          createdAt: at(0),
         ),
       ]);
       final renderedText = spans
@@ -313,7 +313,7 @@ void main() {
           note: '',
           quote: 'x',
           source: userNoteSource,
-          createdAt: _at(0),
+          createdAt: at(0),
         ),
       ]);
       expect(spans, hasLength(1));
@@ -330,21 +330,21 @@ void main() {
           note: '',
           quote: 'keep me',
           source: userNoteSource,
-          createdAt: _at(0),
+          createdAt: at(0),
         ),
         ReaderAnnotation(
           id: '2',
           note: '',
           quote: 'drop me',
           source: bookmarkSource,
-          createdAt: _at(1),
+          createdAt: at(1),
         ),
         ReaderAnnotation(
           id: '3',
           note: '',
           quote: '   ',
           source: userNoteSource,
-          createdAt: _at(2),
+          createdAt: at(2),
         ),
       ]);
       expect(quotes, ['keep me']);

@@ -15,7 +15,6 @@ class _StubHtmlChaptered implements HtmlChapteredDocument {
     required this.currentChapterTitle,
     required this.currentChapterText,
     required this.currentChapterHtml,
-    this.truncated = false,
   });
 
   @override
@@ -37,7 +36,7 @@ class _StubHtmlChaptered implements HtmlChapteredDocument {
   final String currentChapterHtml;
 
   @override
-  final bool truncated;
+  final bool truncated = false;
 
   @override
   DocumentMetadata get metadata => DocumentMetadata(
@@ -87,9 +86,9 @@ void main() {
     locator: EpubLocator(href: 'ch$chapter.xhtml'),
   );
 
-  AppLocalizations _l10n(BuildContext context) => AppLocalizations.of(context);
+  AppLocalizations l10n(BuildContext context) => AppLocalizations.of(context);
 
-  Widget _wrap(Widget child) => MaterialApp(
+  Widget wrap(Widget child) => MaterialApp(
     locale: const Locale('en'),
     supportedLocales: AppLocalizations.supportedLocales,
     localizationsDelegates: const [
@@ -106,9 +105,9 @@ void main() {
     (tester) async {
       AppLocalizations? captured;
       await tester.pumpWidget(
-        _wrap(
+        wrap(
           Builder(builder: (context) {
-            captured = _l10n(context);
+            captured = l10n(context);
             final state = ReaderDerived.build(
               opened: null,
               tocItems: const [],
@@ -133,9 +132,9 @@ void main() {
     (tester) async {
       AppLocalizations? captured;
       await tester.pumpWidget(
-        _wrap(
+        wrap(
           Builder(builder: (context) {
-            captured = _l10n(context);
+            captured = l10n(context);
             final items = [toc('Chapter 1', 1), toc('Chapter 2', 2)];
             final state = ReaderDerived.build(
               opened: null,
@@ -160,9 +159,9 @@ void main() {
     (tester) async {
       AppLocalizations? captured;
       await tester.pumpWidget(
-        _wrap(
+        wrap(
           Builder(builder: (context) {
-            captured = _l10n(context);
+            captured = l10n(context);
             final state = ReaderDerived.build(
               opened: null,
               tocItems: const [],
@@ -182,9 +181,9 @@ void main() {
     (tester) async {
       AppLocalizations? captured;
       await tester.pumpWidget(
-        _wrap(
+        wrap(
           Builder(builder: (context) {
-            captured = _l10n(context);
+            captured = l10n(context);
             final items = [toc('   ', 1)];
             final state = ReaderDerived.build(
               opened: null,
@@ -205,9 +204,9 @@ void main() {
     (tester) async {
       AppLocalizations? captured;
       await tester.pumpWidget(
-        _wrap(
+        wrap(
           Builder(builder: (context) {
-            captured = _l10n(context);
+            captured = l10n(context);
             // currentIndex=99 would normally crash on tocItems[99].
             final items = [toc('Only Chapter', 1)];
             final state = ReaderDerived.build(
@@ -229,9 +228,9 @@ void main() {
   testWidgets('derives fields from a non-HTML ChapteredDocument', (tester) async {
     AppLocalizations? captured;
     await tester.pumpWidget(
-      _wrap(
+      wrap(
         Builder(builder: (context) {
-          captured = _l10n(context);
+          captured = l10n(context);
           // SampleReaderDocument implements ChapteredDocument but not HTML.
           final doc = SampleReaderDocument(
             metadata: metadata('book'),
@@ -262,9 +261,9 @@ void main() {
     (tester) async {
       AppLocalizations? captured;
       await tester.pumpWidget(
-        _wrap(
+        wrap(
           Builder(builder: (context) {
-            captured = _l10n(context);
+            captured = l10n(context);
             final doc = _StubHtmlChaptered(
               chapterIndex: 2,
               chapterCount: 5,
@@ -296,9 +295,9 @@ void main() {
     (tester) async {
       AppLocalizations? captured;
       await tester.pumpWidget(
-        _wrap(
+        wrap(
           Builder(builder: (context) {
-            captured = _l10n(context);
+            captured = l10n(context);
             final doc = SampleReaderDocument(metadata: metadata('book'));
             final state = ReaderDerived.build(
               opened: doc,
@@ -328,9 +327,9 @@ void main() {
     // currentIndex/clamp branch is exercised without risk.
     AppLocalizations? captured;
     await tester.pumpWidget(
-      _wrap(
+      wrap(
         Builder(builder: (context) {
-          captured = _l10n(context);
+          captured = l10n(context);
           final doc = SampleReaderDocument(metadata: metadata('book'));
           final state = ReaderDerived.build(
             opened: doc,
@@ -348,9 +347,9 @@ void main() {
   testWidgets('empty body yields empty paragraphs', (tester) async {
     AppLocalizations? captured;
     await tester.pumpWidget(
-      _wrap(
+      wrap(
         Builder(builder: (context) {
-          captured = _l10n(context);
+          captured = l10n(context);
           final state = ReaderDerived.build(
             opened: null,
             tocItems: const [],
@@ -367,11 +366,9 @@ void main() {
   testWidgets(
     'ReaderDerived constructor preserves its fields without normalization',
     (tester) async {
-      AppLocalizations? captured;
       await tester.pumpWidget(
-        _wrap(
+        wrap(
           Builder(builder: (context) {
-            captured = _l10n(context);
             final derived = ReaderDerived(
               currentIndex: 0,
               chapterCount: 0,

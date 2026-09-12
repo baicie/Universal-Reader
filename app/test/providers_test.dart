@@ -1,5 +1,4 @@
-﻿import 'package:app/core/library_controller.dart';
-import 'package:app/core/library_repository.dart';
+﻿import 'package:app/core/library_repository.dart';
 import 'package:app/core/locale_controller.dart';
 import 'package:app/core/providers.dart';
 import 'package:app/core/reader_prefs.dart';
@@ -71,7 +70,7 @@ void main() {
       );
       addTearDown(container.dispose);
       final controller =
-          container.read(libraryProvider) as PersistedLibraryController;
+          container.read(libraryProvider);
       await controller.waitUntilReady();
       expect(controller.documents, isEmpty);
       expect(controller.loading, isFalse);
@@ -90,7 +89,7 @@ void main() {
       );
       addTearDown(container.dispose);
       final controller =
-          container.read(libraryProvider) as PersistedLibraryController;
+          container.read(libraryProvider);
       await controller.waitUntilReady();
       await controller.toggleFavorite('doc-1.txt');
       expect((await shelf.load()).favoriteIds, contains('doc-1.txt'));
@@ -107,7 +106,7 @@ void main() {
       );
       addTearDown(container.dispose);
       final controller =
-          container.read(libraryProvider) as PersistedLibraryController;
+          container.read(libraryProvider);
       await controller.waitUntilReady();
       expect(controller.annotationRepository, isA<InMemoryAnnotationRepository>());
     });

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 import 'package:app/features/reader/reader_app_bar.dart';
 import 'package:app/features/reader/reader_bookmarks_pane.dart';

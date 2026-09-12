@@ -669,7 +669,7 @@ void main() {
     final locator = await document.currentLocator();
     expect(locator, isA<EpubLocator>());
     expect((locator as EpubLocator).progression, 0.0);
-    expect((locator as EpubLocator).href, document.currentChapterHref);
+    expect(locator.href, document.currentChapterHref);
   });
 
   test('truncated flag stays false when the chapter fits in the byte limit',

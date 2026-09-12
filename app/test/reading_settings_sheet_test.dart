@@ -1,10 +1,8 @@
-import 'package:app/core/comic_layout.dart';
 import 'package:app/core/providers.dart';
 import 'package:app/core/reader_prefs.dart';
 import 'package:app/features/reader/reading_settings_sheet.dart';
 import 'package:app/features/tools/ai/ai_settings.dart';
 import 'package:app/features/tools/ai/ai_settings_card.dart';
-import 'package:app/features/tools/ai/ai_settings_controller.dart';
 import 'package:app/features/tools/ai/ai_runtime.dart';
 import 'package:app/features/tools/ai/conversation_store.dart';
 import 'package:app/features/tools/ai/ollama.dart';

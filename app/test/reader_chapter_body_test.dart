@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:app/core/reading_surface.dart';
 import 'package:app/features/reader/reader_chapter_body.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
 void main() {
-  ReadingSurface _surface({Brightness brightness = Brightness.light}) {
+  ReadingSurface surface({Brightness brightness = Brightness.light}) {
     return ReadingSurface.resolve(
       fontSize: 18,
       lineHeight: 1.5,
@@ -16,7 +15,7 @@ void main() {
     );
   }
 
-  Widget _wrap(Widget child) {
+  Widget wrap(Widget child) {
     return MaterialApp(
       locale: const Locale('zh'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -26,9 +25,9 @@ void main() {
   }
 
   testWidgets('loading state shows spinner and copy', (tester) async {
-    await tester.pumpWidget(_wrap(ReaderChapterBody(
+    await tester.pumpWidget(wrap(ReaderChapterBody(
       state: const ReaderChapterState.loading(),
-      surface: _surface(),
+      surface: surface(),
       surfaceColor: Colors.black,
       mutedColor: Colors.grey,
       heading: '',
@@ -46,9 +45,9 @@ void main() {
   });
 
   testWidgets('corrupt state shows the corrupt-file copy', (tester) async {
-    await tester.pumpWidget(_wrap(ReaderChapterBody(
+    await tester.pumpWidget(wrap(ReaderChapterBody(
       state: const ReaderChapterState.corrupt(),
-      surface: _surface(),
+      surface: surface(),
       surfaceColor: Colors.black,
       mutedColor: Colors.grey,
       heading: '',
@@ -66,12 +65,12 @@ void main() {
 
   testWidgets('unavailable with missing file shows readerMissingFile',
       (tester) async {
-    await tester.pumpWidget(_wrap(ReaderChapterBody(
+    await tester.pumpWidget(wrap(ReaderChapterBody(
       state: const ReaderChapterState.unavailable(
         missingFile: true,
         formatLabel: 'EPUB',
       ),
-      surface: _surface(),
+      surface: surface(),
       surfaceColor: Colors.black,
       mutedColor: Colors.grey,
       heading: '',
@@ -89,12 +88,12 @@ void main() {
 
   testWidgets('unavailable known format shows readerUnavailable with format',
       (tester) async {
-    await tester.pumpWidget(_wrap(ReaderChapterBody(
+    await tester.pumpWidget(wrap(ReaderChapterBody(
       state: const ReaderChapterState.unavailable(
         missingFile: false,
         formatLabel: 'EPUB',
       ),
-      surface: _surface(),
+      surface: surface(),
       surfaceColor: Colors.black,
       mutedColor: Colors.grey,
       heading: '',
@@ -106,15 +105,14 @@ void main() {
       child: const SizedBox.shrink(),
     )));
     await tester.pump();
-    final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
     expect(find.textContaining('EPUB 阅读器尚未接入'), findsOneWidget);
   });
 
   testWidgets('ready state with truncation renders truncated notice',
       (tester) async {
-    await tester.pumpWidget(_wrap(ReaderChapterBody(
+    await tester.pumpWidget(wrap(ReaderChapterBody(
       state: const ReaderChapterState.ready(truncated: true),
-      surface: _surface(),
+      surface: surface(),
       surfaceColor: Colors.black,
       mutedColor: Colors.grey,
       heading: '第 1 章',
@@ -132,9 +130,9 @@ void main() {
   });
 
   testWidgets('ready state without heading still renders child', (tester) async {
-    await tester.pumpWidget(_wrap(ReaderChapterBody(
+    await tester.pumpWidget(wrap(ReaderChapterBody(
       state: const ReaderChapterState.ready(truncated: false),
-      surface: _surface(),
+      surface: surface(),
       surfaceColor: Colors.black,
       mutedColor: Colors.grey,
       heading: '',
@@ -152,9 +150,9 @@ void main() {
   testWidgets('ready state shows section label when toc is present',
       (tester) async {
     final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
-    await tester.pumpWidget(_wrap(ReaderChapterBody(
+    await tester.pumpWidget(wrap(ReaderChapterBody(
       state: const ReaderChapterState.ready(truncated: false),
-      surface: _surface(),
+      surface: surface(),
       surfaceColor: Colors.black,
       mutedColor: Colors.grey,
       heading: 'Chapter 1',
@@ -172,9 +170,9 @@ void main() {
   testWidgets(
     'ready state without toc shows formatLabel instead of section label',
     (tester) async {
-      await tester.pumpWidget(_wrap(ReaderChapterBody(
+      await tester.pumpWidget(wrap(ReaderChapterBody(
         state: const ReaderChapterState.ready(truncated: false),
-        surface: _surface(),
+        surface: surface(),
         surfaceColor: Colors.black,
         mutedColor: Colors.grey,
         heading: 'Chapter 1',
@@ -194,9 +192,9 @@ void main() {
     'ready state with toc but chapterCount<=0 falls back to chapter 1',
     (tester) async {
       final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
-      await tester.pumpWidget(_wrap(ReaderChapterBody(
+      await tester.pumpWidget(wrap(ReaderChapterBody(
         state: const ReaderChapterState.ready(truncated: false),
-        surface: _surface(),
+        surface: surface(),
         surfaceColor: Colors.black,
         mutedColor: Colors.grey,
         heading: 'Chapter 1',
@@ -215,9 +213,9 @@ void main() {
   testWidgets(
     'ready state with showHeading=false omits the heading text',
     (tester) async {
-      await tester.pumpWidget(_wrap(ReaderChapterBody(
+      await tester.pumpWidget(wrap(ReaderChapterBody(
         state: const ReaderChapterState.ready(truncated: false),
-        surface: _surface(),
+        surface: surface(),
         surfaceColor: Colors.black,
         mutedColor: Colors.grey,
         heading: 'Hidden heading',
@@ -237,9 +235,9 @@ void main() {
     'ready state omits the truncated notice when truncated=false',
     (tester) async {
       final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
-      await tester.pumpWidget(_wrap(ReaderChapterBody(
+      await tester.pumpWidget(wrap(ReaderChapterBody(
         state: const ReaderChapterState.ready(truncated: false),
-        surface: _surface(),
+        surface: surface(),
         surfaceColor: Colors.black,
         mutedColor: Colors.grey,
         heading: 'Chapter 1',

@@ -257,7 +257,7 @@ void main() {
           for (var i = 0; i < 8; i++)
             SearchResult(
               title: 'T',
-              excerpt: 'hit-$i ' + ('x' * 200),
+              excerpt: 'hit-$i ${'x' * 200}',
               locator: EpubLocator(href: 'h-$i', progression: i / 8),
             ),
         ],

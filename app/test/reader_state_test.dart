@@ -4,7 +4,6 @@ import 'package:app/core/reader_runtime.dart';
 import 'package:app/core/reader_state.dart';
 import 'package:app/features/library/annotation_store.dart';
 import 'package:app/features/tools/sample_reader_document.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 SampleReaderDocument _doc({String id = 'book-1'}) => SampleReaderDocument(
@@ -31,7 +30,6 @@ class _StubHtmlReader implements HtmlChapteredDocument {
               type: DocumentType.reflow,
             );
 
-  @override
   final DocumentMetadata docMetadata;
 
   @override

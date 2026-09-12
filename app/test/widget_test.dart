@@ -7,7 +7,6 @@ import 'package:app/core/library_repository.dart';
 import 'package:app/core/locale_controller.dart';
 import 'package:app/core/locator_codec.dart';
 import 'package:app/core/models.dart';
-import 'package:app/core/providers.dart';
 import 'package:app/features/library/annotation_store.dart';
 import 'package:app/features/reader/reader_bookmarks_pane.dart';
 import 'package:app/features/reader/reader_notes_pane.dart';
@@ -1477,7 +1476,7 @@ void main() {
     expect(find.text('已添加书签。'), findsOneWidget);
     final saved = (await notes.load('story.epub')).single;
     expect(saved.source, 'bookmark');
-    expect(saved.quote ?? '', isEmpty);
+    expect(saved.quote, isEmpty);
   });
 
   testWidgets('remove a saved bookmark via the panel updates the store',

@@ -4,7 +4,7 @@ import 'package:app/core/text_document.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  LibraryDocument _library(DocumentFormat format) {
+  LibraryDocument library(DocumentFormat format) {
     final epoch = DateTime.utc(2024);
     return LibraryDocument(
       metadata: DocumentMetadata(
@@ -22,8 +22,8 @@ void main() {
     test('loading returns a loading state even when corrupt opened', () {
       final state = resolveReaderChapterState(
         loading: true,
-        opened: CorruptReaderDocument(metadata: _library(DocumentFormat.epub).metadata),
-        document: _library(DocumentFormat.epub),
+        opened: CorruptReaderDocument(metadata: library(DocumentFormat.epub).metadata),
+        document: library(DocumentFormat.epub),
         isTruncated: false,
       );
       expect(state.kind, ReaderChapterKind.loading);
@@ -33,8 +33,8 @@ void main() {
     test('loading wins over an unavailable opener', () {
       final state = resolveReaderChapterState(
         loading: true,
-        opened: UnavailableReaderDocument(metadata: _library(DocumentFormat.epub).metadata),
-        document: _library(DocumentFormat.epub),
+        opened: UnavailableReaderDocument(metadata: library(DocumentFormat.epub).metadata),
+        document: library(DocumentFormat.epub),
         isTruncated: true,
       );
       expect(state.kind, ReaderChapterKind.loading);
@@ -45,7 +45,7 @@ void main() {
     test('returns a corrupt state even when document is missing', () {
       final state = resolveReaderChapterState(
         loading: false,
-        opened: CorruptReaderDocument(metadata: _library(DocumentFormat.pdf).metadata),
+        opened: CorruptReaderDocument(metadata: library(DocumentFormat.pdf).metadata),
         document: null,
         isTruncated: false,
       );
@@ -59,7 +59,7 @@ void main() {
     test('marks missingFile when the library entry is gone', () {
       final state = resolveReaderChapterState(
         loading: false,
-        opened: UnavailableReaderDocument(metadata: _library(DocumentFormat.epub).metadata),
+        opened: UnavailableReaderDocument(metadata: library(DocumentFormat.epub).metadata),
         document: null,
         isTruncated: false,
       );
@@ -69,7 +69,7 @@ void main() {
 
     test('marks missingFile when the format is a reader-engine format', () {
       // epub is a reader-engine format, so even with a document, missingFile is true
-      final doc = _library(DocumentFormat.epub);
+      final doc = library(DocumentFormat.epub);
       final state = resolveReaderChapterState(
         loading: false,
         opened: UnavailableReaderDocument(metadata: doc.metadata),
@@ -83,7 +83,7 @@ void main() {
     test('marks missingFile=true even when the library entry exists for plain text', () {
       // txt is a reader-engine format, so the file is considered missing
       // regardless of whether the library entry is present.
-      final doc = _library(DocumentFormat.txt);
+      final doc = library(DocumentFormat.txt);
       final state = resolveReaderChapterState(
         loading: false,
         opened: UnavailableReaderDocument(metadata: doc.metadata),
@@ -97,7 +97,7 @@ void main() {
     test('marks missingFile=false for unknown formats when the document is present', () {
       // unknown is not a reader-engine format, so a present document means
       // the file is reachable.
-      final doc = _library(DocumentFormat.unknown);
+      final doc = library(DocumentFormat.unknown);
       final state = resolveReaderChapterState(
         loading: false,
         opened: UnavailableReaderDocument(metadata: doc.metadata),
@@ -136,7 +136,7 @@ void main() {
       final state = resolveReaderChapterState(
         loading: false,
         opened: null,
-        document: _library(DocumentFormat.txt),
+        document: library(DocumentFormat.txt),
         isTruncated: true,
       );
       expect(state.kind, ReaderChapterKind.ready);
@@ -148,7 +148,7 @@ void main() {
       final state = resolveReaderChapterState(
         loading: false,
         opened: null,
-        document: _library(DocumentFormat.txt),
+        document: library(DocumentFormat.txt),
         isTruncated: false,
       );
       expect(state.kind, ReaderChapterKind.ready);
@@ -173,9 +173,9 @@ void main() {
       final state = resolveReaderChapterState(
         loading: false,
         opened: CorruptReaderDocument(
-          metadata: _library(DocumentFormat.epub).metadata,
+          metadata: library(DocumentFormat.epub).metadata,
         ),
-        document: _library(DocumentFormat.epub),
+        document: library(DocumentFormat.epub),
         isTruncated: true,
       );
       expect(state.kind, ReaderChapterKind.corrupt);
@@ -187,7 +187,7 @@ void main() {
     test('corrupt beats unavailable when both kinds could match', () {
       final state = resolveReaderChapterState(
         loading: false,
-        opened: CorruptReaderDocument(metadata: _library(DocumentFormat.epub).metadata),
+        opened: CorruptReaderDocument(metadata: library(DocumentFormat.epub).metadata),
         document: null,
         isTruncated: false,
       );
@@ -197,8 +197,8 @@ void main() {
     test('unavailable beats ready when opener is unavailable', () {
       final state = resolveReaderChapterState(
         loading: false,
-        opened: UnavailableReaderDocument(metadata: _library(DocumentFormat.html).metadata),
-        document: _library(DocumentFormat.html),
+        opened: UnavailableReaderDocument(metadata: library(DocumentFormat.html).metadata),
+        document: library(DocumentFormat.html),
         isTruncated: true,
       );
       expect(state.kind, ReaderChapterKind.unavailable);
