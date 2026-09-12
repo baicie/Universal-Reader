@@ -97,7 +97,12 @@ void main() {
         color: ReadingSurface.lightInk,
       );
       // Set dedupes via hashCode + equals; covering the getter end-to-end.
-      final found = <ReadingSurface>{a, b};
+      // Build the set via repeated add() rather than a literal so the test
+      // expresses "adding an equal element is a no-op" without tripping the
+      // equal-elements-in-set-literal lint.
+      final found = <ReadingSurface>{};
+      found.add(a);
+      found.add(b);
       expect(found, hasLength(1));
     });
   });
