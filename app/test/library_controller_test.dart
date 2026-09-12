@@ -1,8 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:app/core/library_controller.dart';
 import 'package:app/core/library_repository.dart';
 import 'package:app/core/models.dart';
 import 'package:app/features/library/annotation_store.dart';
 import 'package:app/features/library/shelf_store.dart';
+import 'package:cross_file/cross_file.dart' show XFile;
+import 'package:file_picker_platform_interface/file_picker_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/seed_documents.dart';
@@ -704,6 +708,194 @@ void main() {
         hasLength(1),
       );
     });
+
+    test(
+      'search still completes when a notifyListeners call throws inside a '
+      'listener',
+      () async {
+        final controller = PersistedLibraryController(
+          repository: InMemoryLibraryRepository(),
+          annotationRepository: _StubAnnotationRepository(const {}),
+        );
+        await controller.load();
+        controller.addDocumentForTest(
+          _stubDoc(id: 'design', title: 'Design Notes'),
+        );
+        // Flutter's ChangeNotifier routes listener exceptions through
+        // FlutterError instead of letting them propagate; ensure the
+        // search pipeline still surfaces its results.
+        controller.addListener(() {
+          // ignore: only_throw_errors
+          throw StateError('listener misbehaved');
+        });
+
+        controller.search('design');
+        await controller.waitForSearch();
+        expect(
+          controller.documents.where((d) => d.metadata.id == 'design'),
+          isNotEmpty,
+          reason: 'search results should still be available',
+        );
+      },
+    );
+  });
+
+  group('platform picker (default importFiles path)', () {
+    late FakeFilePickerPlatform fakePicker;
+    late FilePickerPlatform original;
+
+    setUp(() {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      original = FilePickerPlatform.instance;
+      fakePicker = FakeFilePickerPlatform();
+      FilePickerPlatform.instance = fakePicker;
+    });
+
+    tearDown(() {
+      FilePickerPlatform.instance = original;
+    });
+
+    test('importFiles routes through the substituted platform picker',
+        () async {
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+      );
+      await controller.load();
+
+      fakePicker.nextFiles = [
+        _platformFile(name: 'picked.txt', size: 4, bytes: [9, 9, 9, 9]),
+      ];
+      final outcome = await controller.importFiles();
+
+      expect(fakePicker.callCount, 1);
+      expect(outcome.count, 1);
+      expect(controller.documents.single.metadata.title, 'picked');
+    });
+
+    test(
+      'importFiles reports cancelled when the platform picker returns no '
+      'files',
+      () async {
+        final controller = PersistedLibraryController(
+          repository: InMemoryLibraryRepository(),
+        );
+        await controller.load();
+
+        fakePicker.nextFiles = const [];
+        final outcome = await controller.importFiles();
+
+        expect(outcome.cancelled, isTrue);
+        expect(controller.documents, isEmpty);
+      },
+    );
+  });
+
+  group('controller getters', () {
+    test(
+      'collectionName returns the matching collection name',
+      () async {
+        final repository = InMemoryLibraryRepository(seedDocuments);
+        final controller = PersistedLibraryController(repository: repository);
+        await controller.load();
+        final created = await controller.createCollection('shelf-A');
+
+        expect(
+          controller.collectionName('collection:${created!.id}'),
+          equals('shelf-A'),
+        );
+      },
+    );
+
+    test('usesRemoteStore delegates to the repository contract', () async {
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+      );
+      await controller.load();
+
+      expect(controller.usesRemoteStore, isFalse);
+    });
+
+    test('hasStoredDocuments reflects the loaded book list', () async {
+      final repository = InMemoryLibraryRepository();
+      await repository.importBytes('notes.txt', [1]);
+      final controller = PersistedLibraryController(repository: repository);
+      await controller.load();
+
+      expect(controller.hasStoredDocuments, isTrue);
+      await controller.deleteDocument(controller.documents.single.metadata.id);
+      expect(controller.hasStoredDocuments, isFalse);
+    });
+  });
+
+  group('picker-injected imports', () {
+    test('importFiles forwards the picker selection to importNamedBytes',
+        () async {
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+      );
+      await controller.load();
+
+      final picker = _FakePicker([
+        _pickedFile(name: 'a.txt', bytes: [1, 2, 3]),
+        _pickedFile(name: 'b.txt', bytes: [4]),
+      ]);
+      final outcome = await controller.importFiles(picker: picker.call);
+
+      expect(outcome.count, 2);
+      expect(outcome.cancelled, isFalse);
+      // Documents are sorted by lastOpened, so the second imported file
+      // ('b.txt') leads the list.
+      expect(
+        controller.documents.map((d) => d.metadata.title),
+        equals(['b', 'a']),
+      );
+    });
+
+    test('importFiles reports cancelled when the picker returns nothing',
+        () async {
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+      );
+      await controller.load();
+
+      final outcome = await controller.importFiles(
+        picker: _FakePicker(const []).call,
+      );
+
+      expect(outcome.cancelled, isTrue);
+      expect(controller.documents, isEmpty);
+    });
+
+    test('importFolder reuses the same picker plumbing', () async {
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+      );
+      await controller.load();
+
+      final picker = _FakePicker([
+        _pickedFile(name: 'folder/inside.txt', bytes: [9]),
+      ]);
+      final outcome = await controller.importFolder(picker: picker.call);
+
+      expect(outcome.count, 1);
+      // Title is derived from the basename kept as-is; folder/ prefix is
+      // preserved when supplied by the picker.
+      expect(controller.documents.single.metadata.title, 'folder/inside');
+    });
+
+    test('importFolder cancellation leaves the library untouched', () async {
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+      );
+      await controller.load();
+
+      final outcome = await controller.importFolder(
+        picker: _FakePicker(const []).call,
+      );
+
+      expect(outcome.cancelled, isTrue);
+      expect(controller.documents, isEmpty);
+    });
   });
 
   group('continueReading', () {
@@ -1089,6 +1281,28 @@ void main() {
       expect(controller.continueReading, isNotNull);
     });
   });
+
+  group('progress sort in the primary list', () {
+    test(
+      'two documents with no query still hit the progress sort branch',
+      () async {
+        final repository = InMemoryLibraryRepository();
+        await repository.importBytes('a.txt', [1]);
+        await repository.importBytes('b.txt', [2]);
+        final controller = PersistedLibraryController(repository: repository);
+        await controller.load();
+        await controller.updateProgress('a.txt', 0.2);
+        await controller.updateProgress('b.txt', 0.9);
+        controller.selectSort('progress');
+
+        // With no query the `_noteOnlyHits` branch stays empty and the
+        // primary `result.sort` runs against two documents, exercising
+        // the progress comparison.
+        final ids = controller.documents.map((d) => d.metadata.id).toList();
+        expect(ids, equals(['b.txt', 'a.txt']));
+      },
+    );
+  });
 }
 
 class _FailingReadCoverRepository extends InMemoryLibraryRepository {
@@ -1166,5 +1380,101 @@ class _UnreadableShelfRepository implements ShelfRepository {
   @override
   Future<void> save(LibraryShelves shelves) async {
     throw StateError('shelf disk unwritable');
+  }
+}
+
+PickedFile _pickedFile({required String name, required List<int> bytes}) {
+  final cache = Uint8List.fromList(bytes);
+  return (name: name, read: () async => cache);
+}
+
+/// In-memory `FilePickerPlatform` that returns a pre-loaded list of files
+/// from `pickFiles`. The controller's default `importFiles` /
+/// `importFolder` paths funnel through `FilePicker.pickFiles()`, which
+/// delegates to the platform interface — substituting this fake is the
+/// only way to exercise that default path without a real native picker.
+class FakeFilePickerPlatform extends FilePickerPlatform {
+  FakeFilePickerPlatform();
+
+  List<PlatformFile> nextFiles = const [];
+  int callCount = 0;
+
+  @override
+  Future<List<PlatformFile>> pickFiles({
+    String? dialogTitle,
+    String? initialDirectory,
+    FileType type = FileType.any,
+    List<String>? allowedExtensions,
+    Function(FilePickerStatus)? onFileLoading,
+    int compressionQuality = 0,
+    AndroidOptions androidOptions = const AndroidOptions(),
+    WindowsOptions windowsOptions = const WindowsOptions(),
+    LinuxOptions linuxOptions = const LinuxOptions(),
+    WebOptions webOptions = const WebOptions(),
+  }) async {
+    callCount++;
+    return nextFiles;
+  }
+}
+
+/// Builds a `PlatformFile` from in-memory bytes so tests can exercise the
+/// platform code path without touching the disk. The controller only
+/// touches `name` and `readAsBytes`; the remaining abstract members are
+/// stubbed for completeness.
+PlatformFile _platformFile({
+  required String name,
+  required List<int> bytes,
+  int? size,
+}) {
+  return _FakePlatformFile(
+    name: name,
+    bytes: Uint8List.fromList(bytes),
+    size: size ?? bytes.length,
+  );
+}
+
+/// `PlatformFile` is a `base` class so this test double has to be `base`
+/// too. `xFile` is unused by the controller — throwing keeps the surface
+/// honest without dragging in `cross_file`'s `XFile` for real.
+base class _FakePlatformFile extends PlatformFile {
+  _FakePlatformFile({
+    required this.name,
+    required this.bytes,
+    required this.size,
+  });
+
+  @override
+  final String name;
+
+  final Uint8List bytes;
+  final int size;
+
+  @override
+  Uri get uri => Uri.dataFromBytes(bytes);
+
+  @override
+  Future<int> length() async => size;
+
+  @override
+  Future<Uint8List> readAsBytes() async => bytes;
+
+  @override
+  Stream<Uint8List> readAsByteStream() async* {
+    yield bytes;
+  }
+
+  @override
+  XFile get xFile => throw UnimplementedError('xFile not used in tests');
+}
+
+class _FakePicker {
+  _FakePicker(this._files);
+
+  final List<PickedFile> _files;
+  int callCount = 0;
+
+  Future<List<PickedFile>> call() async {
+    callCount++;
+    return _files;
   }
 }
