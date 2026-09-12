@@ -646,4 +646,177 @@ void main() {
     );
     expect(document.truncated, isFalse);
   });
+
+  test('long chapters are split into sections and only the first keeps html',
+      () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(
+        firstBody: 'a' * 9000,
+        secondBody: 'b' * 9000,
+      ),
+    );
+    // Sanity: each chapter text really exceeds the pack threshold (4000).
+    final chapters = document.parsed.chapters;
+    expect(chapters, hasLength(6));
+    // Pack sizes: 4000 / 4000 / (remainder). The remainder keeps the
+    // tail of the original body so the last section ends with the last
+    // character of `firstBody`.
+    expect(chapters[0].text.length, 4000);
+    expect(chapters[1].text.length, 4000);
+    expect(
+      chapters[2].text.length,
+      lessThanOrEqualTo(textSectionCharLimit.toInt()),
+    );
+    expect(chapters[2].text.length, greaterThan(0));
+    final firstSections =
+        chapters.where((chapter) => chapter.href == 'oebps/ch1.xhtml').toList();
+    expect(firstSections, hasLength(3));
+    expect(firstSections.first.html, isNotEmpty,
+        reason: 'first section keeps the original html');
+    expect(
+      firstSections.skip(1).every((chapter) => chapter.html.isEmpty),
+      isTrue,
+      reason: 'follow-up sections drop html to avoid duplicate inlining',
+    );
+    // Sub-sections concatenate back to the original body byte-for-byte.
+    // The body includes the h1 title line that stripHtml preserves, so
+    // the total length is slightly larger than the raw `firstBody` string.
+    final reassembled = firstSections.map((c) => c.text).join();
+    expect(reassembled.length, greaterThan(9000));
+    expect(reassembled, endsWith('a' * 9000));
+    expect(reassembled, contains('第一章'));
+  });
+
+  test('a nav file without the toc marker falls back to spine flat toc',
+      () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(
+        extraFiles: {
+          'OEBPS/nav.xhtml': utf8.encode(
+            '<?xml version="1.0"?>'
+            '<html xmlns="http://www.w3.org/1999/xhtml">'
+            '<body><nav><ol></ol></nav></body>'
+            '</html>',
+          ),
+        },
+      ),
+    );
+    final toc = await document.getToc();
+    // The nav never matched, so each chapter is flattened with its own title.
+    expect(toc, hasLength(2));
+    expect(toc.first.title, '第一章');
+    expect(toc.last.title, '第二章');
+  });
+
+  test('a nav anchor without href is skipped instead of producing an entry',
+      () async {
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(
+        extraFiles: {
+          'OEBPS/nav.xhtml': utf8.encode('''<?xml version="1.0"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <body>
+    <nav epub:type="toc">
+      <ol>
+        <li><a>no href</a></li>
+        <li><a href="ch1.xhtml">第一章</a></li>
+        <li><a href="ch2.xhtml">第二章</a></li>
+      </ol>
+    </nav>
+  </body>
+</html>
+'''),
+        },
+      ),
+    );
+    final toc = await document.getToc();
+    expect(toc.map((item) => item.title), ['第一章', '第二章']);
+  });
+
+  test('nav with type declared via the epub namespace still resolves toc',
+      () async {
+    // The fixture only annotates `type` via `xmlns:type`; the bare and
+    // `epub:type` attributes are absent, so only the namespace branch of
+    // `_isTocNav` should match.
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(
+        extraFiles: {
+          'OEBPS/nav.xhtml': utf8.encode('''<?xml version="1.0"?>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:epub="http://www.idpf.org/2007/ops">
+  <body>
+    <nav xmlns:type="http://www.idpf.org/2007/ops" type="toc">
+      <ol>
+        <li><a href="ch1.xhtml">第一章</a></li>
+        <li><a href="ch2.xhtml">第二章</a></li>
+      </ol>
+    </nav>
+  </body>
+</html>
+'''),
+        },
+      ),
+    );
+    final toc = await document.getToc();
+    expect(toc.map((item) => item.title), ['第一章', '第二章']);
+  });
+
+  test('a chapter with no matching nav item falls back to a plain title',
+      () async {
+    // The spine declares ch1, ch2, ch3 but nav only lists ch1 and ch2; ch3
+    // should still resolve via the fallback branch in `_tocItemForChapter`.
+    final document = EpubReaderDocument.parse(
+      metadata: metadata,
+      bytes: minimalEpubBytes(
+        extraFiles: {
+          'OEBPS/content.opf': utf8.encode('''<?xml version="1.0"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>Fixture Book</dc:title>
+    <dc:creator>Fixture Author</dc:creator>
+    <dc:language>zh</dc:language>
+    <dc:identifier id="bookid">urn:uuid:fixture</dc:identifier>
+  </metadata>
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="ch1" href="ch1.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ch2" href="ch2.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ch3" href="ch3.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine>
+    <itemref idref="ch1"/>
+    <itemref idref="ch2"/>
+    <itemref idref="ch3"/>
+  </spine>
+</package>
+'''),
+          'OEBPS/ch3.xhtml': utf8.encode(
+            '<?xml version="1.0"?>'
+            '<html xmlns="http://www.w3.org/1999/xhtml">'
+            '<body><h1>第三章</h1><p>third chapter body</p></body>'
+            '</html>',
+          ),
+          'OEBPS/nav.xhtml': utf8.encode('''<?xml version="1.0"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <body>
+    <nav epub:type="toc">
+      <ol>
+        <li><a href="ch1.xhtml">第一章</a></li>
+        <li><a href="ch2.xhtml">第二章</a></li>
+      </ol>
+    </nav>
+  </body>
+</html>
+'''),
+        },
+      ),
+    );
+    final toc = await document.getToc();
+    expect(toc, hasLength(3));
+    expect(toc.last.title, '第三章');
+  });
 }

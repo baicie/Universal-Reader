@@ -130,4 +130,80 @@ void main() {
     expect(parseComicLayout('wide'), ComicLayout.single);
     expect(parseComicReadDirection('vertical'), ComicReadDirection.ltr);
   });
+
+  group('comicNextPageIndex non-double layouts', () {
+    test('single page advances by one when there is room left', () {
+      expect(
+        comicNextPageIndex(
+          pageIndex: 0,
+          pageCount: 3,
+          layout: ComicLayout.single,
+        ),
+        1,
+      );
+      expect(
+        comicNextPageIndex(
+          pageIndex: 1,
+          pageCount: 3,
+          layout: ComicLayout.single,
+        ),
+        2,
+      );
+    });
+
+    test('single page stays on the last page instead of wrapping', () {
+      // Last page: pageIndex (2) >= pageCount - 1 (2). Must not advance to 3.
+      expect(
+        comicNextPageIndex(
+          pageIndex: 2,
+          pageCount: 3,
+          layout: ComicLayout.single,
+        ),
+        2,
+      );
+      // Vertical layout reuses the same single-page code path.
+      expect(
+        comicNextPageIndex(
+          pageIndex: 0,
+          pageCount: 1,
+          layout: ComicLayout.vertical,
+        ),
+        0,
+      );
+    });
+  });
+
+  group('comicPreviousPageIndex non-double layouts', () {
+    test('single page goes back by one when not already at the start', () {
+      expect(
+        comicPreviousPageIndex(
+          pageIndex: 2,
+          pageCount: 3,
+          layout: ComicLayout.single,
+        ),
+        1,
+      );
+    });
+
+    test('single page stays at zero when the user is already at the start',
+        () {
+      // pageIndex (0) <= 0 short-circuits to 0 instead of returning -1.
+      expect(
+        comicPreviousPageIndex(
+          pageIndex: 0,
+          pageCount: 3,
+          layout: ComicLayout.single,
+        ),
+        0,
+      );
+      expect(
+        comicPreviousPageIndex(
+          pageIndex: 0,
+          pageCount: 1,
+          layout: ComicLayout.vertical,
+        ),
+        0,
+      );
+    });
+  });
 }

@@ -11,6 +11,7 @@ import 'package:app/core/providers.dart';
 import 'package:app/features/library/annotation_store.dart';
 import 'package:app/features/reader/reader_bookmarks_pane.dart';
 import 'package:app/features/reader/reader_notes_pane.dart';
+import 'package:app/features/reader/reader_app_bar.dart';
 import 'package:app/features/reader/reader_search_pane.dart';
 import 'package:app/features/reader/renderers/isolated_foliate_view.dart';
 import 'package:app/features/reader/selection_confirm_bar.dart';
@@ -1404,6 +1405,160 @@ void main() {
     // Chapter 2's content should now be on screen (not chapter 1).
     expect(find.textContaining('second chapter text'), findsOneWidget);
     expect(find.textContaining('hello from epub'), findsNothing);
+  });
+
+  testWidgets('tap on the reader pane toggles the chrome', (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', utf8.encode('hello from notes'));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('notes').first);
+    await tester.pumpAndSettle();
+    // The app bar starts visible because chrome is true on entry.
+    expect(find.byType(ReaderAppBar), findsOneWidget);
+    // Tap the empty area outside the SelectableText so the gesture shell
+    // can swallow the hit and toggle chrome off.
+    final selectableRect = tester.getRect(find.byType(SelectableText).first);
+    final below = Offset(
+      selectableRect.center.dx,
+      selectableRect.bottom + 24,
+    );
+    await tester.tapAt(below);
+    await tester.pumpAndSettle();
+    // Tapping the body toggles chrome off, which removes the app bar.
+    expect(find.byType(ReaderAppBar), findsNothing);
+    await tester.tapAt(below);
+    await tester.pumpAndSettle();
+    // Tapping again restores the chrome.
+    expect(find.byType(ReaderAppBar), findsOneWidget);
+  });
+
+  testWidgets('add bookmark in an epub opens the panel and shows snackbar',
+      (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('story.epub', minimalEpubBytes());
+    final notes = InMemoryAnnotationRepository();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+          aiRuntimeProvider.overrideWithValue(
+            AiRuntime.local(
+              InMemoryConversationRepository(),
+              annotations: notes,
+            ),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('Fixture Book').first);
+    await tester.pumpAndSettle();
+    // Tap the dedicated key so we don't depend on tooltip hit-testing.
+    await tester.tap(find.byKey(addBookmarkButtonKey));
+    await tester.pumpAndSettle();
+    // The action appends an annotation, opens the bookmarks panel, and
+    // surfaces a confirmation snackbar.
+    expect(find.byKey(bookmarksPanelKey), findsOneWidget);
+    expect(find.text('已添加书签。'), findsOneWidget);
+    final saved = (await notes.load('story.epub')).single;
+    expect(saved.source, 'bookmark');
+    expect(saved.quote ?? '', isEmpty);
+  });
+
+  testWidgets('remove a saved bookmark via the panel updates the store',
+      (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('notes.txt', utf8.encode('hello from notes'));
+    final notes = InMemoryAnnotationRepository();
+    await notes.save('notes.txt', [
+      ReaderAnnotation(
+        id: 'to-remove',
+        note: '',
+        quote: '',
+        locatorLabel: 'txt:0',
+        source: 'bookmark',
+        createdAt: DateTime.utc(2026, 1, 1),
+      ),
+    ]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+          aiRuntimeProvider.overrideWithValue(
+            AiRuntime.local(
+              InMemoryConversationRepository(),
+              annotations: notes,
+            ),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('notes').first);
+    await tester.pumpAndSettle();
+    // Open the bookmarks panel first; the panel is fed from
+    // `runtime.notes` which is loaded when the reader opens.
+    await tester.tap(find.byTooltip('书签'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(bookmarksPanelKey), findsOneWidget);
+    // Tap the delete affordance on the bookmark row.
+    await tester.tap(find.byKey(const Key('delete-bookmark-to-remove')));
+    await tester.pumpAndSettle();
+    final remaining = await notes.load('notes.txt');
+    expect(remaining, isEmpty);
+  });
+
+  testWidgets('right arrow advances an epub through the last page of a chapter',
+      (tester) async {
+    final repository = InMemoryLibraryRepository();
+    await repository.importBytes('story.epub', minimalEpubBytes());
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(repository),
+          aiSettingsRepositoryProvider.overrideWithValue(
+            InMemoryAiSettingsRepository(),
+          ),
+        ],
+        child: const UniversalReaderApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('Fixture Book').first);
+    await tester.pumpAndSettle();
+    // The reader opens on chapter 1 with body visible.
+    expect(find.textContaining('hello from epub'), findsOneWidget);
+    // Pressing the right arrow should advance through the single page and
+    // then into the next chapter, surfacing its body on screen.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('second chapter text'), findsOneWidget);
+    expect(find.textContaining('hello from epub'), findsNothing);
+    // Pressing the left arrow from chapter 2's first page should wrap back
+    // to chapter 1 and request its last page (the only page here).
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('hello from epub'), findsOneWidget);
+    expect(find.textContaining('second chapter text'), findsNothing);
   });
 }
 
