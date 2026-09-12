@@ -133,7 +133,11 @@ String? reflowHrefFragment(String raw) {
   if (fragment.isEmpty) return null;
   try {
     return Uri.decodeFull(fragment);
-  } on FormatException {
+  } catch (_) {
+    // `Uri.decodeFull` throws `ArgumentError` on malformed escapes (and a
+    // `FormatException` on some Dart SDK builds). The fragment may come
+    // from user-provided EPUB markup, so an undecodable value must surface
+    // verbatim rather than crash the reader.
     return fragment;
   }
 }
@@ -189,7 +193,10 @@ String _resolveReflowHref(String basePath, String href) {
   var decoded = cleaned;
   try {
     decoded = Uri.decodeFull(cleaned);
-  } on FormatException {
+  } catch (_) {
+    // Same rationale as `reflowHrefFragment`: keep the encoded tail so the
+    // resolver still produces a normalized path instead of propagating
+    // the decode error.
     decoded = cleaned;
   }
   final slash = basePath.replaceAll('\\', '/').lastIndexOf('/');

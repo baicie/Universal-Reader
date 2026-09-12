@@ -188,4 +188,96 @@ void main() {
       isTrue,
     );
   });
+
+  test('reflow turn types compare and hash on their own fields', () {
+    expect(const ReflowTurnStay() == const ReflowTurnStay(), isTrue);
+    expect(const ReflowTurnStay().hashCode, 0);
+
+    expect(
+      const ReflowTurnPage(2) == const ReflowTurnPage(2),
+      isTrue,
+    );
+    expect(
+      const ReflowTurnPage(2).hashCode,
+      const ReflowTurnPage(2).hashCode,
+    );
+    expect(
+      const ReflowTurnPage(2) == const ReflowTurnPage(3),
+      isFalse,
+    );
+
+    expect(
+      const ReflowTurnChapter(1) == const ReflowTurnChapter(1),
+      isTrue,
+    );
+    expect(
+      const ReflowTurnChapter(1).hashCode,
+      const ReflowTurnChapter(1).hashCode,
+    );
+    expect(
+      const ReflowTurnChapter(1) == const ReflowTurnChapter(2),
+      isFalse,
+    );
+    expect(
+      const ReflowTurnChapter(1, lastPage: true) ==
+          const ReflowTurnChapter(1, lastPage: true),
+      isTrue,
+    );
+    expect(
+      const ReflowTurnChapter(1) == const ReflowTurnChapter(1, lastPage: true),
+      isFalse,
+    );
+  });
+
+  test('reflow chrome pages compare and hash on current and total', () {
+    expect(
+      const ReflowChromePages(current: 1, total: 3) ==
+          const ReflowChromePages(current: 1, total: 3),
+      isTrue,
+    );
+    expect(
+      const ReflowChromePages(current: 1, total: 3).hashCode,
+      const ReflowChromePages(current: 1, total: 3).hashCode,
+    );
+    expect(
+      const ReflowChromePages(current: 1, total: 3) ==
+          const ReflowChromePages(current: 2, total: 3),
+      isFalse,
+    );
+    expect(
+      const ReflowChromePages(current: 1, total: 3) ==
+          const ReflowChromePages(current: 1, total: 4),
+      isFalse,
+    );
+  });
+
+  test('href fragment falls back to raw text when decoding fails', () {
+    // A lone `%` cannot be decoded by `Uri.decodeFull`, so the function
+    // must surface the original fragment instead of raising.
+    expect(reflowHrefFragment('ch2.xhtml#%'), '%');
+    expect(reflowHrefFragment('#%ZZ'), '%ZZ');
+  });
+
+  test('internal href keeps the raw tail when decoding fails', () {
+    // `Uri.decodeFull('sub/%')` throws, so `_resolveReflowHref` must keep
+    // the encoded tail rather than dropping it. The result is the
+    // joined path with the encoded `%` intact.
+    final resolved = reflowInternalHref(
+      currentHref: 'OEBPS/ch1.xhtml',
+      raw: 'sub/%',
+    );
+    expect(resolved, 'oebps/sub/%');
+  });
+
+  test('internal href collapses `..` segments against the current directory',
+      () {
+    // Starting from OEBPS/ch1.xhtml the resolver must walk out of `ch1`
+    // before entering the sibling target. `_normalizeReflowPath` is the
+    // branch being exercised here.
+    final resolved = reflowInternalHref(
+      currentHref: 'OEBPS/sub/ch1.xhtml',
+      raw: '../ch2.xhtml',
+    );
+    expect(resolved, 'oebps/ch2.xhtml');
+  });
 }
