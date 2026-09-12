@@ -9,6 +9,15 @@ import '../features/library/shelf_store.dart' as shelf;
 import 'library_repository.dart';
 import 'models.dart';
 
+/// Minimal description of a file returned by a picker. The production picker
+/// is `FilePicker.pickFiles`; tests can return synthetic records.
+typedef PickedFile = ({String name, Future<List<int>> Function() read});
+
+/// Function shape that returns a list of freshly-picked files. Exposed so
+/// callers (and tests) can inject a deterministic replacement without
+/// depending on the platform channel.
+typedef PicksFiles = Future<List<PickedFile>> Function();
+
 class PersistedLibraryController extends ChangeNotifier {
   PersistedLibraryController({
     required this.repository,
@@ -60,10 +69,6 @@ class PersistedLibraryController extends ChangeNotifier {
       if (!ready.isCompleted) ready.complete();
     };
     addListener(listener);
-    if (!loading) {
-      removeListener(listener);
-      return Future.value();
-    }
     return ready.future;
   }
 
@@ -267,22 +272,18 @@ class PersistedLibraryController extends ChangeNotifier {
     if (repository == null || query.isEmpty) return;
     final pending = _pendingSearch = Completer<void>();
     () async {
-      try {
-        final hits = await librarySearchAllAsync(
-          documents: _documents,
-          query: query,
-          annotationsFor: (id) => repository.load(id),
-        );
-        if (!identical(_pendingSearch, pending)) return;
-        _noteOnlyHits = {
-          for (final hit in hits)
-            if (hit.kind == LibrarySearchHitKind.note) hit.document.metadata.id,
-        };
-        if (!pending.isCompleted) pending.complete();
-        notifyListeners();
-      } on Object {
-        if (!pending.isCompleted) pending.complete();
-      }
+      final hits = await librarySearchAllAsync(
+        documents: _documents,
+        query: query,
+        annotationsFor: (id) => repository.load(id),
+      );
+      if (!identical(_pendingSearch, pending)) return;
+      _noteOnlyHits = {
+        for (final hit in hits)
+          if (hit.kind == LibrarySearchHitKind.note) hit.document.metadata.id,
+      };
+      if (!pending.isCompleted) pending.complete();
+      notifyListeners();
     }();
   }
 
@@ -341,21 +342,28 @@ class PersistedLibraryController extends ChangeNotifier {
     }
   }
 
-  Future<ImportOutcome> importFiles() async {
-    final files = await FilePicker.pickFiles();
-    if (files.isEmpty) return const ImportOutcome.cancelled();
-    return importNamedBytes([
-      for (final file in files)
-        (name: file.name, bytes: await file.readAsBytes()),
-    ]);
+  Future<ImportOutcome> importFiles({PicksFiles? picker}) {
+    return _importViaPicker(picker ?? _platformPicker);
   }
 
-  Future<ImportOutcome> importFolder() async {
+  Future<ImportOutcome> importFolder({PicksFiles? picker}) {
+    return _importViaPicker(picker ?? _platformPicker);
+  }
+
+  Future<List<PickedFile>> _platformPicker() async {
     final files = await FilePicker.pickFiles();
+    return [
+      for (final file in files)
+        (name: file.name, read: file.readAsBytes),
+    ];
+  }
+
+  Future<ImportOutcome> _importViaPicker(PicksFiles picker) async {
+    final files = await picker();
     if (files.isEmpty) return const ImportOutcome.cancelled();
     return importNamedBytes([
       for (final file in files)
-        (name: file.name, bytes: await file.readAsBytes()),
+        (name: file.name, bytes: await file.read()),
     ]);
   }
 
