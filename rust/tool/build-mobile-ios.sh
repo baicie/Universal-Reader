@@ -8,6 +8,7 @@ cargo build -p universal-reader-mobile --release --target aarch64-apple-ios
 cargo build -p universal-reader-mobile --release --target aarch64-apple-ios-sim
 cargo build -p universal-reader-mobile --release --target x86_64-apple-ios
 
+rm -rf target/ios
 mkdir -p target/ios/simulator
 lipo -create \
   target/aarch64-apple-ios-sim/release/libuniversal_reader_native.a \
