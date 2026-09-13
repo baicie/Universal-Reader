@@ -274,5 +274,18 @@ jobs:
       - name: Build iOS without signing
         run: flutter build ios --release --no-codesign
 
-      - name: Verify iOS native symbols
-        run: nm -gU build/ios/iphoneos/Runner.app/Runner | grep -q '_ur_chm_to_epub'
+      - name: Package and verify iOS release
+        shell: bash
+        run: |
+          VERSION="$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)"
+          bash tool/verify_ios_release.sh \
+            build/ios/iphoneos/Runner.app \
+            "$VERSION" \
+            "../universal-reader-ios-unsigned.zip"
+
+      - name: Upload iOS unsigned artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-reader-ios-unsigned
+          path: universal-reader-ios-unsigned.zip
+          if-no-files-found: error

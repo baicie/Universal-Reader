@@ -7,6 +7,7 @@
 - Added compatibility corpus, 10k scale, native mobile ABI, physical-device, simulator, release upgrade/rollback, and package launch rehearsal gates.
 - Frozen versions across `app/pubspec.yaml`, the Rust workspace, `Cargo.lock`, and this changelog.
 - Release publication now verifies tag/version alignment, generates release notes from this changelog, and attaches `release-manifest.json` plus `SHA256SUMS`.
+- Release publication builds an unsigned iOS `Runner.app` archive and verifies its bundle version plus native mobile symbols.
 
 ## 0.0.1-dev.12 - 2026-08-31
 

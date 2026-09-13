@@ -121,6 +121,13 @@
 - Extended the manual `Release rehearsal` workflow with selectable `windows`, `web`, `android`, and `all` launch scopes.
 - Planned Hardening J close date: 2026-11-29. Implementation completed on 2026-09-14.
 
+## v1.0 Hardening L complete: iOS unsigned release artifact
+
+- Added a macOS release job that builds the device XCFramework and an unsigned iOS `Runner.app`.
+- The artifact verifier checks bundle id, `CFBundleShortVersionString`, `ur_native_api_version`, and `ur_chm_to_epub` symbols before packaging.
+- The unsigned iOS archive participates in `release-manifest.json` and `SHA256SUMS`; signed IPA and device installation remain manual signing gates.
+- Planned Hardening L close date: 2026-12-27. Implementation completed on 2026-09-14.
+
 ## v1.0 Hardening K complete: release candidate gate
 
 - Froze the app, Rust workspace, Cargo lock, and changelog at `1.0.0-rc.1`.
