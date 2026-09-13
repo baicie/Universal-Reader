@@ -108,6 +108,7 @@ void main() {
     expect(find.text('Library sources'), findsOneWidget);
     expect(find.text('Scan folder'), findsAtLeastNWidgets(1));
     expect(find.text('Watch folder'), findsOneWidget);
+    expect(find.text('Sync folder both ways'), findsOneWidget);
     expect(find.text('Import from WebDAV'), findsOneWidget);
     expect(find.text('Sync WebDAV both ways'), findsOneWidget);
     expect(find.byType(TextField), findsNWidgets(4));
@@ -177,6 +178,12 @@ void main() {
     final watchButton = find.widgetWithText(OutlinedButton, 'Watch folder');
     final watchBtnWidget = tester.widget<OutlinedButton>(watchButton);
     expect(watchBtnWidget.onPressed, isNull);
+    final syncButton = find.widgetWithText(
+      OutlinedButton,
+      'Sync folder both ways',
+    );
+    final syncBtnWidget = tester.widget<OutlinedButton>(syncButton);
+    expect(syncBtnWidget.onPressed, isNull);
     completer.complete(http.Response('{"imported":0,"skipped":0}', 200));
     await tester.pumpAndSettle();
   });
@@ -198,6 +205,26 @@ void main() {
       expect(spying.requestedPaths, contains('/v1/library/watch'));
     },
   );
+
+  testWidgets('tapping Sync folder calls /v1/library/folder/sync', (
+    tester,
+  ) async {
+    final spying = _SpyingClient(
+      Uri.parse('http://fake/v1/library/folder/sync'),
+      http.Response('{"imported":1,"skipped":0,"pushed":2}', 200),
+    );
+    final repo = _FakeHttpRepositoryWithClient(spying);
+    await tester.pumpWidget(_wrap(LibrarySourcesCard(), repository: repo));
+    await tester.pumpAndSettle();
+    final syncButton = find.widgetWithText(
+      OutlinedButton,
+      'Sync folder both ways',
+    );
+    await tester.ensureVisible(syncButton);
+    await tester.tap(syncButton);
+    await tester.pumpAndSettle();
+    expect(spying.requestedPaths, contains('/v1/library/folder/sync'));
+  });
 
   testWidgets('tapping WebDAV import triggers /v1/library/webdav/import', (
     tester,

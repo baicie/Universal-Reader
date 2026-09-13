@@ -4,6 +4,7 @@ use std::{
 };
 
 use notify::Watcher;
+use tokio::io::AsyncWriteExt;
 
 use reqwest::header::{CONTENT_TYPE, HeaderValue};
 
@@ -59,6 +60,32 @@ pub fn scan_folder(path: &Path) -> Result<Vec<(String, Vec<u8>)>, LibraryError> 
     let mut files = Vec::new();
     walk(path, 0, &mut files)?;
     Ok(files)
+}
+
+pub async fn write_folder_file(
+    root: &Path,
+    file_name: &str,
+    bytes: &[u8],
+) -> Result<(), LibraryError> {
+    if !root.is_absolute()
+        || path_has_escape(root)
+        || file_name.is_empty()
+        || file_name.contains(['/', '\\'])
+        || file_name == "."
+        || file_name == ".."
+    {
+        return Err(LibraryError::InvalidName);
+    }
+    tokio::fs::create_dir_all(root)
+        .await
+        .map_err(|_| LibraryError::Io)?;
+    let mut file = tokio::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(root.join(file_name))
+        .await
+        .map_err(|_| LibraryError::Io)?;
+    file.write_all(bytes).await.map_err(|_| LibraryError::Io)
 }
 
 fn path_has_escape(path: &Path) -> bool {

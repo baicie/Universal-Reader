@@ -782,6 +782,63 @@ async fn scan_imports_supported_files_and_skips_unknown_or_duplicate_names() {
 }
 
 #[tokio::test]
+async fn folder_sync_imports_and_pushes_without_overwriting_conflicts() {
+    let storage_dir = unique_temp_dir("folder-sync-library");
+    let folder = unique_temp_dir("folder-sync-source");
+    fs::create_dir_all(&folder).unwrap();
+    fs::write(folder.join("from-folder.txt"), b"from folder").unwrap();
+    fs::write(folder.join("same.txt"), b"folder copy").unwrap();
+    let folder = fs::canonicalize(&folder).unwrap();
+    let app = app_with_storage_dir(storage_dir.clone());
+
+    for (name, bytes) in [
+        ("local.txt", b"local book".as_slice()),
+        ("same.txt", b"library copy".as_slice()),
+    ] {
+        let body = multipart_body(name, bytes);
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/library/files")
+                    .header(
+                        "content-type",
+                        "multipart/form-data; boundary=test-boundary",
+                    )
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED);
+    }
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/library/folder/sync")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "path": folder }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(body["imported"], 1);
+    assert_eq!(body["pushed"], 1);
+    assert_eq!(fs::read(folder.join("local.txt")).unwrap(), b"local book");
+    assert_eq!(fs::read(folder.join("same.txt")).unwrap(), b"folder copy");
+    fs::remove_dir_all(storage_dir).unwrap();
+    fs::remove_dir_all(folder).unwrap();
+}
+
+#[tokio::test]
 async fn webdav_import_rejects_an_unconfigured_or_non_http_url() {
     let storage_dir = unique_temp_dir("webdav-reject");
     let response = app_with_storage_dir(storage_dir.clone())

@@ -51,10 +51,11 @@ class _LibrarySourcesCardState extends ConsumerState<LibrarySourcesCard> {
     if (!library.usesRemoteStore) return const SizedBox.shrink();
     final theme = Theme.of(context);
     return Card(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(l10n.librarySources, style: theme.textTheme.titleSmall),
             const SizedBox(height: 12),
@@ -92,6 +93,22 @@ class _LibrarySourcesCardState extends ConsumerState<LibrarySourcesCard> {
                       );
                     }),
               child: Text(l10n.watchFolder),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: busy
+                  ? null
+                  : () => _run(() async {
+                      final result = await syncLibraryFolder(
+                        ref.read(libraryRepositoryProvider),
+                        folder.text.trim(),
+                      );
+                      await applySourceImport(
+                        ref.read(libraryProvider),
+                        result,
+                      );
+                    }),
+              child: Text(l10n.syncFolder),
             ),
             const SizedBox(height: 16),
             TextField(

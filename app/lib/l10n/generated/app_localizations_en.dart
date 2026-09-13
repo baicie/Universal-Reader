@@ -266,6 +266,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get watchFolder => 'Watch folder';
 
   @override
+  String get syncFolder => 'Sync folder both ways';
+
+  @override
   String get librarySources => 'Library sources';
 
   @override

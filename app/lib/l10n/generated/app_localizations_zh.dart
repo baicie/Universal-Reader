@@ -262,6 +262,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get watchFolder => '监视文件夹';
 
   @override
+  String get syncFolder => '文件夹双向同步';
+
+  @override
   String get librarySources => '书库来源';
 
   @override

@@ -112,6 +112,24 @@ Future<SourceImportResult> watchLibraryFolder(
   return _parseSourceResult(response.body);
 }
 
+Future<SourceImportResult> syncLibraryFolder(
+  LibraryRepository repository,
+  String path,
+) async {
+  if (repository is! HttpLibraryRepository) {
+    throw const FormatException('folder sync needs the local server');
+  }
+  final response = await repository.httpClient.post(
+    repository.uri('/v1/library/folder/sync'),
+    headers: const {'Content-Type': 'application/json'},
+    body: jsonEncode({'path': path}),
+  );
+  if (response.statusCode != 200) {
+    throw FormatException('文件夹同步失败 (${response.statusCode})');
+  }
+  return _parseSourceResult(response.body);
+}
+
 Future<ImportOutcome> applySourceImport(
   PersistedLibraryController library,
   SourceImportResult result,

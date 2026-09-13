@@ -714,6 +714,37 @@ pub fn content_type_for(format: &str) -> &'static str {
     }
 }
 
+pub fn portable_file_name(file_name: &str, format: &str) -> String {
+    let expected_extension = match format {
+        "epub" => "epub",
+        "pdf" => "pdf",
+        "mobi" => "mobi",
+        "azw3" => "azw3",
+        "fb2" => "fb2",
+        "txt" => "txt",
+        "markdown" => "md",
+        "html" => "html",
+        "docx" => "docx",
+        "odt" => "odt",
+        "rtf" => "rtf",
+        "cbt" => "cbt",
+        "cb7" => "cb7",
+        "cbz" => "cbz",
+        "cbr" => "cbr",
+        _ => return file_name.to_string(),
+    };
+    let current_extension = file_name
+        .rsplit_once('.')
+        .map(|(_, extension)| extension.to_ascii_lowercase());
+    if current_extension.as_deref() == Some(expected_extension) {
+        return file_name.to_string();
+    }
+    let stem = file_name
+        .rsplit_once('.')
+        .map_or(file_name, |(stem, _)| stem);
+    format!("{stem}.{expected_extension}")
+}
+
 fn prune_shelves(mut shelves: Shelves, known: &HashSet<String>) -> Shelves {
     shelves.favorites = unique_known(shelves.favorites, known);
     let mut collections = Vec::new();

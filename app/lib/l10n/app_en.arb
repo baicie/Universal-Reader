@@ -95,6 +95,7 @@
   "importFromWebdav": "Import from WebDAV",
   "syncWebdav": "Sync WebDAV both ways",
   "watchFolder": "Watch folder",
+  "syncFolder": "Sync folder both ways",
   "librarySources": "Library sources",
   "providerDeepSeek": "DeepSeek",
   "providerOllama": "Ollama",

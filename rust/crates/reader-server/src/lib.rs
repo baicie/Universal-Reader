@@ -1,4 +1,5 @@
 use std::{
+    collections::HashSet,
     env,
     io::{Cursor, Read},
     path::{Path, PathBuf},
@@ -32,7 +33,9 @@ pub use ai::AiConfig;
 pub use library::{LibraryDocumentRecord, LibraryStore};
 pub use sources::SourcesConfig;
 
-use library::{Annotations, Conversation, LibraryError, Shelves, content_type_for};
+use library::{
+    Annotations, Conversation, LibraryError, Shelves, content_type_for, portable_file_name,
+};
 
 pub const SERVICE_NAME: &str = "universal-reader-server";
 pub const SERVICE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -461,6 +464,7 @@ fn api_router(store: LibraryStore, ai: AiConfig, sources: SourcesConfig) -> Rout
         .route("/v1/library/shelves", get(get_shelves).put(put_shelves))
         .route("/v1/library/files", post(upload_file))
         .route("/v1/library/scan", post(scan_folder))
+        .route("/v1/library/folder/sync", post(sync_folder))
         .route("/v1/library/webdav/import", post(import_webdav))
         .route("/v1/library/webdav/sync", post(sync_webdav))
         .route("/v1/library/watch", post(watch_folder))
@@ -715,6 +719,62 @@ async fn scan_folder(
     }
 }
 
+async fn sync_folder(
+    State(state): State<AppState>,
+    Json(body): Json<ScanRequest>,
+) -> impl IntoResponse {
+    let Some(path) = sources::scan_root_ok(&body.path) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(ApiError {
+                error: "path is required",
+            }),
+        )
+            .into_response();
+    };
+    let files = match sources::scan_folder(&path) {
+        Ok(files) => files,
+        Err(error) => return library_error(error).into_response(),
+    };
+    let names = files
+        .iter()
+        .map(|(name, _)| name.clone())
+        .collect::<HashSet<_>>();
+    let (imported, skipped) = match ingest_counts(&state.store, files).await {
+        Ok(counts) => counts,
+        Err(error) => return library_error(error).into_response(),
+    };
+    let documents = match state.store.list().await {
+        Ok(documents) => documents,
+        Err(error) => return library_error(error).into_response(),
+    };
+    let mut pushed = 0usize;
+    for document in documents {
+        let file_name = portable_file_name(&document.file_name, &document.format);
+        if names.contains(&file_name) {
+            continue;
+        }
+        let Ok((_, bytes)) = state.store.read_file(&document.id).await else {
+            continue;
+        };
+        if sources::write_folder_file(&path, &file_name, &bytes)
+            .await
+            .is_ok()
+        {
+            pushed += 1;
+        }
+    }
+    (
+        StatusCode::OK,
+        Json(SourceImportResponse {
+            imported,
+            skipped,
+            pushed,
+        }),
+    )
+        .into_response()
+}
+
 async fn import_webdav(
     State(state): State<AppState>,
     Json(body): Json<WebDavRequest>,
@@ -774,7 +834,8 @@ async fn sync_webdav(
     match state.store.list().await {
         Ok(documents) => {
             for document in documents {
-                if names.iter().any(|name| name == &document.file_name) {
+                let file_name = portable_file_name(&document.file_name, &document.format);
+                if names.iter().any(|name| name == &file_name) {
                     continue;
                 }
                 let Ok((_, bytes)) = state.store.read_file(&document.id).await else {
@@ -785,7 +846,7 @@ async fn sync_webdav(
                     &base_url,
                     user,
                     pass,
-                    &document.file_name,
+                    &file_name,
                     &bytes,
                 )
                 .await

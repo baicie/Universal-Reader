@@ -578,6 +578,12 @@ abstract class AppLocalizations {
   /// **'监视文件夹'**
   String get watchFolder;
 
+  /// No description provided for @syncFolder.
+  ///
+  /// In zh, this message translates to:
+  /// **'文件夹双向同步'**
+  String get syncFolder;
+
   /// No description provided for @librarySources.
   ///
   /// In zh, this message translates to:

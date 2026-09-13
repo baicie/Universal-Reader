@@ -22,6 +22,13 @@
 - Added service-backed DjVu-to-CBZ conversion through the Rust service.
 - Mobile CHM/DjVu in-process decoding remains in the v1.0 platform hardening scope.
 
+## v0.4 started: local folder sync
+
+- Added folder import plus push-back for files missing on either side.
+- Same-name files with different content are never overwritten.
+- WebDAV push now uses the stored portable extension for converted CHM/DjVu books.
+- Remaining v0.4 scope: S3, annotation sync, and reading-progress sync.
+
 ## PDF 测试覆盖提升（最新完成）
 
 将 PDF 文档测试覆盖率从基线提升至 100%（1 个提交）。

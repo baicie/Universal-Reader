@@ -110,6 +110,7 @@
   "importFromWebdav": "从 WebDAV 导入",
   "syncWebdav": "双向同步 WebDAV",
   "watchFolder": "监视文件夹",
+  "syncFolder": "文件夹双向同步",
   "librarySources": "书库来源",
   "providerDeepSeek": "DeepSeek",
   "providerOllama": "Ollama",
