@@ -185,19 +185,16 @@ void main() {
     },
   );
 
-  test(
-    'sqlite readCover returns null when no cover was stored',
-    () async {
-      final repository = await SqliteLibraryRepository.memory();
-      addTearDown(repository.close);
-      final notes = await repository.importBytes(
-        'notes.txt',
-        Uint8List.fromList('hello cover'.codeUnits),
-      );
-      expect(await repository.readCover(notes.metadata.id), isNull);
-      expect(await repository.readCover('missing'), isNull);
-    },
-  );
+  test('sqlite readCover returns null when no cover was stored', () async {
+    final repository = await SqliteLibraryRepository.memory();
+    addTearDown(repository.close);
+    final notes = await repository.importBytes(
+      'notes.txt',
+      Uint8List.fromList('hello cover'.codeUnits),
+    );
+    expect(await repository.readCover(notes.metadata.id), isNull);
+    expect(await repository.readCover('missing'), isNull);
+  });
 
   test(
     'sqlite writeReadingState updates progress without touching the bytes',
@@ -330,10 +327,7 @@ void main() {
         ),
       );
       await repository.save([refreshed]);
-      expect(
-        await repository.readFile('keep.txt'),
-        'keep-bytes'.codeUnits,
-      );
+      expect(await repository.readFile('keep.txt'), 'keep-bytes'.codeUnits);
     });
   });
 

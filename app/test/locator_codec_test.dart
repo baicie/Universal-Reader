@@ -28,18 +28,11 @@ void main() {
     test('omits the cfi token when cfi is null or empty', () {
       expect(
         encodeLocator(
-          const EpubLocator(
-            href: 'a.xhtml',
-            cfi: '',
-            progression: 0.1,
-          ),
+          const EpubLocator(href: 'a.xhtml', cfi: '', progression: 0.1),
         ),
         'epub|a.xhtml|p=0.1',
       );
-      expect(
-        encodeLocator(const EpubLocator(href: 'a.xhtml')),
-        'epub|a.xhtml',
-      );
+      expect(encodeLocator(const EpubLocator(href: 'a.xhtml')), 'epub|a.xhtml');
     });
 
     test('omits the fragment token when fragment is null or empty', () {
@@ -54,9 +47,7 @@ void main() {
     test('still emits progression=0 because 0 is non-null', () {
       // `progression` is a `double`, so 0 serializes as "0.0".
       expect(
-        encodeLocator(
-          const EpubLocator(href: 'a.xhtml', progression: 0),
-        ),
+        encodeLocator(const EpubLocator(href: 'a.xhtml', progression: 0)),
         'epub|a.xhtml|p=0.0',
       );
     });

@@ -76,9 +76,7 @@ class _FakeLocalRepository implements LibraryRepository {
 
 Widget _wrap(Widget child, {required LibraryRepository repository}) {
   return ProviderScope(
-    overrides: [
-      libraryRepositoryProvider.overrideWithValue(repository),
-    ],
+    overrides: [libraryRepositoryProvider.overrideWithValue(repository)],
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
@@ -97,8 +95,9 @@ void main() {
     expect(find.text('Library sources'), findsNothing);
   });
 
-  testWidgets('shows scan + watch fields when the library is remote',
-      (tester) async {
+  testWidgets('shows scan + watch fields when the library is remote', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _wrap(
         const LibrarySourcesCard(),
@@ -127,23 +126,23 @@ void main() {
     expect(find.text('/data/books'), findsOneWidget);
   });
 
-  testWidgets('tapping Scan folder triggers a network call to /v1/library/scan',
-      (tester) async {
-    final spying = _SpyingClient(
-      Uri.parse('http://fake/v1/library/scan'),
-      http.Response('{"imported":1,"skipped":0}', 200),
-    );
-    final repo = _FakeHttpRepositoryWithClient(spying);
-    await tester.pumpWidget(
-      _wrap(LibrarySourcesCard(), repository: repo),
-    );
-    await tester.pumpAndSettle();
-    final scanButton = find.widgetWithText(OutlinedButton, 'Scan folder');
-    await tester.ensureVisible(scanButton);
-    await tester.tap(scanButton);
-    await tester.pumpAndSettle();
-    expect(spying.requestedPaths, contains('/v1/library/scan'));
-  });
+  testWidgets(
+    'tapping Scan folder triggers a network call to /v1/library/scan',
+    (tester) async {
+      final spying = _SpyingClient(
+        Uri.parse('http://fake/v1/library/scan'),
+        http.Response('{"imported":1,"skipped":0}', 200),
+      );
+      final repo = _FakeHttpRepositoryWithClient(spying);
+      await tester.pumpWidget(_wrap(LibrarySourcesCard(), repository: repo));
+      await tester.pumpAndSettle();
+      final scanButton = find.widgetWithText(OutlinedButton, 'Scan folder');
+      await tester.ensureVisible(scanButton);
+      await tester.tap(scanButton);
+      await tester.pumpAndSettle();
+      expect(spying.requestedPaths, contains('/v1/library/scan'));
+    },
+  );
 
   testWidgets('displays the error message when scan fails', (tester) async {
     final repo = _FakeHttpRepositoryWithClient(
@@ -152,9 +151,7 @@ void main() {
         http.Response('boom', 500),
       ),
     );
-    await tester.pumpWidget(
-      _wrap(LibrarySourcesCard(), repository: repo),
-    );
+    await tester.pumpWidget(_wrap(LibrarySourcesCard(), repository: repo));
     await tester.pumpAndSettle();
     final scanButton = find.widgetWithText(OutlinedButton, 'Scan folder');
     await tester.ensureVisible(scanButton);
@@ -163,14 +160,13 @@ void main() {
     expect(find.textContaining('FormatException'), findsOneWidget);
   });
 
-  testWidgets('disables other action buttons while a scan is in flight',
-      (tester) async {
+  testWidgets('disables other action buttons while a scan is in flight', (
+    tester,
+  ) async {
     final completer = Completer<http.Response>();
     final slow = _CompleterClient(completer.future);
     final repo = _FakeHttpRepositoryWithClient(slow);
-    await tester.pumpWidget(
-      _wrap(LibrarySourcesCard(), repository: repo),
-    );
+    await tester.pumpWidget(_wrap(LibrarySourcesCard(), repository: repo));
     await tester.pumpAndSettle();
     final scanButton = find.widgetWithText(OutlinedButton, 'Scan folder');
     await tester.ensureVisible(scanButton);
@@ -185,34 +181,33 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('tapping Watch folder triggers a network call to /v1/library/watch',
-      (tester) async {
-    final spying = _SpyingClient(
-      Uri.parse('http://fake/v1/library/watch'),
-      http.Response('{"imported":0,"skipped":0}', 200),
-    );
-    final repo = _FakeHttpRepositoryWithClient(spying);
-    await tester.pumpWidget(
-      _wrap(LibrarySourcesCard(), repository: repo),
-    );
-    await tester.pumpAndSettle();
-    final watchButton = find.widgetWithText(OutlinedButton, 'Watch folder');
-    await tester.ensureVisible(watchButton);
-    await tester.tap(watchButton);
-    await tester.pumpAndSettle();
-    expect(spying.requestedPaths, contains('/v1/library/watch'));
-  });
+  testWidgets(
+    'tapping Watch folder triggers a network call to /v1/library/watch',
+    (tester) async {
+      final spying = _SpyingClient(
+        Uri.parse('http://fake/v1/library/watch'),
+        http.Response('{"imported":0,"skipped":0}', 200),
+      );
+      final repo = _FakeHttpRepositoryWithClient(spying);
+      await tester.pumpWidget(_wrap(LibrarySourcesCard(), repository: repo));
+      await tester.pumpAndSettle();
+      final watchButton = find.widgetWithText(OutlinedButton, 'Watch folder');
+      await tester.ensureVisible(watchButton);
+      await tester.tap(watchButton);
+      await tester.pumpAndSettle();
+      expect(spying.requestedPaths, contains('/v1/library/watch'));
+    },
+  );
 
-  testWidgets('tapping WebDAV import triggers /v1/library/webdav/import',
-      (tester) async {
+  testWidgets('tapping WebDAV import triggers /v1/library/webdav/import', (
+    tester,
+  ) async {
     final spying = _SpyingClient(
       Uri.parse('http://fake/v1/library/webdav/import'),
       http.Response('{"imported":2,"skipped":1}', 200),
     );
     final repo = _FakeHttpRepositoryWithClient(spying);
-    await tester.pumpWidget(
-      _wrap(LibrarySourcesCard(), repository: repo),
-    );
+    await tester.pumpWidget(_wrap(LibrarySourcesCard(), repository: repo));
     await tester.pumpAndSettle();
     final importButton = find.widgetWithText(
       OutlinedButton,
@@ -224,16 +219,15 @@ void main() {
     expect(spying.requestedPaths, contains('/v1/library/webdav/import'));
   });
 
-  testWidgets('tapping WebDAV sync triggers /v1/library/webdav/sync',
-      (tester) async {
+  testWidgets('tapping WebDAV sync triggers /v1/library/webdav/sync', (
+    tester,
+  ) async {
     final spying = _SpyingClient(
       Uri.parse('http://fake/v1/library/webdav/sync'),
       http.Response('{"imported":1,"skipped":0,"pushed":2}', 200),
     );
     final repo = _FakeHttpRepositoryWithClient(spying);
-    await tester.pumpWidget(
-      _wrap(LibrarySourcesCard(), repository: repo),
-    );
+    await tester.pumpWidget(_wrap(LibrarySourcesCard(), repository: repo));
     await tester.pumpAndSettle();
     final syncButton = find.widgetWithText(
       OutlinedButton,
@@ -245,17 +239,16 @@ void main() {
     expect(spying.requestedPaths, contains('/v1/library/webdav/sync'));
   });
 
-  testWidgets('WebDAV import surfaces an error message when the server fails',
-      (tester) async {
+  testWidgets('WebDAV import surfaces an error message when the server fails', (
+    tester,
+  ) async {
     final repo = _FakeHttpRepositoryWithClient(
       _SpyingClient(
         Uri.parse('http://fake/v1/library/webdav/import'),
         http.Response('boom', 500),
       ),
     );
-    await tester.pumpWidget(
-      _wrap(LibrarySourcesCard(), repository: repo),
-    );
+    await tester.pumpWidget(_wrap(LibrarySourcesCard(), repository: repo));
     await tester.pumpAndSettle();
     final importButton = find.widgetWithText(
       OutlinedButton,

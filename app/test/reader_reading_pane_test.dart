@@ -24,14 +24,14 @@ import 'support/pdf_fixture.dart';
 
 void main() {
   DocumentMetadata metadata(DocumentFormat format) => DocumentMetadata(
-        id: 'a',
-        title: 'A',
-        author: 'A',
-        format: format,
-        type: format == DocumentFormat.cbz || format == DocumentFormat.cbr
-            ? DocumentType.comic
-            : DocumentType.reflow,
-      );
+    id: 'a',
+    title: 'A',
+    author: 'A',
+    format: format,
+    type: format == DocumentFormat.cbz || format == DocumentFormat.cbr
+        ? DocumentType.comic
+        : DocumentType.reflow,
+  );
 
   const surface = ReadingSurface.light;
 
@@ -95,7 +95,9 @@ void main() {
   }
 
   group('comic branch', () {
-    testWidgets('renders IsolatedComicView for a comic document', (tester) async {
+    testWidgets('renders IsolatedComicView for a comic document', (
+      tester,
+    ) async {
       final comic = ComicReaderDocument.parse(
         metadata: metadata(DocumentFormat.cbz),
         bytes: zipNamedFiles({'page-01.png': tinyPngBytes()}),
@@ -139,8 +141,7 @@ void main() {
               currentIndex: 0,
               chapterCount: 0,
               formatLabel: 'CBZ',
-              chapterState:
-                  const ReaderChapterState.ready(truncated: false),
+              chapterState: const ReaderChapterState.ready(truncated: false),
               comicLayout: ComicLayout.single,
               comicDirection: ComicReadDirection.ltr,
               pdfZoom: 1.0,
@@ -174,12 +175,7 @@ void main() {
       expect(pdf, isA<PdfReaderDocument>());
 
       await tester.pumpWidget(
-        wrap(
-          pane(
-            opened: pdf,
-            fileBytes: minimalPdfBytes(),
-          ),
-        ),
+        wrap(pane(opened: pdf, fileBytes: minimalPdfBytes())),
       );
 
       expect(find.byType(IsolatedPdfView), findsOneWidget);
@@ -189,8 +185,9 @@ void main() {
   });
 
   group('html / foliate branch', () {
-    testWidgets('renders IsolatedFoliateView for an epub document',
-        (tester) async {
+    testWidgets('renders IsolatedFoliateView for an epub document', (
+      tester,
+    ) async {
       final epub = openReaderDocument(
         metadata: metadata(DocumentFormat.epub),
         bytes: minimalEpubBytes(),
@@ -208,8 +205,9 @@ void main() {
   });
 
   group('fallback branch', () {
-    testWidgets('renders ReaderChapterBody for a plain-text document',
-        (tester) async {
+    testWidgets('renders ReaderChapterBody for a plain-text document', (
+      tester,
+    ) async {
       final text = openReaderDocument(
         metadata: metadata(DocumentFormat.txt),
         bytes: 'Paragraph 1\nParagraph 2'.codeUnits,
@@ -224,8 +222,9 @@ void main() {
       expect(find.byType(IsolatedFoliateView), findsNothing);
     });
 
-    testWidgets('renders ReaderChapterBody when no document is open',
-        (tester) async {
+    testWidgets('renders ReaderChapterBody when no document is open', (
+      tester,
+    ) async {
       await tester.pumpWidget(wrap(pane(opened: null)));
 
       expect(find.byType(ReaderChapterBody), findsOneWidget);
@@ -233,8 +232,9 @@ void main() {
   });
 
   group('non-chaptered reader', () {
-    testWidgets('renders the fallback for UnavailableReaderDocument',
-        (tester) async {
+    testWidgets('renders the fallback for UnavailableReaderDocument', (
+      tester,
+    ) async {
       final unavailable = openReaderDocument(
         metadata: metadata(DocumentFormat.txt),
         bytes: null,

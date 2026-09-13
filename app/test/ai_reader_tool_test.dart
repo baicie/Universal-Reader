@@ -87,7 +87,10 @@ void main() {
         kind: ReaderToolKind.explain,
         grounding: grounding,
       );
-      expect(messages.last['content'], contains('Explain the excerpt in plain language'));
+      expect(
+        messages.last['content'],
+        contains('Explain the excerpt in plain language'),
+      );
     });
 
     test('translate emits a Chinese translation task', () {
@@ -95,7 +98,10 @@ void main() {
         kind: ReaderToolKind.translate,
         grounding: grounding,
       );
-      expect(messages.last['content'], contains('Translate the excerpt into Chinese'));
+      expect(
+        messages.last['content'],
+        contains('Translate the excerpt into Chinese'),
+      );
     });
 
     test('ask without a question falls back to a generic question task', () {
@@ -103,7 +109,10 @@ void main() {
         kind: ReaderToolKind.ask,
         grounding: grounding,
       );
-      expect(messages.last['content'], contains('Answer a question about the excerpt'));
+      expect(
+        messages.last['content'],
+        contains('Answer a question about the excerpt'),
+      );
     });
 
     test('ask with a question emits the question verbatim', () {
@@ -113,7 +122,10 @@ void main() {
         question: '  what does this mean?  ',
       );
       expect(messages.last['content'], contains('what does this mean?'));
-      expect(messages.last['content'], contains('Answer this question about the excerpt'));
+      expect(
+        messages.last['content'],
+        contains('Answer this question about the excerpt'),
+      );
     });
   });
 
@@ -324,106 +336,116 @@ void main() {
       expect(result.text, isNot(contains('阅读助手未启用')));
     });
 
-    test('uses localized not-configured message when l10n is provided', () async {
-      final tool = AiReaderTool(
-        settings: const AiSettings(
-          enabled: true,
-          endpoint: 'https://api.deepseek.com',
-          model: 'deepseek-chat',
-        ),
-      );
-      final l10n = _stubL10n(const Locale('en'));
-
-      final result = await tool.run(
-        document: document,
-        request: const ReaderToolRequest(kind: ReaderToolKind.summarize),
-        l10n: l10n,
-      );
-
-      expect(result.unavailable, isTrue);
-      expect(result.text, l10n.assistantNotConfigured);
-      expect(result.text, isNot(contains('请先在设置中填写')));
-    });
-
-    test('uses localized empty-excerpt message when l10n is provided', () async {
-      final emptyDocument = SampleReaderDocument(
-        metadata: const DocumentMetadata(
-          id: 'empty',
-          title: '空白',
-          author: '匿名',
-          format: DocumentFormat.epub,
-          type: DocumentType.reflow,
-        ),
-        body: '',
-      );
-      final client = RecordingModelClient();
-      final tool = AiReaderTool(
-        settings: const AiSettings(
-          enabled: true,
-          endpoint: 'https://api.deepseek.com',
-          model: 'deepseek-chat',
-          apiKey: 'sk-test',
-        ),
-        // No clientFactory: forces the default OpenAiCompatibleClient branch.
-        clientFactory: (_) => client,
-      );
-      final l10n = _stubL10n(const Locale('en'));
-
-      final result = await tool.run(
-        document: emptyDocument,
-        request: const ReaderToolRequest(kind: ReaderToolKind.summarize),
-        l10n: l10n,
-      );
-
-      expect(result.unavailable, isTrue);
-      expect(result.text, l10n.noExcerpt);
-      expect(result.text, isNot(contains('当前页没有可发送的摘录')));
-      expect(client.calls, 0);
-    });
-
-    test('falls back to default OpenAiCompatibleClient when no factory given',
-        () async {
-      late http.Request seen;
-      final mock = MockClient((req) async {
-        seen = req;
-        return http.Response(
-          jsonEncode({
-            'choices': [
-              {'message': {'content': 'fallback reply'}},
-            ],
-          }),
-          200,
+    test(
+      'uses localized not-configured message when l10n is provided',
+      () async {
+        final tool = AiReaderTool(
+          settings: const AiSettings(
+            enabled: true,
+            endpoint: 'https://api.deepseek.com',
+            model: 'deepseek-chat',
+          ),
         );
-      });
-      final tool = AiReaderTool(
-        settings: const AiSettings(
-          enabled: true,
-          endpoint: 'https://api.deepseek.com',
-          model: 'deepseek-chat',
-          apiKey: 'sk-test',
-        ),
-        httpClient: mock,
-      );
+        final l10n = _stubL10n(const Locale('en'));
 
-      // Without a clientFactory the tool must construct an
-      // OpenAiCompatibleClient inline, wiring the resolved settings and the
-      // injected httpClient into its HTTP request.
-      final result = await tool.run(
-        document: document,
-        request: const ReaderToolRequest(kind: ReaderToolKind.summarize),
-      );
+        final result = await tool.run(
+          document: document,
+          request: const ReaderToolRequest(kind: ReaderToolKind.summarize),
+          l10n: l10n,
+        );
 
-      expect(result.text, 'fallback reply');
-      expect(result.unavailable, isFalse);
-      expect(seen.method, 'POST');
-      expect(
-        seen.url.toString(),
-        'https://api.deepseek.com/v1/chat/completions',
-      );
-      expect(seen.headers['authorization'], 'Bearer sk-test');
-      final body = jsonDecode(seen.body) as Map<String, dynamic>;
-      expect(body['model'], 'deepseek-chat');
-    });
+        expect(result.unavailable, isTrue);
+        expect(result.text, l10n.assistantNotConfigured);
+        expect(result.text, isNot(contains('请先在设置中填写')));
+      },
+    );
+
+    test(
+      'uses localized empty-excerpt message when l10n is provided',
+      () async {
+        final emptyDocument = SampleReaderDocument(
+          metadata: const DocumentMetadata(
+            id: 'empty',
+            title: '空白',
+            author: '匿名',
+            format: DocumentFormat.epub,
+            type: DocumentType.reflow,
+          ),
+          body: '',
+        );
+        final client = RecordingModelClient();
+        final tool = AiReaderTool(
+          settings: const AiSettings(
+            enabled: true,
+            endpoint: 'https://api.deepseek.com',
+            model: 'deepseek-chat',
+            apiKey: 'sk-test',
+          ),
+          // No clientFactory: forces the default OpenAiCompatibleClient branch.
+          clientFactory: (_) => client,
+        );
+        final l10n = _stubL10n(const Locale('en'));
+
+        final result = await tool.run(
+          document: emptyDocument,
+          request: const ReaderToolRequest(kind: ReaderToolKind.summarize),
+          l10n: l10n,
+        );
+
+        expect(result.unavailable, isTrue);
+        expect(result.text, l10n.noExcerpt);
+        expect(result.text, isNot(contains('当前页没有可发送的摘录')));
+        expect(client.calls, 0);
+      },
+    );
+
+    test(
+      'falls back to default OpenAiCompatibleClient when no factory given',
+      () async {
+        late http.Request seen;
+        final mock = MockClient((req) async {
+          seen = req;
+          return http.Response(
+            jsonEncode({
+              'choices': [
+                {
+                  'message': {'content': 'fallback reply'},
+                },
+              ],
+            }),
+            200,
+          );
+        });
+        final tool = AiReaderTool(
+          settings: const AiSettings(
+            enabled: true,
+            endpoint: 'https://api.deepseek.com',
+            model: 'deepseek-chat',
+            apiKey: 'sk-test',
+          ),
+          httpClient: mock,
+        );
+
+        // Without a clientFactory the tool must construct an
+        // OpenAiCompatibleClient inline, wiring the resolved settings and the
+        // injected httpClient into its HTTP request.
+        final result = await tool.run(
+          document: document,
+          request: const ReaderToolRequest(kind: ReaderToolKind.summarize),
+        );
+
+        expect(result.text, 'fallback reply');
+        expect(result.unavailable, isFalse);
+        expect(seen.method, 'POST');
+        expect(
+          seen.url.toString(),
+          'https://api.deepseek.com/v1/chat/completions',
+        );
+        expect(seen.headers['authorization'], 'Bearer sk-test');
+        final body = jsonDecode(seen.body) as Map<String, dynamic>;
+        expect(body['model'], 'deepseek-chat');
+      },
+    );
 
     test(
       'falls back to default OpenAiCompatibleClient without an httpClient',

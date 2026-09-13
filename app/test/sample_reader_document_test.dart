@@ -49,17 +49,14 @@ void main() {
     });
 
     test('goTo never throws and is a no-op', () async {
-      await doc.goTo(
-        const EpubLocator(href: 'chapter-1', progression: 0.0),
-      );
+      await doc.goTo(const EpubLocator(href: 'chapter-1', progression: 0.0));
     });
 
     test('progress stream emits the configured chapter progress', () async {
       expect(await doc.progress.first, 0.37);
     });
 
-    test('search returns an empty list when the body does not match',
-        () async {
+    test('search returns an empty list when the body does not match', () async {
       expect(await doc.search('不可见的字符串'), isEmpty);
     });
 
@@ -112,21 +109,23 @@ void main() {
       expect(locator.progression, 0.11);
     });
 
-    test('locatorForProgress returns href without progression when null',
-        () async {
-      // Calls that pass a value of 0 should keep the configured href.
-      final doc = SampleReaderDocument(
-        metadata: const DocumentMetadata(
-          id: 'a',
-          title: 'A',
-          author: 'A',
-          format: DocumentFormat.epub,
-          type: DocumentType.reflow,
-        ),
-      );
-      final locator = doc.locatorForProgress(0.0);
-      expect((locator as EpubLocator).href, 'chapter-4');
-      expect(locator.progression, 0.0);
-    });
+    test(
+      'locatorForProgress returns href without progression when null',
+      () async {
+        // Calls that pass a value of 0 should keep the configured href.
+        final doc = SampleReaderDocument(
+          metadata: const DocumentMetadata(
+            id: 'a',
+            title: 'A',
+            author: 'A',
+            format: DocumentFormat.epub,
+            type: DocumentType.reflow,
+          ),
+        );
+        final locator = doc.locatorForProgress(0.0);
+        expect((locator as EpubLocator).href, 'chapter-4');
+        expect(locator.progression, 0.0);
+      },
+    );
   });
 }

@@ -415,73 +415,57 @@ void main() {
         controller.search('Alpha');
         await controller.waitForSearch();
 
-        final ids = controller.documents
-            .map((d) => d.metadata.id)
-            .toList();
+        final ids = controller.documents.map((d) => d.metadata.id).toList();
         expect(ids, equals(['alpha', 'zebra']));
       },
     );
 
-    test(
-      'sort=title reorders the combined list alphabetically',
-      () async {
-        final repository = _StubAnnotationRepository({
-          'zebra': [_stubNote(id: 'n1', quote: 'Alpha in quote')],
-        });
-        final controller = PersistedLibraryController(
-          repository: InMemoryLibraryRepository(),
-          annotationRepository: repository,
-        );
-        await controller.load();
-        controller.addDocumentForTest(
-          _stubDoc(id: 'alpha', title: 'Alpha'),
-        );
-        controller.addDocumentForTest(
-          _stubDoc(id: 'zebra', title: 'Zebra'),
-        );
-        controller.selectSort('title');
+    test('sort=title reorders the combined list alphabetically', () async {
+      final repository = _StubAnnotationRepository({
+        'zebra': [_stubNote(id: 'n1', quote: 'Alpha in quote')],
+      });
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+        annotationRepository: repository,
+      );
+      await controller.load();
+      controller.addDocumentForTest(_stubDoc(id: 'alpha', title: 'Alpha'));
+      controller.addDocumentForTest(_stubDoc(id: 'zebra', title: 'Zebra'));
+      controller.selectSort('title');
 
-        controller.search('Alpha');
-        await controller.waitForSearch();
+      controller.search('Alpha');
+      await controller.waitForSearch();
 
-        final titles = controller.documents
-            .map((d) => d.metadata.title)
-            .toList();
-        expect(titles, equals(['Alpha', 'Zebra']));
-      },
-    );
+      final titles = controller.documents.map((d) => d.metadata.title).toList();
+      expect(titles, equals(['Alpha', 'Zebra']));
+    });
 
-    test(
-      'sort=progress places the higher-progress document first even when '
-      'it is a note-only hit',
-      () async {
-        // 'Zebra' is the metadata hit; 'Alpha' is note-only. With sort
-        // =progress and Alpha ahead in progress, Alpha still leads.
-        final repository = _StubAnnotationRepository({
-          'alpha': [_stubNote(id: 'n1', quote: 'Zebra needle')],
-        });
-        final controller = PersistedLibraryController(
-          repository: InMemoryLibraryRepository(),
-          annotationRepository: repository,
-        );
-        await controller.load();
-        controller.addDocumentForTest(
-          _stubDoc(id: 'zebra', title: 'Zebra', progress: 0.2),
-        );
-        controller.addDocumentForTest(
-          _stubDoc(id: 'alpha', title: 'Alpha', progress: 0.9),
-        );
-        controller.selectSort('progress');
+    test('sort=progress places the higher-progress document first even when '
+        'it is a note-only hit', () async {
+      // 'Zebra' is the metadata hit; 'Alpha' is note-only. With sort
+      // =progress and Alpha ahead in progress, Alpha still leads.
+      final repository = _StubAnnotationRepository({
+        'alpha': [_stubNote(id: 'n1', quote: 'Zebra needle')],
+      });
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+        annotationRepository: repository,
+      );
+      await controller.load();
+      controller.addDocumentForTest(
+        _stubDoc(id: 'zebra', title: 'Zebra', progress: 0.2),
+      );
+      controller.addDocumentForTest(
+        _stubDoc(id: 'alpha', title: 'Alpha', progress: 0.9),
+      );
+      controller.selectSort('progress');
 
-        controller.search('Zebra');
-        await controller.waitForSearch();
+      controller.search('Zebra');
+      await controller.waitForSearch();
 
-        final ids = controller.documents
-            .map((d) => d.metadata.id)
-            .toList();
-        expect(ids, equals(['alpha', 'zebra']));
-      },
-    );
+      final ids = controller.documents.map((d) => d.metadata.id).toList();
+      expect(ids, equals(['alpha', 'zebra']));
+    });
 
     test(
       'a note-only hit filtered out by document type leaves metadata hits only',
@@ -518,9 +502,7 @@ void main() {
         controller.search('Alpha');
         await controller.waitForSearch();
 
-        final ids = controller.documents
-            .map((d) => d.metadata.id)
-            .toList();
+        final ids = controller.documents.map((d) => d.metadata.id).toList();
         expect(ids, equals(['alpha']));
       },
     );
@@ -709,35 +691,32 @@ void main() {
       );
     });
 
-    test(
-      'search still completes when a notifyListeners call throws inside a '
-      'listener',
-      () async {
-        final controller = PersistedLibraryController(
-          repository: InMemoryLibraryRepository(),
-          annotationRepository: _StubAnnotationRepository(const {}),
-        );
-        await controller.load();
-        controller.addDocumentForTest(
-          _stubDoc(id: 'design', title: 'Design Notes'),
-        );
-        // Flutter's ChangeNotifier routes listener exceptions through
-        // FlutterError instead of letting them propagate; ensure the
-        // search pipeline still surfaces its results.
-        controller.addListener(() {
-          // ignore: only_throw_errors
-          throw StateError('listener misbehaved');
-        });
+    test('search still completes when a notifyListeners call throws inside a '
+        'listener', () async {
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+        annotationRepository: _StubAnnotationRepository(const {}),
+      );
+      await controller.load();
+      controller.addDocumentForTest(
+        _stubDoc(id: 'design', title: 'Design Notes'),
+      );
+      // Flutter's ChangeNotifier routes listener exceptions through
+      // FlutterError instead of letting them propagate; ensure the
+      // search pipeline still surfaces its results.
+      controller.addListener(() {
+        // ignore: only_throw_errors
+        throw StateError('listener misbehaved');
+      });
 
-        controller.search('design');
-        await controller.waitForSearch();
-        expect(
-          controller.documents.where((d) => d.metadata.id == 'design'),
-          isNotEmpty,
-          reason: 'search results should still be available',
-        );
-      },
-    );
+      controller.search('design');
+      await controller.waitForSearch();
+      expect(
+        controller.documents.where((d) => d.metadata.id == 'design'),
+        isNotEmpty,
+        reason: 'search results should still be available',
+      );
+    });
   });
 
   group('platform picker (default importFiles path)', () {
@@ -755,56 +734,52 @@ void main() {
       FilePickerPlatform.instance = original;
     });
 
-    test('importFiles routes through the substituted platform picker',
-        () async {
-      final controller = PersistedLibraryController(
-        repository: InMemoryLibraryRepository(),
-      );
-      await controller.load();
-
-      fakePicker.nextFiles = [
-        _platformFile(name: 'picked.txt', size: 4, bytes: [9, 9, 9, 9]),
-      ];
-      final outcome = await controller.importFiles();
-
-      expect(fakePicker.callCount, 1);
-      expect(outcome.count, 1);
-      expect(controller.documents.single.metadata.title, 'picked');
-    });
-
     test(
-      'importFiles reports cancelled when the platform picker returns no '
-      'files',
+      'importFiles routes through the substituted platform picker',
       () async {
         final controller = PersistedLibraryController(
           repository: InMemoryLibraryRepository(),
         );
         await controller.load();
 
-        fakePicker.nextFiles = const [];
+        fakePicker.nextFiles = [
+          _platformFile(name: 'picked.txt', size: 4, bytes: [9, 9, 9, 9]),
+        ];
         final outcome = await controller.importFiles();
 
-        expect(outcome.cancelled, isTrue);
-        expect(controller.documents, isEmpty);
+        expect(fakePicker.callCount, 1);
+        expect(outcome.count, 1);
+        expect(controller.documents.single.metadata.title, 'picked');
       },
     );
+
+    test('importFiles reports cancelled when the platform picker returns no '
+        'files', () async {
+      final controller = PersistedLibraryController(
+        repository: InMemoryLibraryRepository(),
+      );
+      await controller.load();
+
+      fakePicker.nextFiles = const [];
+      final outcome = await controller.importFiles();
+
+      expect(outcome.cancelled, isTrue);
+      expect(controller.documents, isEmpty);
+    });
   });
 
   group('controller getters', () {
-    test(
-      'collectionName returns the matching collection name',
-      () async {
-        final repository = InMemoryLibraryRepository(seedDocuments);
-        final controller = PersistedLibraryController(repository: repository);
-        await controller.load();
-        final created = await controller.createCollection('shelf-A');
+    test('collectionName returns the matching collection name', () async {
+      final repository = InMemoryLibraryRepository(seedDocuments);
+      final controller = PersistedLibraryController(repository: repository);
+      await controller.load();
+      final created = await controller.createCollection('shelf-A');
 
-        expect(
-          controller.collectionName('collection:${created!.id}'),
-          equals('shelf-A'),
-        );
-      },
-    );
+      expect(
+        controller.collectionName('collection:${created!.id}'),
+        equals('shelf-A'),
+      );
+    });
 
     test('usesRemoteStore delegates to the repository contract', () async {
       final controller = PersistedLibraryController(
@@ -828,43 +803,47 @@ void main() {
   });
 
   group('picker-injected imports', () {
-    test('importFiles forwards the picker selection to importNamedBytes',
-        () async {
-      final controller = PersistedLibraryController(
-        repository: InMemoryLibraryRepository(),
-      );
-      await controller.load();
+    test(
+      'importFiles forwards the picker selection to importNamedBytes',
+      () async {
+        final controller = PersistedLibraryController(
+          repository: InMemoryLibraryRepository(),
+        );
+        await controller.load();
 
-      final picker = _FakePicker([
-        _pickedFile(name: 'a.txt', bytes: [1, 2, 3]),
-        _pickedFile(name: 'b.txt', bytes: [4]),
-      ]);
-      final outcome = await controller.importFiles(picker: picker.call);
+        final picker = _FakePicker([
+          _pickedFile(name: 'a.txt', bytes: [1, 2, 3]),
+          _pickedFile(name: 'b.txt', bytes: [4]),
+        ]);
+        final outcome = await controller.importFiles(picker: picker.call);
 
-      expect(outcome.count, 2);
-      expect(outcome.cancelled, isFalse);
-      // Documents are sorted by lastOpened, so the second imported file
-      // ('b.txt') leads the list.
-      expect(
-        controller.documents.map((d) => d.metadata.title),
-        equals(['b', 'a']),
-      );
-    });
+        expect(outcome.count, 2);
+        expect(outcome.cancelled, isFalse);
+        // Documents are sorted by lastOpened, so the second imported file
+        // ('b.txt') leads the list.
+        expect(
+          controller.documents.map((d) => d.metadata.title),
+          equals(['b', 'a']),
+        );
+      },
+    );
 
-    test('importFiles reports cancelled when the picker returns nothing',
-        () async {
-      final controller = PersistedLibraryController(
-        repository: InMemoryLibraryRepository(),
-      );
-      await controller.load();
+    test(
+      'importFiles reports cancelled when the picker returns nothing',
+      () async {
+        final controller = PersistedLibraryController(
+          repository: InMemoryLibraryRepository(),
+        );
+        await controller.load();
 
-      final outcome = await controller.importFiles(
-        picker: _FakePicker(const []).call,
-      );
+        final outcome = await controller.importFiles(
+          picker: _FakePicker(const []).call,
+        );
 
-      expect(outcome.cancelled, isTrue);
-      expect(controller.documents, isEmpty);
-    });
+        expect(outcome.cancelled, isTrue);
+        expect(controller.documents, isEmpty);
+      },
+    );
 
     test('importFolder reuses the same picker plumbing', () async {
       final controller = PersistedLibraryController(

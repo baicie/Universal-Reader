@@ -26,9 +26,7 @@ void main() {
   EpubReaderDocument buildDocument() {
     return EpubReaderDocument.parse(
       metadata: metadata,
-      bytes: minimalEpubBytes(
-        firstBody: 'hello from epub',
-      ),
+      bytes: minimalEpubBytes(firstBody: 'hello from epub'),
     );
   }
 
@@ -45,12 +43,7 @@ void main() {
       const fallback = Text('fallback content');
 
       await tester.pumpWidget(
-        host(
-          IsolatedFoliateView(
-            document: document,
-            fallback: fallback,
-          ),
-        ),
+        host(IsolatedFoliateView(document: document, fallback: fallback)),
       );
 
       expect(find.byKey(const Key('foliate-surface')), findsOneWidget);
@@ -58,60 +51,56 @@ void main() {
     },
   );
 
-  testWidgets(
-    'tap on the left strip fires onPrevious callback',
-    (tester) async {
-      final document = buildDocument();
-      var previousTaps = 0;
+  testWidgets('tap on the left strip fires onPrevious callback', (
+    tester,
+  ) async {
+    final document = buildDocument();
+    var previousTaps = 0;
 
-      await tester.pumpWidget(
-        host(
-          IsolatedFoliateView(
-            document: document,
-            fallback: boundedFallback,
-            onPrevious: () => previousTaps += 1,
-          ),
+    await tester.pumpWidget(
+      host(
+        IsolatedFoliateView(
+          document: document,
+          fallback: boundedFallback,
+          onPrevious: () => previousTaps += 1,
         ),
-      );
+      ),
+    );
 
-      // The left strip is the left third of the surface width.
-      final size = tester.view.physicalSize;
-      final dpr = tester.view.devicePixelRatio;
-      final width = size.width / dpr;
-      final height = size.height / dpr;
-      await tester.tapAt(Offset(width / 6, height / 2));
-      await tester.pumpAndSettle();
+    // The left strip is the left third of the surface width.
+    final size = tester.view.physicalSize;
+    final dpr = tester.view.devicePixelRatio;
+    final width = size.width / dpr;
+    final height = size.height / dpr;
+    await tester.tapAt(Offset(width / 6, height / 2));
+    await tester.pumpAndSettle();
 
-      expect(previousTaps, 1);
-    },
-  );
+    expect(previousTaps, 1);
+  });
 
-  testWidgets(
-    'tap on the right strip fires onNext callback',
-    (tester) async {
-      final document = buildDocument();
-      var nextTaps = 0;
+  testWidgets('tap on the right strip fires onNext callback', (tester) async {
+    final document = buildDocument();
+    var nextTaps = 0;
 
-      await tester.pumpWidget(
-        host(
-          IsolatedFoliateView(
-            document: document,
-            fallback: boundedFallback,
-            onNext: () => nextTaps += 1,
-          ),
+    await tester.pumpWidget(
+      host(
+        IsolatedFoliateView(
+          document: document,
+          fallback: boundedFallback,
+          onNext: () => nextTaps += 1,
         ),
-      );
+      ),
+    );
 
-      final size = tester.view.physicalSize;
-      final dpr = tester.view.devicePixelRatio;
-      final width = size.width / dpr;
-      final height = size.height / dpr;
-      await tester.tapAt(Offset(width * 5 / 6, height / 2));
-      await tester.pumpAndSettle();
+    final size = tester.view.physicalSize;
+    final dpr = tester.view.devicePixelRatio;
+    final width = size.width / dpr;
+    final height = size.height / dpr;
+    await tester.tapAt(Offset(width * 5 / 6, height / 2));
+    await tester.pumpAndSettle();
 
-      expect(nextTaps, 1);
-    },
-  );
+    expect(nextTaps, 1);
+  });
 
   testWidgets(
     'uses ReadingSurface to seed the bridge typography on fallback path',
@@ -142,44 +131,42 @@ void main() {
     },
   );
 
-  testWidgets(
-    'forwarding quotes does not crash in the fallback path',
-    (tester) async {
-      final document = buildDocument();
+  testWidgets('forwarding quotes does not crash in the fallback path', (
+    tester,
+  ) async {
+    final document = buildDocument();
 
-      await tester.pumpWidget(
-        host(
-          IsolatedFoliateView(
-            document: document,
-            fallback: boundedFallback,
-            quotes: const ['quote-1', 'quote-2'],
-          ),
+    await tester.pumpWidget(
+      host(
+        IsolatedFoliateView(
+          document: document,
+          fallback: boundedFallback,
+          quotes: const ['quote-1', 'quote-2'],
         ),
-      );
+      ),
+    );
 
-      expect(find.byKey(const Key('foliate-surface')), findsOneWidget);
-    },
-  );
+    expect(find.byKey(const Key('foliate-surface')), findsOneWidget);
+  });
 
-  testWidgets(
-    'forwarding a session does not crash in the fallback path',
-    (tester) async {
-      final document = buildDocument();
-      final session = FoliateSession.open(document, pageCharLimit: 200);
+  testWidgets('forwarding a session does not crash in the fallback path', (
+    tester,
+  ) async {
+    final document = buildDocument();
+    final session = FoliateSession.open(document, pageCharLimit: 200);
 
-      await tester.pumpWidget(
-        host(
-          IsolatedFoliateView(
-            document: document,
-            session: session,
-            fallback: boundedFallback,
-          ),
+    await tester.pumpWidget(
+      host(
+        IsolatedFoliateView(
+          document: document,
+          session: session,
+          fallback: boundedFallback,
         ),
-      );
+      ),
+    );
 
-      expect(find.byKey(const Key('foliate-surface')), findsOneWidget);
-    },
-  );
+    expect(find.byKey(const Key('foliate-surface')), findsOneWidget);
+  });
 
   testWidgets(
     'updating fragmentEpoch without a fragment is a no-op in fallback',
@@ -187,12 +174,12 @@ void main() {
       final document = buildDocument();
 
       Widget build(int epoch) => host(
-            IsolatedFoliateView(
-              document: document,
-              fallback: boundedFallback,
-              fragmentEpoch: epoch,
-            ),
-          );
+        IsolatedFoliateView(
+          document: document,
+          fallback: boundedFallback,
+          fragmentEpoch: epoch,
+        ),
+      );
 
       await tester.pumpWidget(build(0));
       await tester.pumpWidget(build(1));
@@ -208,12 +195,12 @@ void main() {
       final document = buildDocument();
 
       Widget build(int epoch) => host(
-            IsolatedFoliateView(
-              document: document,
-              fallback: boundedFallback,
-              scrollQuoteEpoch: epoch,
-            ),
-          );
+        IsolatedFoliateView(
+          document: document,
+          fallback: boundedFallback,
+          scrollQuoteEpoch: epoch,
+        ),
+      );
 
       await tester.pumpWidget(build(0));
       await tester.pumpWidget(build(1));
@@ -223,63 +210,62 @@ void main() {
     },
   );
 
-  testWidgets(
-    'updating pageIndex without a session is a no-op in fallback',
-    (tester) async {
-      final document = buildDocument();
+  testWidgets('updating pageIndex without a session is a no-op in fallback', (
+    tester,
+  ) async {
+    final document = buildDocument();
 
-      Widget build(int index) => host(
-            IsolatedFoliateView(
-              document: document,
-              fallback: boundedFallback,
-              pageIndex: index,
-            ),
-          );
+    Widget build(int index) => host(
+      IsolatedFoliateView(
+        document: document,
+        fallback: boundedFallback,
+        pageIndex: index,
+      ),
+    );
 
-      await tester.pumpWidget(build(0));
-      await tester.pumpWidget(build(3));
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(build(0));
+    await tester.pumpWidget(build(3));
+    await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('foliate-surface')), findsOneWidget);
-    },
-  );
+    expect(find.byKey(const Key('foliate-surface')), findsOneWidget);
+  });
 
-  testWidgets(
-    'updating quotes triggers a didUpdateWidget without crashing',
-    (tester) async {
-      final document = buildDocument();
+  testWidgets('updating quotes triggers a didUpdateWidget without crashing', (
+    tester,
+  ) async {
+    final document = buildDocument();
 
-      Widget build(List<String> quotes) => host(
-            IsolatedFoliateView(
-              document: document,
-              fallback: boundedFallback,
-              quotes: quotes,
-            ),
-          );
+    Widget build(List<String> quotes) => host(
+      IsolatedFoliateView(
+        document: document,
+        fallback: boundedFallback,
+        quotes: quotes,
+      ),
+    );
 
-      await tester.pumpWidget(build(const ['q1']));
-      await tester.pumpWidget(build(const ['q1', 'q2']));
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(build(const ['q1']));
+    await tester.pumpWidget(build(const ['q1', 'q2']));
+    await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('foliate-surface')), findsOneWidget);
-    },
-  );
+    expect(find.byKey(const Key('foliate-surface')), findsOneWidget);
+  });
 
-  testWidgets(
-    'updating surface triggers a didUpdateWidget without crashing',
-    (tester) async {
-      final document = buildDocument();
+  testWidgets('updating surface triggers a didUpdateWidget without crashing', (
+    tester,
+  ) async {
+    final document = buildDocument();
 
-      Widget build(ReadingSurface surface) => host(
-            IsolatedFoliateView(
-              document: document,
-              fallback: boundedFallback,
-              surface: surface,
-            ),
-          );
+    Widget build(ReadingSurface surface) => host(
+      IsolatedFoliateView(
+        document: document,
+        fallback: boundedFallback,
+        surface: surface,
+      ),
+    );
 
-      await tester.pumpWidget(build(ReadingSurface.light));
-      await tester.pumpWidget(build(
+    await tester.pumpWidget(build(ReadingSurface.light));
+    await tester.pumpWidget(
+      build(
         ReadingSurface.resolve(
           fontSize: 20,
           lineHeight: 1.5,
@@ -287,10 +273,10 @@ void main() {
           paper: ReaderPaper.dark,
           brightness: Brightness.light,
         ),
-      ));
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('foliate-surface')), findsOneWidget);
-    },
-  );
+    expect(find.byKey(const Key('foliate-surface')), findsOneWidget);
+  });
 }

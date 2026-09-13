@@ -185,8 +185,7 @@ void main() {
       );
     });
 
-    test('single page stays at zero when the user is already at the start',
-        () {
+    test('single page stays at zero when the user is already at the start', () {
       // pageIndex (0) <= 0 short-circuits to 0 instead of returning -1.
       expect(
         comicPreviousPageIndex(

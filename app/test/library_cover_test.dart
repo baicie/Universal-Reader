@@ -60,10 +60,7 @@ class _StubLibraryRepository implements LibraryRepository {
 
 const _docId = 'library-cover-book';
 
-DocumentMetadata _metadata({
-  String id = _docId,
-  bool hasCover = true,
-}) {
+DocumentMetadata _metadata({String id = _docId, bool hasCover = true}) {
   return DocumentMetadata(
     id: id,
     title: 'Cover Book',
@@ -89,9 +86,7 @@ Future<void> _pump(
 }) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [
-        libraryRepositoryProvider.overrideWithValue(repository),
-      ],
+      overrides: [libraryRepositoryProvider.overrideWithValue(repository)],
       child: MaterialApp(home: Scaffold(body: child)),
     ),
   );

@@ -46,8 +46,10 @@ void main() {
         ...List<int>.filled(80, 0),
         ...'first chapter with enough text to pass the threshold'.codeUnits,
       ];
-      final document =
-          MobiReaderDocument.parse(metadata: metadata, bytes: bytes);
+      final document = MobiReaderDocument.parse(
+        metadata: metadata,
+        bytes: bytes,
+      );
 
       expect(document.chapterIndex, 0);
       expect(document.chapterCount, 1);
@@ -81,8 +83,10 @@ void main() {
         ...List<int>.filled(80, 0),
         ...'full text content for extraction test'.codeUnits,
       ];
-      final document =
-          MobiReaderDocument.parse(metadata: metadata, bytes: bytes);
+      final document = MobiReaderDocument.parse(
+        metadata: metadata,
+        bytes: bytes,
+      );
 
       final text = await document.extractText(
         DocumentRange(
@@ -209,8 +213,10 @@ void main() {
         ...zipSignature,
         ...minimalEpubBytes(firstBody: 'embedded epub'),
       ];
-      final document =
-          MobiReaderDocument.parse(metadata: metadata, bytes: bytes);
+      final document = MobiReaderDocument.parse(
+        metadata: metadata,
+        bytes: bytes,
+      );
 
       // Should successfully parse as EPUB (no exception thrown)
       expect(document.chapterCount, greaterThan(0));
@@ -223,8 +229,10 @@ void main() {
         ...List<int>.filled(30, 0x01), // binary junk
         ...'This is valid English text that should be extracted'.codeUnits,
       ];
-      final document =
-          MobiReaderDocument.parse(metadata: metadata, bytes: bytes);
+      final document = MobiReaderDocument.parse(
+        metadata: metadata,
+        bytes: bytes,
+      );
 
       expect(document.currentChapterText, contains('valid English text'));
     });
@@ -234,8 +242,10 @@ void main() {
         ...List<int>.filled(80, 0),
         ...'text with <tags> & special "chars"'.codeUnits,
       ];
-      final document =
-          MobiReaderDocument.parse(metadata: metadata, bytes: bytes);
+      final document = MobiReaderDocument.parse(
+        metadata: metadata,
+        bytes: bytes,
+      );
 
       expect(document.currentChapterHtml, contains('&lt;'));
       expect(document.currentChapterHtml, contains('&gt;'));

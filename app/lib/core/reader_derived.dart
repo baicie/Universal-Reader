@@ -28,9 +28,7 @@ class ReaderDerived {
     required String body,
     required AppLocalizations l10n,
   }) {
-    final currentIndex = opened is ChapteredDocument
-        ? opened.chapterIndex
-        : 0;
+    final currentIndex = opened is ChapteredDocument ? opened.chapterIndex : 0;
     final chapterCount = opened is ChapteredDocument
         ? opened.chapterCount
         : tocItems.length;
@@ -40,9 +38,11 @@ class ReaderDerived {
     final currentTitle = opened is HtmlChapteredDocument
         ? opened.currentChapterTitle
         : tocItems.isEmpty
-            ? ''
-            : tocItems[currentIndex.clamp(0, tocItems.length - 1)].title;
-    final heading = currentTitle.trim().isEmpty ? l10n.untitledSection : currentTitle;
+        ? ''
+        : tocItems[currentIndex.clamp(0, tocItems.length - 1)].title;
+    final heading = currentTitle.trim().isEmpty
+        ? l10n.untitledSection
+        : currentTitle;
     final paragraphs = splitTextParagraphs(body);
     return ReaderDerived(
       currentIndex: currentIndex,

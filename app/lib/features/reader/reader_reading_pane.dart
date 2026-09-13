@@ -122,8 +122,7 @@ class ReaderReadingPane extends StatelessWidget {
     );
   }
 
-  EdgeInsets _chromeBottomPadding() =>
-      EdgeInsets.only(bottom: chrome ? 72 : 0);
+  EdgeInsets _chromeBottomPadding() => EdgeInsets.only(bottom: chrome ? 72 : 0);
 
   @override
   Widget build(BuildContext context) {

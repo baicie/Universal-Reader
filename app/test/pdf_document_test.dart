@@ -54,9 +54,7 @@ void main() {
     test('exposes chapter navigation matching parsed page count', () {
       final document = PdfReaderDocument.parse(
         metadata: metadata,
-        bytes: minimalPdfBytes(
-          pages: ['one', 'two', 'three'],
-        ),
+        bytes: minimalPdfBytes(pages: ['one', 'two', 'three']),
       );
 
       expect(document.chapterIndex, 0);
@@ -90,9 +88,7 @@ void main() {
     test('locatorForProgress maps to a real page index', () {
       final document = PdfReaderDocument.parse(
         metadata: metadata,
-        bytes: minimalPdfBytes(
-          pages: ['one', 'two', 'three', 'four'],
-        ),
+        bytes: minimalPdfBytes(pages: ['one', 'two', 'three', 'four']),
       );
 
       // floor(0.25 * 4) = 1 -> page 2; floor(0.5 * 4) = 2 -> page 3.
@@ -112,8 +108,7 @@ void main() {
       expect((locator as PdfLocator).page, 3);
     });
 
-    test('locatorForProgress clamps values above 1 to second-to-last page',
-        () {
+    test('locatorForProgress clamps values above 1 to second-to-last page', () {
       final document = PdfReaderDocument.parse(
         metadata: metadata,
         bytes: minimalPdfBytes(pages: ['one', 'two']),
@@ -164,9 +159,7 @@ void main() {
         bytes: minimalPdfBytes(pages: ['a', 'b']),
       );
 
-      await document.goTo(
-        TextLocator(offset: document.parsed.fullText.length),
-      );
+      await document.goTo(TextLocator(offset: document.parsed.fullText.length));
       expect(document.chapterIndex, 1);
     });
 
@@ -217,24 +210,26 @@ void main() {
       expect(text, contains('two'));
     });
 
-    test('extractText with PdfLocator end point only returns from start',
-        () async {
-      final document = PdfReaderDocument.parse(
-        metadata: metadata,
-        bytes: minimalPdfBytes(pages: ['one', 'two']),
-      );
+    test(
+      'extractText with PdfLocator end point only returns from start',
+      () async {
+        final document = PdfReaderDocument.parse(
+          metadata: metadata,
+          bytes: minimalPdfBytes(pages: ['one', 'two']),
+        );
 
-      final text = await document.extractText(
-        const DocumentRange(
-          start: PdfLocator(page: 1),
-          end: TextLocator(offset: 0),
-        ),
-      );
-      // The mixed PdfLocator/TextLocator range picks the document tail end as
-      // the upper bound, so both pages are included.
-      expect(text, contains('one'));
-      expect(text, contains('two'));
-    });
+        final text = await document.extractText(
+          const DocumentRange(
+            start: PdfLocator(page: 1),
+            end: TextLocator(offset: 0),
+          ),
+        );
+        // The mixed PdfLocator/TextLocator range picks the document tail end as
+        // the upper bound, so both pages are included.
+        expect(text, contains('one'));
+        expect(text, contains('two'));
+      },
+    );
 
     test('extractText with TextLocator range returns substring', () async {
       final document = PdfReaderDocument.parse(
@@ -324,10 +319,7 @@ void main() {
 
       final results = await document.search('alpha');
       expect(results, hasLength(2));
-      expect(
-        results.every((r) => r.locator is PdfLocator),
-        isTrue,
-      );
+      expect(results.every((r) => r.locator is PdfLocator), isTrue);
       expect(
         results.map((r) => (r.locator as PdfLocator).page).toList(),
         equals([1, 3]),
@@ -364,21 +356,20 @@ void main() {
       expect(results.first.title, equals('My Book'));
     });
 
-    test('getToc emits one TocItem per page with the page number as title',
-        () async {
-      final document = PdfReaderDocument.parse(
-        metadata: metadata,
-        bytes: minimalPdfBytes(pages: ['one', 'two', 'three']),
-      );
+    test(
+      'getToc emits one TocItem per page with the page number as title',
+      () async {
+        final document = PdfReaderDocument.parse(
+          metadata: metadata,
+          bytes: minimalPdfBytes(pages: ['one', 'two', 'three']),
+        );
 
-      final toc = await document.getToc();
-      expect(toc, hasLength(3));
-      expect(
-        toc.map((item) => item.title).toList(),
-        equals(['1', '2', '3']),
-      );
-      expect(toc.first.children, isEmpty);
-    });
+        final toc = await document.getToc();
+        expect(toc, hasLength(3));
+        expect(toc.map((item) => item.title).toList(), equals(['1', '2', '3']));
+        expect(toc.first.children, isEmpty);
+      },
+    );
 
     test('truncated is always false', () {
       final document = PdfReaderDocument.parse(
@@ -420,36 +411,36 @@ void main() {
       expect(document.currentChapterText, contains('one-c'));
     });
 
-    test('multi-string pages distribute across pages when 1:1 ratio fails',
-        () async {
-      final document = PdfReaderDocument.parse(
-        metadata: metadata,
-        bytes: minimalPdfBytes(
-          pages: ['p1', 'p2'],
-          stringsPerPage: [
-            ['a', 'b', 'c'],
-            ['d', 'e', 'f'],
-          ],
-        ),
-      );
+    test(
+      'multi-string pages distribute across pages when 1:1 ratio fails',
+      () async {
+        final document = PdfReaderDocument.parse(
+          metadata: metadata,
+          bytes: minimalPdfBytes(
+            pages: ['p1', 'p2'],
+            stringsPerPage: [
+              ['a', 'b', 'c'],
+              ['d', 'e', 'f'],
+            ],
+          ),
+        );
 
-      expect(document.chapterCount, 2);
-      // 6 strings / 2 pages => 3 per page.
-      expect(document.currentChapterText, contains('a'));
-      expect(document.currentChapterText, contains('b'));
-      expect(document.currentChapterText, contains('c'));
-      await document.goTo(const PdfLocator(page: 2));
-      expect(document.currentChapterText, contains('d'));
-      expect(document.currentChapterText, contains('e'));
-      expect(document.currentChapterText, contains('f'));
-    });
+        expect(document.chapterCount, 2);
+        // 6 strings / 2 pages => 3 per page.
+        expect(document.currentChapterText, contains('a'));
+        expect(document.currentChapterText, contains('b'));
+        expect(document.currentChapterText, contains('c'));
+        await document.goTo(const PdfLocator(page: 2));
+        expect(document.currentChapterText, contains('d'));
+        expect(document.currentChapterText, contains('e'));
+        expect(document.currentChapterText, contains('f'));
+      },
+    );
 
     test('PDF escape sequences are unescaped in parsed text', () async {
       final document = PdfReaderDocument.parse(
         metadata: metadata,
-        bytes: minimalPdfBytes(
-          pages: ['line1\nline2\twith\\slash and(paren)'],
-        ),
+        bytes: minimalPdfBytes(pages: ['line1\nline2\twith\\slash and(paren)']),
       );
 
       final text = document.currentChapterText;
@@ -488,10 +479,7 @@ void main() {
     });
 
     test('rejects empty bytes', () {
-      expect(
-        () => parsePdf(const []),
-        throwsA(isA<FormatException>()),
-      );
+      expect(() => parsePdf(const []), throwsA(isA<FormatException>()));
     });
 
     test('rejects bytes too short for a header', () {

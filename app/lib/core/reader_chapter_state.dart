@@ -5,27 +5,26 @@ import 'text_document.dart';
 /// State of the reader's main text body. Drives which copy / icon the
 /// plain-text fallback renders and which locator data is needed.
 class ReaderChapterState {
-  const ReaderChapterState._(this.kind, this.truncated, this.missingFile,
-      this.formatLabel);
+  const ReaderChapterState._(
+    this.kind,
+    this.truncated,
+    this.missingFile,
+    this.formatLabel,
+  );
 
   const ReaderChapterState.loading()
-      : this._(ReaderChapterKind.loading, false, false, '');
+    : this._(ReaderChapterKind.loading, false, false, '');
 
   const ReaderChapterState.corrupt()
-      : this._(ReaderChapterKind.corrupt, false, false, '');
+    : this._(ReaderChapterKind.corrupt, false, false, '');
 
   const ReaderChapterState.unavailable({
     required bool missingFile,
     required String formatLabel,
-  }) : this._(
-            ReaderChapterKind.unavailable,
-            false,
-            missingFile,
-            formatLabel,
-          );
+  }) : this._(ReaderChapterKind.unavailable, false, missingFile, formatLabel);
 
   const ReaderChapterState.ready({required bool truncated})
-      : this._(ReaderChapterKind.ready, truncated, false, '');
+    : this._(ReaderChapterKind.ready, truncated, false, '');
 
   final ReaderChapterKind kind;
   final bool truncated;

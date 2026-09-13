@@ -72,9 +72,7 @@ void main() {
     });
 
     test('locatorForProgress clamps to valid range', () {
-      final bytes = zipNamedFiles({
-        'page-01.png': tinyPngBytes(),
-      });
+      final bytes = zipNamedFiles({'page-01.png': tinyPngBytes()});
       final document = ComicReaderDocument.parse(
         metadata: metadata,
         bytes: bytes,
@@ -88,9 +86,7 @@ void main() {
     });
 
     test('currentLocator returns current page locator', () async {
-      final bytes = zipNamedFiles({
-        'page-01.png': tinyPngBytes(),
-      });
+      final bytes = zipNamedFiles({'page-01.png': tinyPngBytes()});
       final document = ComicReaderDocument.parse(
         metadata: metadata,
         bytes: bytes,
@@ -102,9 +98,7 @@ void main() {
     });
 
     test('extractText returns current page name', () async {
-      final bytes = zipNamedFiles({
-        'cover.jpg': tinyPngBytes(),
-      });
+      final bytes = zipNamedFiles({'cover.jpg': tinyPngBytes()});
       final document = ComicReaderDocument.parse(
         metadata: metadata,
         bytes: bytes,
@@ -150,9 +144,7 @@ void main() {
     });
 
     test('goTo clamps page to valid range', () async {
-      final bytes = zipNamedFiles({
-        'page-01.png': tinyPngBytes(),
-      });
+      final bytes = zipNamedFiles({'page-01.png': tinyPngBytes()});
       final document = ComicReaderDocument.parse(
         metadata: metadata,
         bytes: bytes,
@@ -166,9 +158,7 @@ void main() {
     });
 
     test('goTo ignores unsupported locator types', () async {
-      final bytes = zipNamedFiles({
-        'page-01.png': tinyPngBytes(),
-      });
+      final bytes = zipNamedFiles({'page-01.png': tinyPngBytes()});
       final document = ComicReaderDocument.parse(
         metadata: metadata,
         bytes: bytes,
@@ -196,9 +186,7 @@ void main() {
     });
 
     test('progress returns 0 for single page', () async {
-      final bytes = zipNamedFiles({
-        'page-01.png': tinyPngBytes(),
-      });
+      final bytes = zipNamedFiles({'page-01.png': tinyPngBytes()});
       final document = ComicReaderDocument.parse(
         metadata: metadata,
         bytes: bytes,
@@ -225,9 +213,7 @@ void main() {
     });
 
     test('search is case-insensitive', () async {
-      final bytes = zipNamedFiles({
-        'PageOne.png': tinyPngBytes(),
-      });
+      final bytes = zipNamedFiles({'PageOne.png': tinyPngBytes()});
       final document = ComicReaderDocument.parse(
         metadata: metadata,
         bytes: bytes,
@@ -238,9 +224,7 @@ void main() {
     });
 
     test('search returns empty for no matches', () async {
-      final bytes = zipNamedFiles({
-        'page-01.png': tinyPngBytes(),
-      });
+      final bytes = zipNamedFiles({'page-01.png': tinyPngBytes()});
       final document = ComicReaderDocument.parse(
         metadata: metadata,
         bytes: bytes,
@@ -251,9 +235,7 @@ void main() {
     });
 
     test('search returns empty for empty query', () async {
-      final bytes = zipNamedFiles({
-        'page-01.png': tinyPngBytes(),
-      });
+      final bytes = zipNamedFiles({'page-01.png': tinyPngBytes()});
       final document = ComicReaderDocument.parse(
         metadata: metadata,
         bytes: bytes,
@@ -284,9 +266,7 @@ void main() {
     });
 
     test('truncated is always false', () {
-      final bytes = zipNamedFiles({
-        'page-01.png': tinyPngBytes(),
-      });
+      final bytes = zipNamedFiles({'page-01.png': tinyPngBytes()});
       final document = ComicReaderDocument.parse(
         metadata: metadata,
         bytes: bytes,
@@ -296,9 +276,7 @@ void main() {
     });
 
     test('currentPage clamps index to valid range', () {
-      final bytes = zipNamedFiles({
-        'page-01.png': tinyPngBytes(),
-      });
+      final bytes = zipNamedFiles({'page-01.png': tinyPngBytes()});
       final document = ComicReaderDocument.parse(
         metadata: metadata,
         bytes: bytes,
@@ -354,7 +332,12 @@ void main() {
       );
 
       expect(document.chapterCount, 2);
-      expect(document.pages.every((p) => p.name.endsWith('.png') || p.name.endsWith('.jpg')), isTrue);
+      expect(
+        document.pages.every(
+          (p) => p.name.endsWith('.png') || p.name.endsWith('.jpg'),
+        ),
+        isTrue,
+      );
     });
 
     test('empty archive is corrupt', () {

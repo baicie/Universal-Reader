@@ -353,8 +353,7 @@ class PersistedLibraryController extends ChangeNotifier {
   Future<List<PickedFile>> _platformPicker() async {
     final files = await FilePicker.pickFiles();
     return [
-      for (final file in files)
-        (name: file.name, read: file.readAsBytes),
+      for (final file in files) (name: file.name, read: file.readAsBytes),
     ];
   }
 
@@ -362,8 +361,7 @@ class PersistedLibraryController extends ChangeNotifier {
     final files = await picker();
     if (files.isEmpty) return const ImportOutcome.cancelled();
     return importNamedBytes([
-      for (final file in files)
-        (name: file.name, bytes: await file.read()),
+      for (final file in files) (name: file.name, bytes: await file.read()),
     ]);
   }
 

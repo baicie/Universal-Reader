@@ -11,11 +11,9 @@ import 'support/fb2_fixture.dart';
 void main() {
   group('parseFb2', () {
     test('extracts title and author from description', () {
-      final parsed = parseFb2(minimalFb2Bytes(
-        title: '我的书',
-        authorFirst: '张',
-        authorLast: '三',
-      ));
+      final parsed = parseFb2(
+        minimalFb2Bytes(title: '我的书', authorFirst: '张', authorLast: '三'),
+      );
       expect(parsed.title, '我的书');
       expect(parsed.author, '张 三');
     });
@@ -26,7 +24,8 @@ void main() {
     });
 
     test('title is empty when book-title is absent', () {
-      final bytes = '<?xml version="1.0" encoding="UTF-8"?>'
+      final bytes =
+          '<?xml version="1.0" encoding="UTF-8"?>'
           '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">'
           '<description><title-info></title-info></description>'
           '<body><section><title>Chapter</title><p>Text</p></section></body>'
@@ -35,10 +34,12 @@ void main() {
     });
 
     test('parses one chapter from a section with title', () {
-      final parsed = parseFb2(minimalFb2Bytes(
-        chapterTitles: ['第一章'],
-        chapterBodies: ['first chapter paragraph'],
-      ));
+      final parsed = parseFb2(
+        minimalFb2Bytes(
+          chapterTitles: ['第一章'],
+          chapterBodies: ['first chapter paragraph'],
+        ),
+      );
       expect(parsed.chapters, hasLength(1));
       expect(parsed.chapters[0].title, '第一章');
       expect(parsed.chapters[0].text, contains('first chapter'));
@@ -46,10 +47,12 @@ void main() {
     });
 
     test('parses multiple chapters preserving order', () {
-      final parsed = parseFb2(minimalFb2Bytes(
-        chapterTitles: ['第一章', '第二章', '第三章'],
-        chapterBodies: ['alpha\nbeta', 'gamma', 'delta'],
-      ));
+      final parsed = parseFb2(
+        minimalFb2Bytes(
+          chapterTitles: ['第一章', '第二章', '第三章'],
+          chapterBodies: ['alpha\nbeta', 'gamma', 'delta'],
+        ),
+      );
       expect(parsed.chapters, hasLength(3));
       expect(parsed.chapters[0].href, isNotEmpty);
       expect(parsed.chapters[1].href, isNot(equals(parsed.chapters[0].href)));
@@ -59,10 +62,12 @@ void main() {
     });
 
     test('annotation section appears as a chapter with href=annotation', () {
-      final parsed = parseFb2(fb2WithAnnotationBytes(
-        title: 'Annotated',
-        annotation: 'A brief description of the book.',
-      ));
+      final parsed = parseFb2(
+        fb2WithAnnotationBytes(
+          title: 'Annotated',
+          annotation: 'A brief description of the book.',
+        ),
+      );
       // Annotation becomes the first chapter.
       expect(parsed.chapters.first.href, 'annotation');
       expect(parsed.chapters.first.text, contains('brief description'));
@@ -77,14 +82,12 @@ void main() {
 
     test('throws FormatException when root element is not FictionBook', () {
       final bytes = '<?xml version="1.0"?><html><body>test</body></html>';
-      expect(
-        () => parseFb2(bytes.codeUnits),
-        throwsA(isA<FormatException>()),
-      );
+      expect(() => parseFb2(bytes.codeUnits), throwsA(isA<FormatException>()));
     });
 
     test('accepts FictionBook regardless of case', () {
-      final bytes = '<?xml version="1.0"?>'
+      final bytes =
+          '<?xml version="1.0"?>'
           '<FICTIONBOOK xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">'
           '<description><title-info><book-title>Title</book-title></title-info></description>'
           '<body><section><title>Ch</title><p>Text</p></section></body>'
@@ -94,72 +97,84 @@ void main() {
     });
 
     test('epigraph text is prepended to the first chapter text', () {
-      final parsed = parseFb2(fb2WithBodyLeadBytes(
-        bodyLead: '<epigraph><p>Quote from a friend.</p></epigraph>',
-        chapterTitle: '正文',
-        chapterParagraphs: ['main paragraph'],
-      ));
+      final parsed = parseFb2(
+        fb2WithBodyLeadBytes(
+          bodyLead: '<epigraph><p>Quote from a friend.</p></epigraph>',
+          chapterTitle: '正文',
+          chapterParagraphs: ['main paragraph'],
+        ),
+      );
       expect(parsed.chapters, hasLength(1));
       expect(parsed.chapters.first.text, contains('Quote from a friend'));
     });
 
     test('cite text is prepended to the first chapter text', () {
-      final parsed = parseFb2(fb2WithBodyLeadBytes(
-        bodyLead: '<cite><p>Cited reference.</p></cite>',
-        chapterTitle: '正文',
-        chapterParagraphs: ['main paragraph'],
-      ));
+      final parsed = parseFb2(
+        fb2WithBodyLeadBytes(
+          bodyLead: '<cite><p>Cited reference.</p></cite>',
+          chapterTitle: '正文',
+          chapterParagraphs: ['main paragraph'],
+        ),
+      );
       expect(parsed.chapters.first.text, contains('Cited reference'));
     });
 
     test('subtitle text is prepended to the first chapter text', () {
-      final parsed = parseFb2(fb2WithBodyLeadBytes(
-        bodyLead: '<subtitle>subtitle text</subtitle>',
-        chapterTitle: '正文',
-        chapterParagraphs: ['main paragraph'],
-      ));
+      final parsed = parseFb2(
+        fb2WithBodyLeadBytes(
+          bodyLead: '<subtitle>subtitle text</subtitle>',
+          chapterTitle: '正文',
+          chapterParagraphs: ['main paragraph'],
+        ),
+      );
       expect(parsed.chapters.first.text, contains('subtitle text'));
     });
 
     test('empty-line lead does not add visible text', () {
-      final parsed = parseFb2(fb2WithBodyLeadBytes(
-        bodyLead: '<empty-line/>',
-        chapterTitle: '正文',
-        chapterParagraphs: ['only main paragraph'],
-      ));
+      final parsed = parseFb2(
+        fb2WithBodyLeadBytes(
+          bodyLead: '<empty-line/>',
+          chapterTitle: '正文',
+          chapterParagraphs: ['only main paragraph'],
+        ),
+      );
       expect(parsed.chapters.first.text, contains('only main paragraph'));
       // The chapter html should still render the empty line as a break.
       expect(parsed.chapters.first.html, contains('<br'));
     });
 
     test('poem body content becomes part of the chapter text', () {
-      final parsed = parseFb2(fb2WithChapterBlocksBytes([
-        '<title>Poem Chapter</title>',
-        '<poem><stanza><v>line one</v><v>line two</v></stanza></poem>',
-      ]));
+      final parsed = parseFb2(
+        fb2WithChapterBlocksBytes([
+          '<title>Poem Chapter</title>',
+          '<poem><stanza><v>line one</v><v>line two</v></stanza></poem>',
+        ]),
+      );
       expect(parsed.chapters.first.text, contains('line one'));
       expect(parsed.chapters.first.text, contains('line two'));
     });
 
     test('epigraph inside a poem stanza still survives', () {
-      final parsed = parseFb2(fb2WithChapterBlocksBytes([
-        '<title>Stanza Epigraph</title>',
-        '<poem>'
-            '<stanza><v>main verse</v>'
-            '<epigraph><p>attribution line</p></epigraph>'
-            '</stanza>'
-            '</poem>',
-      ]));
+      final parsed = parseFb2(
+        fb2WithChapterBlocksBytes([
+          '<title>Stanza Epigraph</title>',
+          '<poem>'
+              '<stanza><v>main verse</v>'
+              '<epigraph><p>attribution line</p></epigraph>'
+              '</stanza>'
+              '</poem>',
+        ]),
+      );
       expect(parsed.chapters.first.text, contains('main verse'));
       expect(parsed.chapters.first.text, contains('attribution line'));
     });
 
-    test('a notes body becomes chapters deferred until main sections exist',
-        () {
+    test('a notes body becomes chapters deferred until main sections exist', () {
       // main body has a section, the secondary body has name="notes" — both
       // should end up as chapters since index > 0 by the time notes is
       // emitted.
-      final bytes = '<?xml version="1.0"?>'
+      final bytes =
+          '<?xml version="1.0"?>'
           '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">'
           '<description><title-info><book-title>Notes Book</book-title>'
           '</title-info></description>'
@@ -178,51 +193,55 @@ void main() {
 
   group('parseFb2 inlines', () {
     test('emphasis wraps text in <em>', () {
-      final parsed = parseFb2(fb2WithInlineParagraphBytes(
-        extra: '<emphasis>italic</emphasis>',
-      ));
+      final parsed = parseFb2(
+        fb2WithInlineParagraphBytes(extra: '<emphasis>italic</emphasis>'),
+      );
       expect(parsed.chapters.first.html, contains('<em>italic</em>'));
     });
 
     test('strong wraps text in <strong>', () {
-      final parsed = parseFb2(fb2WithInlineParagraphBytes(
-        extra: '<strong>bold</strong>',
-      ));
+      final parsed = parseFb2(
+        fb2WithInlineParagraphBytes(extra: '<strong>bold</strong>'),
+      );
       expect(parsed.chapters.first.html, contains('<strong>bold</strong>'));
     });
 
     test('strikethrough wraps text in <s>', () {
-      final parsed = parseFb2(fb2WithInlineParagraphBytes(
-        extra: '<strikethrough>cut</strikethrough>',
-      ));
+      final parsed = parseFb2(
+        fb2WithInlineParagraphBytes(
+          extra: '<strikethrough>cut</strikethrough>',
+        ),
+      );
       expect(parsed.chapters.first.html, contains('<s>cut</s>'));
     });
 
     test('sub wraps text in <sub>', () {
-      final parsed = parseFb2(fb2WithInlineParagraphBytes(
-        extra: '<sub>2</sub>',
-      ));
+      final parsed = parseFb2(
+        fb2WithInlineParagraphBytes(extra: '<sub>2</sub>'),
+      );
       expect(parsed.chapters.first.html, contains('<sub>2</sub>'));
     });
 
     test('sup wraps text in <sup>', () {
-      final parsed = parseFb2(fb2WithInlineParagraphBytes(
-        extra: '<sup>n</sup>',
-      ));
+      final parsed = parseFb2(
+        fb2WithInlineParagraphBytes(extra: '<sup>n</sup>'),
+      );
       expect(parsed.chapters.first.html, contains('<sup>n</sup>'));
     });
 
     test('code wraps text in <code>', () {
-      final parsed = parseFb2(fb2WithInlineParagraphBytes(
-        extra: '<code>printf</code>',
-      ));
+      final parsed = parseFb2(
+        fb2WithInlineParagraphBytes(extra: '<code>printf</code>'),
+      );
       expect(parsed.chapters.first.html, contains('<code>printf</code>'));
     });
 
     test('style with name produces <span class="…">', () {
-      final parsed = parseFb2(fb2WithInlineParagraphBytes(
-        extra: '<style name="highlight">lit</style>',
-      ));
+      final parsed = parseFb2(
+        fb2WithInlineParagraphBytes(
+          extra: '<style name="highlight">lit</style>',
+        ),
+      );
       expect(
         parsed.chapters.first.html,
         contains('<span class="highlight">lit</span>'),
@@ -230,20 +249,22 @@ void main() {
     });
 
     test('style without name falls back to plain inner text', () {
-      final parsed = parseFb2(fb2WithInlineParagraphBytes(
-        extra: '<style>naked</style>',
-      ));
+      final parsed = parseFb2(
+        fb2WithInlineParagraphBytes(extra: '<style>naked</style>'),
+      );
       // No <span> wrapper when no name attribute is provided.
       expect(parsed.chapters.first.html, isNot(contains('<span')));
       expect(parsed.chapters.first.html, contains('naked'));
     });
 
     test('a hash-href renders <a href="#…">', () {
-      final parsed = parseFb2(fb2WithInlineParagraphBytes(
-        textBefore: 'see ',
-        textAfter: ' for details',
-        extra: '<a l:href="#note1">footnote 1</a>',
-      ));
+      final parsed = parseFb2(
+        fb2WithInlineParagraphBytes(
+          textBefore: 'see ',
+          textAfter: ' for details',
+          extra: '<a l:href="#note1">footnote 1</a>',
+        ),
+      );
       expect(
         parsed.chapters.first.html,
         contains('<a href="#note1">footnote 1</a>'),
@@ -251,15 +272,14 @@ void main() {
     });
 
     test('a http-href renders external link with class', () {
-      final parsed = parseFb2(fb2WithInlineParagraphBytes(
-        textBefore: '',
-        textAfter: '',
-        extra: '<a l:href="https://example.com/x">ext</a>',
-      ));
-      expect(
-        parsed.chapters.first.html,
-        contains('class="external-link"'),
+      final parsed = parseFb2(
+        fb2WithInlineParagraphBytes(
+          textBefore: '',
+          textAfter: '',
+          extra: '<a l:href="https://example.com/x">ext</a>',
+        ),
       );
+      expect(parsed.chapters.first.html, contains('class="external-link"'));
       expect(
         parsed.chapters.first.html,
         contains('href="https://example.com/x"'),
@@ -267,16 +287,16 @@ void main() {
     });
 
     test('a with id but no href renders a <span id="…">', () {
-      final parsed = parseFb2(fb2WithInlineParagraphBytes(
-        extra: '<a id="bookmark-here">marker</a>',
-      ));
+      final parsed = parseFb2(
+        fb2WithInlineParagraphBytes(extra: '<a id="bookmark-here">marker</a>'),
+      );
       expect(parsed.chapters.first.html, contains('<span id="bookmark-here">'));
     });
 
     test('a with neither href nor id drops the wrapper', () {
-      final parsed = parseFb2(fb2WithInlineParagraphBytes(
-        extra: '<a>plain anchor</a>',
-      ));
+      final parsed = parseFb2(
+        fb2WithInlineParagraphBytes(extra: '<a>plain anchor</a>'),
+      );
       // The anchor wrapper should disappear entirely (no <a> tag emitted).
       expect(parsed.chapters.first.html, isNot(contains('<a')));
       expect(parsed.chapters.first.html, contains('plain anchor'));
@@ -313,10 +333,7 @@ void main() {
           format: DocumentFormat.fb2,
           type: DocumentType.reflow,
         ),
-        bytes: minimalFb2Bytes(
-          chapterTitles: titles,
-          chapterBodies: bodies,
-        ),
+        bytes: minimalFb2Bytes(chapterTitles: titles, chapterBodies: bodies),
       );
     }
 
@@ -368,10 +385,12 @@ void main() {
 
     test('extractText returns current chapter text', () async {
       final doc = build();
-      final text = await doc.extractText(DocumentRange(
-        start: EpubLocator(href: doc.currentChapter.href),
-        end: EpubLocator(href: doc.currentChapter.href),
-      ));
+      final text = await doc.extractText(
+        DocumentRange(
+          start: EpubLocator(href: doc.currentChapter.href),
+          end: EpubLocator(href: doc.currentChapter.href),
+        ),
+      );
       expect(text, contains('first content'));
     });
 
@@ -477,13 +496,14 @@ void main() {
   group('parseFb2 block elements', () {
     // All tests in this group feed a single chapter via fb2WithChapterBlocksBytes
     // and assert the rendered HTML for one specific block element branch.
-    String firstHtml(String blocks) => parseFb2(
-          fb2WithChapterBlocksBytes([blocks]),
-        ).chapters.first.html;
+    String firstHtml(String blocks) =>
+        parseFb2(fb2WithChapterBlocksBytes([blocks])).chapters.first.html;
 
     test('section-level <subtitle> renders as <h2>', () {
-      final html = firstHtml('<subtitle>A subtitle line</subtitle>'
-          '<p>body</p>');
+      final html = firstHtml(
+        '<subtitle>A subtitle line</subtitle>'
+        '<p>body</p>',
+      );
       expect(html, contains('<h2>A subtitle line</h2>'));
     });
 
@@ -497,7 +517,8 @@ void main() {
     test('section-level <image> with style adds class', () {
       const pngBase64 =
           'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
-      final raw = '<?xml version="1.0"?>'
+      final raw =
+          '<?xml version="1.0"?>'
           '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"'
           ' xmlns:l="http://www.w3.org/1999/xlink">'
           '<description><title-info><book-title>t</book-title></title-info>'
@@ -582,9 +603,7 @@ void main() {
     });
 
     test('poem <date> with empty inner uses value attribute', () {
-      final html = firstHtml(
-        '<poem><date value="2024-05"/></poem>',
-      );
+      final html = firstHtml('<poem><date value="2024-05"/></poem>');
       expect(html, contains('2024-05'));
     });
 

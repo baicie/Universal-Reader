@@ -21,13 +21,22 @@ void main() {
 
     test('toggle returns a new instance with the panel flipped', () {
       const initial = ReaderChromePanels();
-      expect(initial.toggle(PanelKind.toc), const ReaderChromePanels(toc: true));
-      expect(initial.toggle(PanelKind.bookmarks),
-          const ReaderChromePanels(bookmarks: true));
-      expect(initial.toggle(PanelKind.notes),
-          const ReaderChromePanels(showNotes: true));
-      expect(initial.toggle(PanelKind.search),
-          const ReaderChromePanels(showSearch: true));
+      expect(
+        initial.toggle(PanelKind.toc),
+        const ReaderChromePanels(toc: true),
+      );
+      expect(
+        initial.toggle(PanelKind.bookmarks),
+        const ReaderChromePanels(bookmarks: true),
+      );
+      expect(
+        initial.toggle(PanelKind.notes),
+        const ReaderChromePanels(showNotes: true),
+      );
+      expect(
+        initial.toggle(PanelKind.search),
+        const ReaderChromePanels(showSearch: true),
+      );
     });
 
     test('toggle is reversible', () {
@@ -62,22 +71,19 @@ void main() {
       expect(t, panels);
     });
 
-    test(
-      'toggling search closes it regardless of other panels',
-      () {
-        const panels = ReaderChromePanels(
-          toc: true,
-          bookmarks: true,
-          showNotes: true,
-          showSearch: true,
-        );
-        final closed = panels.toggle(PanelKind.search);
-        expect(closed.toc, true);
-        expect(closed.bookmarks, true);
-        expect(closed.showNotes, true);
-        expect(closed.showSearch, false);
-      },
-    );
+    test('toggling search closes it regardless of other panels', () {
+      const panels = ReaderChromePanels(
+        toc: true,
+        bookmarks: true,
+        showNotes: true,
+        showSearch: true,
+      );
+      final closed = panels.toggle(PanelKind.search);
+      expect(closed.toc, true);
+      expect(closed.bookmarks, true);
+      expect(closed.showNotes, true);
+      expect(closed.showSearch, false);
+    });
 
     test('anyOpen is true when several panels are open', () {
       const panels = ReaderChromePanels(toc: true, showNotes: true);
@@ -100,18 +106,17 @@ void main() {
 
     test('toggle returns a different instance', () {
       const panels = ReaderChromePanels();
-      expect(
-        identical(panels.toggle(PanelKind.toc), panels),
-        false,
-      );
+      expect(identical(panels.toggle(PanelKind.toc), panels), false);
     });
 
     test('enum PanelKind has exactly four values', () {
       expect(PanelKind.values, hasLength(4));
-      expect(
-        PanelKind.values.toSet(),
-        {PanelKind.toc, PanelKind.bookmarks, PanelKind.notes, PanelKind.search},
-      );
+      expect(PanelKind.values.toSet(), {
+        PanelKind.toc,
+        PanelKind.bookmarks,
+        PanelKind.notes,
+        PanelKind.search,
+      });
     });
   });
 }

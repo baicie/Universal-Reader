@@ -60,7 +60,9 @@ void main() {
       expect(find.widgetWithText(TextButton, '保存'), findsOneWidget);
     });
 
-    testWidgets('an empty quote renders as empty without padding the UI', (tester) async {
+    testWidgets('an empty quote renders as empty without padding the UI', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -122,7 +124,9 @@ void main() {
       expect(saveCalls, 0);
     });
 
-    testWidgets('close button uses MaterialLocalizations tooltip', (tester) async {
+    testWidgets('close button uses MaterialLocalizations tooltip', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           locale: const Locale('en', 'US'),

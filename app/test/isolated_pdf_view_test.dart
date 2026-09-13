@@ -19,10 +19,7 @@ void main() {
       minimalPdfBytes(pages: ['page one text', 'page two text']);
 
   PdfReaderDocument buildDocument() {
-    return PdfReaderDocument.parse(
-      metadata: metadata,
-      bytes: buildBytes(),
-    );
+    return PdfReaderDocument.parse(metadata: metadata, bytes: buildBytes());
   }
 
   Widget host(IsolatedPdfView view) {
@@ -77,70 +74,63 @@ void main() {
     },
   );
 
-  testWidgets(
-    'renders the fallback path when bytes are empty',
-    (tester) async {
-      final document = buildDocument();
-      const fallback = Text('empty bytes fallback');
+  testWidgets('renders the fallback path when bytes are empty', (tester) async {
+    final document = buildDocument();
+    const fallback = Text('empty bytes fallback');
 
-      await tester.pumpWidget(
-        host(
-          IsolatedPdfView(
-            document: document,
-            bytes: const <int>[],
-            fallback: fallback,
-            zoom: 1.0,
-          ),
+    await tester.pumpWidget(
+      host(
+        IsolatedPdfView(
+          document: document,
+          bytes: const <int>[],
+          fallback: fallback,
+          zoom: 1.0,
         ),
-      );
+      ),
+    );
 
-      expect(find.byKey(const Key('pdf-surface')), findsOneWidget);
-      expect(find.text('empty bytes fallback'), findsOneWidget);
-    },
-  );
+    expect(find.byKey(const Key('pdf-surface')), findsOneWidget);
+    expect(find.text('empty bytes fallback'), findsOneWidget);
+  });
 
-  testWidgets(
-    'applies zoom to the Transform.scale widget',
-    (tester) async {
-      final document = buildDocument();
-      const fallback = Text('zoom target');
+  testWidgets('applies zoom to the Transform.scale widget', (tester) async {
+    final document = buildDocument();
+    const fallback = Text('zoom target');
 
-      await tester.pumpWidget(
-        host(
-          IsolatedPdfView(
-            document: document,
-            bytes: buildBytes(),
-            fallback: fallback,
-            zoom: 1.5,
-          ),
+    await tester.pumpWidget(
+      host(
+        IsolatedPdfView(
+          document: document,
+          bytes: buildBytes(),
+          fallback: fallback,
+          zoom: 1.5,
         ),
-      );
+      ),
+    );
 
-      expect(find.byKey(const Key('pdf-zoom')), findsOneWidget);
-      expect(find.text('zoom target'), findsOneWidget);
-    },
-  );
+    expect(find.byKey(const Key('pdf-zoom')), findsOneWidget);
+    expect(find.text('zoom target'), findsOneWidget);
+  });
 
-  testWidgets(
-    'does not crash when didUpdateWidget changes the zoom',
-    (tester) async {
-      final document = buildDocument();
-      const fallback = Text('zoom widget test');
+  testWidgets('does not crash when didUpdateWidget changes the zoom', (
+    tester,
+  ) async {
+    final document = buildDocument();
+    const fallback = Text('zoom widget test');
 
-      Widget build(double zoom) => host(
-            IsolatedPdfView(
-              document: document,
-              bytes: buildBytes(),
-              fallback: fallback,
-              zoom: zoom,
-            ),
-          );
+    Widget build(double zoom) => host(
+      IsolatedPdfView(
+        document: document,
+        bytes: buildBytes(),
+        fallback: fallback,
+        zoom: zoom,
+      ),
+    );
 
-      await tester.pumpWidget(build(1.0));
-      await tester.pumpWidget(build(2.0));
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(build(1.0));
+    await tester.pumpWidget(build(2.0));
+    await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('pdf-surface')), findsOneWidget);
-    },
-  );
+    expect(find.byKey(const Key('pdf-surface')), findsOneWidget);
+  });
 }

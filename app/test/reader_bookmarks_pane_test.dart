@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  ReaderAnnotation makeBookmark({required String id, String locatorLabel = 'p.1'}) {
+  ReaderAnnotation makeBookmark({
+    required String id,
+    String locatorLabel = 'p.1',
+  }) {
     return ReaderAnnotation(
       id: id,
       note: '',
@@ -70,7 +73,9 @@ void main() {
       expect(find.text('No bookmarks'), findsNothing);
     });
 
-    testWidgets('shows a row per bookmark with the locator label', (tester) async {
+    testWidgets('shows a row per bookmark with the locator label', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -92,7 +97,9 @@ void main() {
       expect(find.text('Chapter 2'), findsOneWidget);
     });
 
-    testWidgets('tapping the locator label calls onOpen with that bookmark', (tester) async {
+    testWidgets('tapping the locator label calls onOpen with that bookmark', (
+      tester,
+    ) async {
       ReaderAnnotation? opened;
       await tester.pumpWidget(
         MaterialApp(
@@ -112,7 +119,9 @@ void main() {
       expect(opened?.id, 'bm1');
     });
 
-    testWidgets('delete button has the correct key per bookmark id', (tester) async {
+    testWidgets('delete button has the correct key per bookmark id', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -130,7 +139,9 @@ void main() {
       expect(find.byKey(const Key('delete-bookmark-bm-x')), findsOneWidget);
     });
 
-    testWidgets('tapping the delete button calls onDelete with that bookmark', (tester) async {
+    testWidgets('tapping the delete button calls onDelete with that bookmark', (
+      tester,
+    ) async {
       ReaderAnnotation? deleted;
       await tester.pumpWidget(
         MaterialApp(

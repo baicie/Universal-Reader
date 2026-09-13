@@ -5,16 +5,15 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('Eyebrow renders the given text', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: Eyebrow('CHAPTER ONE')),
-      ),
+      const MaterialApp(home: Scaffold(body: Eyebrow('CHAPTER ONE'))),
     );
 
     expect(find.text('CHAPTER ONE'), findsOneWidget);
   });
 
-  testWidgets('Eyebrow uses onSurfaceVariant colour from the theme',
-      (tester) async {
+  testWidgets('Eyebrow uses onSurfaceVariant colour from the theme', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData(
@@ -32,9 +31,7 @@ void main() {
 
   testWidgets('Eyebrow applies the correct font style', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: Eyebrow('Styled')),
-      ),
+      const MaterialApp(home: Scaffold(body: Eyebrow('Styled'))),
     );
 
     final text = tester.widget<Text>(find.text('Styled'));

@@ -29,41 +29,45 @@ void main() {
           onToggleChrome: onToggleChrome ?? () {},
           onTurnNext: onTurnNext ?? () {},
           onTurnPrevious: onTurnPrevious ?? () {},
-          child: const SizedBox(width: 200, height: 200, child: ColoredBox(color: Color(0xFFFFFFFF))),
+          child: const SizedBox(
+            width: 200,
+            height: 200,
+            child: ColoredBox(color: Color(0xFFFFFFFF)),
+          ),
         ),
       ),
     );
   }
 
-  testWidgets('routes arrowRight to onTurnNext when reflow is opened',
-      (tester) async {
+  testWidgets('routes arrowRight to onTurnNext when reflow is opened', (
+    tester,
+  ) async {
     var next = 0;
-    await tester.pumpWidget(wrap(
-      isReflowOpened: true,
-      onTurnNext: () => next++,
-    ));
+    await tester.pumpWidget(
+      wrap(isReflowOpened: true, onTurnNext: () => next++),
+    );
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     expect(next, 1);
   });
 
-  testWidgets('routes pageDown to onTurnNext when reflow is opened',
-      (tester) async {
+  testWidgets('routes pageDown to onTurnNext when reflow is opened', (
+    tester,
+  ) async {
     var next = 0;
-    await tester.pumpWidget(wrap(
-      isReflowOpened: true,
-      onTurnNext: () => next++,
-    ));
+    await tester.pumpWidget(
+      wrap(isReflowOpened: true, onTurnNext: () => next++),
+    );
     await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
     expect(next, 1);
   });
 
-  testWidgets('routes arrowLeft to onTurnPrevious when reflow is opened',
-      (tester) async {
+  testWidgets('routes arrowLeft to onTurnPrevious when reflow is opened', (
+    tester,
+  ) async {
     var prev = 0;
-    await tester.pumpWidget(wrap(
-      isReflowOpened: true,
-      onTurnPrevious: () => prev++,
-    ));
+    await tester.pumpWidget(
+      wrap(isReflowOpened: true, onTurnPrevious: () => prev++),
+    );
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     expect(prev, 1);
   });
@@ -75,21 +79,20 @@ void main() {
     expect(next, 0);
   });
 
-  testWidgets('tap toggles chrome when no selection is pending',
-      (tester) async {
+  testWidgets('tap toggles chrome when no selection is pending', (
+    tester,
+  ) async {
     var toggles = 0;
     await tester.pumpWidget(wrap(onToggleChrome: () => toggles++));
     await tester.tap(find.byType(ReaderGestureShell));
     expect(toggles, 1);
   });
 
-  testWidgets('tap is suppressed while a selection is pending',
-      (tester) async {
+  testWidgets('tap is suppressed while a selection is pending', (tester) async {
     var toggles = 0;
-    await tester.pumpWidget(wrap(
-      hasPendingQuote: true,
-      onToggleChrome: () => toggles++,
-    ));
+    await tester.pumpWidget(
+      wrap(hasPendingQuote: true, onToggleChrome: () => toggles++),
+    );
     await tester.tap(find.byType(ReaderGestureShell));
     expect(toggles, 0);
   });

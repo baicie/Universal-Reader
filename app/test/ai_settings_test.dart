@@ -89,10 +89,7 @@ void main() {
   });
 
   test('Ollama does not require a server key either', () {
-    const settings = AiSettings(
-      enabled: true,
-      provider: AiProvider.ollama,
-    );
+    const settings = AiSettings(enabled: true, provider: AiProvider.ollama);
     expect(settings.isReady(serverHasKey: false), isTrue);
   });
 
@@ -167,8 +164,7 @@ void main() {
       expect(decoded.provider, original.provider);
     });
 
-    test('fromJson defaults provider to deepseek when missing or unknown',
-        () {
+    test('fromJson defaults provider to deepseek when missing or unknown', () {
       expect(
         AiSettings.fromJson({'enabled': false}).provider,
         AiProvider.deepseek,

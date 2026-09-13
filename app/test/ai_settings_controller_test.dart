@@ -31,7 +31,9 @@ void main() {
       final controller = AiSettingsController(
         repository: InMemoryAiSettingsRepository(),
       );
-      controller.addListener(() => notifications.add(controller.loading ? 0 : 1));
+      controller.addListener(
+        () => notifications.add(controller.loading ? 0 : 1),
+      );
 
       await controller.load();
 

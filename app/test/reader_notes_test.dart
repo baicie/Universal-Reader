@@ -75,17 +75,19 @@ void main() {
       expect(noteListLabel(note), 'fallback body');
     });
 
-    test('falls back to the locator label when both quote and body are empty',
-        () {
-      final note = ReaderAnnotation(
-        id: 'n1',
-        note: '',
-        quote: '',
-        locatorLabel: 'chapter-1',
-        createdAt: DateTime.utc(2026, 1, 1),
-      );
-      expect(noteListLabel(note), 'chapter-1');
-    });
+    test(
+      'falls back to the locator label when both quote and body are empty',
+      () {
+        final note = ReaderAnnotation(
+          id: 'n1',
+          note: '',
+          quote: '',
+          locatorLabel: 'chapter-1',
+          createdAt: DateTime.utc(2026, 1, 1),
+        );
+        expect(noteListLabel(note), 'chapter-1');
+      },
+    );
   });
 
   group('noteFromSelection', () {

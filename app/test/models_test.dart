@@ -39,7 +39,11 @@ void main() {
         DocumentFormat.html,
         DocumentFormat.unknown,
       ]) {
-        expect(format.type, DocumentType.reflow, reason: '$format should be reflow');
+        expect(
+          format.type,
+          DocumentType.reflow,
+          reason: '$format should be reflow',
+        );
       }
     });
   });
@@ -110,10 +114,7 @@ void main() {
   group('ReadingState', () {
     test('stores progress and lastOpened', () {
       final openedAt = DateTime.utc(2026, 9, 7);
-      final state = ReadingState(
-        progress: 0.42,
-        lastOpened: openedAt,
-      );
+      final state = ReadingState(progress: 0.42, lastOpened: openedAt);
       expect(state.progress, 0.42);
       expect(state.lastOpened, openedAt);
     });

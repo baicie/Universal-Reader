@@ -1,4 +1,4 @@
-﻿import 'package:app/core/models.dart';
+import 'package:app/core/models.dart';
 import 'package:app/core/reader_runtime.dart';
 import 'package:app/features/tools/ai/grounding.dart';
 import 'package:app/l10n/l10n.dart';
@@ -24,12 +24,12 @@ class _FixedDocument implements ReaderDocument {
 
   @override
   DocumentMetadata get metadata => DocumentMetadata(
-        id: id,
-        title: title,
-        author: author,
-        format: DocumentFormat.epub,
-        type: DocumentType.reflow,
-      );
+    id: id,
+    title: title,
+    author: author,
+    format: DocumentFormat.epub,
+    type: DocumentType.reflow,
+  );
 
   Future<String?> Function(DocumentRange range)? extractTextOverride;
 
@@ -88,8 +88,7 @@ void main() {
       expect(context.documentId, 'empty');
     });
 
-    test('uses the supplied locator without calling currentLocator',
-        () async {
+    test('uses the supplied locator without calling currentLocator', () async {
       final doc = _FixedDocument(
         id: 'book',
         title: 'T',
@@ -99,13 +98,11 @@ void main() {
       );
       const explicit = EpubLocator(href: 'supplied', progression: 0.25);
       const grounding = DocumentGrounding();
-      final context =
-          await grounding.fromDocument(doc, locator: explicit);
+      final context = await grounding.fromDocument(doc, locator: explicit);
       expect(context.locatorLabel, contains('supplied'));
     });
 
-    test('falls back to English-style label without a l10n object',
-        () async {
+    test('falls back to English-style label without a l10n object', () async {
       final doc = _FixedDocument(
         id: 'pdf',
         title: 'T',
@@ -164,27 +161,21 @@ void main() {
   group('DocumentGrounding.locatorLabel', () {
     test('EpubLocator without progression returns the bare href', () {
       expect(
-        DocumentGrounding.locatorLabel(
-          const EpubLocator(href: 'chapter-1'),
-        ),
+        DocumentGrounding.locatorLabel(const EpubLocator(href: 'chapter-1')),
         'chapter-1',
       );
     });
 
     test('TextLocator falls back to a plain offset string', () {
       expect(
-        DocumentGrounding.locatorLabel(
-          const TextLocator(offset: 42),
-        ),
+        DocumentGrounding.locatorLabel(const TextLocator(offset: 42)),
         '偏移 42',
       );
     });
 
     test('ComicLocator falls back to a plain page label', () {
       expect(
-        DocumentGrounding.locatorLabel(
-          const ComicLocator(page: 7),
-        ),
+        DocumentGrounding.locatorLabel(const ComicLocator(page: 7)),
         '第 7 页',
       );
     });
@@ -192,10 +183,7 @@ void main() {
     test('PdfLocator with l10n uses the localised page label', () {
       final l10n = _stubL10n(const Locale('en'));
       expect(
-        DocumentGrounding.locatorLabel(
-          const PdfLocator(page: 3),
-          l10n: l10n,
-        ),
+        DocumentGrounding.locatorLabel(const PdfLocator(page: 3), l10n: l10n),
         l10n.pageNumber(3),
       );
     });
@@ -226,23 +214,24 @@ void main() {
       expect(observed!.end, const TextLocator(offset: 200));
     });
 
-    test('throws when extractText fails instead of swallowing the error',
-        () async {
-      final doc = _FixedDocument(
-        id: 'broken',
-        title: 'T',
-        author: 'A',
-        extractedText: '',
-        locator: const EpubLocator(href: 'ch-1'),
-      )..extractTextOverride = (range) async {
-        throw StateError('extract failed');
-      };
-      const grounding = DocumentGrounding();
-      await expectLater(
-        grounding.fromDocument(doc),
-        throwsA(isA<Object>()),
-      );
-    });
+    test(
+      'throws when extractText fails instead of swallowing the error',
+      () async {
+        final doc =
+            _FixedDocument(
+                id: 'broken',
+                title: 'T',
+                author: 'A',
+                extractedText: '',
+                locator: const EpubLocator(href: 'ch-1'),
+              )
+              ..extractTextOverride = (range) async {
+                throw StateError('extract failed');
+              };
+        const grounding = DocumentGrounding();
+        await expectLater(grounding.fromDocument(doc), throwsA(isA<Object>()));
+      },
+    );
   });
 
   group('DocumentGrounding.fromSearch bounds', () {
@@ -274,20 +263,22 @@ void main() {
       );
     });
 
-    test('falls back to the document body when the trimmed query is empty',
-        () async {
-      final doc = _FixedDocument(
-        id: 'blank-query',
-        title: 'T',
-        author: 'A',
-        extractedText: 'fallback body',
-        locator: const EpubLocator(href: 'ch-1'),
-      );
-      const grounding = DocumentGrounding();
-      final result = await grounding.fromSearch(doc, query: '   ');
-      expect(result.hits, isEmpty);
-      expect(result.context.excerpt, contains('fallback body'));
-    });
+    test(
+      'falls back to the document body when the trimmed query is empty',
+      () async {
+        final doc = _FixedDocument(
+          id: 'blank-query',
+          title: 'T',
+          author: 'A',
+          extractedText: 'fallback body',
+          locator: const EpubLocator(href: 'ch-1'),
+        );
+        const grounding = DocumentGrounding();
+        final result = await grounding.fromSearch(doc, query: '   ');
+        expect(result.hits, isEmpty);
+        expect(result.context.excerpt, contains('fallback body'));
+      },
+    );
   });
 
   group('DocumentGrounding.locatorLabel EpubLocator with progression', () {

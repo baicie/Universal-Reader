@@ -41,14 +41,14 @@ class _RecordingAnnotationRepository implements AnnotationRepository {
 }
 
 SampleReaderDocument _sampleDocument() => SampleReaderDocument(
-      metadata: const DocumentMetadata(
-        id: 'design',
-        title: '设计中的设计',
-        author: '原研哉',
-        format: DocumentFormat.epub,
-        type: DocumentType.reflow,
-      ),
-    );
+  metadata: const DocumentMetadata(
+    id: 'design',
+    title: '设计中的设计',
+    author: '原研哉',
+    format: DocumentFormat.epub,
+    type: DocumentType.reflow,
+  ),
+);
 
 const _readySettings = AiSettings(
   enabled: true,
@@ -101,98 +101,94 @@ void main() {
     },
   );
 
-  testWidgets(
-    'unconfigured settings show the enable-in-settings button',
-    (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          const SizedBox.shrink(),
-          runtime: AiRuntime.local(InMemoryConversationRepository()),
+  testWidgets('unconfigured settings show the enable-in-settings button', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        const SizedBox.shrink(),
+        runtime: AiRuntime.local(InMemoryConversationRepository()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('到设置中启用阅读助手'), findsOneWidget);
+    // The chip row should still render all four kinds.
+    expect(find.text('总结'), findsOneWidget);
+    expect(find.text('解释'), findsOneWidget);
+    expect(find.text('翻译'), findsOneWidget);
+    expect(find.text('提问'), findsOneWidget);
+  });
+
+  testWidgets('selecting the ask kind reveals the question input', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        const SizedBox.shrink(),
+        runtime: AiRuntime.local(InMemoryConversationRepository()),
+        settings: _readySettings,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // No TextField until ask is selected.
+    expect(find.byType(TextField), findsNothing);
+
+    await tester.tap(find.text('提问'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('输入关于这一页的问题'), findsOneWidget);
+  });
+
+  testWidgets('switching the askDocument filter changes the panel header', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        const SizedBox.shrink(),
+        runtime: AiRuntime.local(InMemoryConversationRepository()),
+        settings: _readySettings,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('问这一页'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilterChip, '问这本书'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('问这本书'), findsWidgets);
+  });
+
+  testWidgets('a successful reply is appended to the conversation and shown', (
+    tester,
+  ) async {
+    final client = RecordingModelClient(reply: '这是摘要');
+    final conversations = InMemoryConversationRepository();
+    await tester.pumpWidget(
+      _wrap(
+        const SizedBox.shrink(),
+        runtime: _RecordingRuntime(
+          conversations: conversations,
+          client: client,
         ),
-      );
-      await tester.pumpAndSettle();
+        settings: _readySettings,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.text('到设置中启用阅读助手'), findsOneWidget);
-      // The chip row should still render all four kinds.
-      expect(find.text('总结'), findsOneWidget);
-      expect(find.text('解释'), findsOneWidget);
-      expect(find.text('翻译'), findsOneWidget);
-      expect(find.text('提问'), findsOneWidget);
-    },
-  );
+    await tester.tap(find.text('发送摘录'));
+    await tester.pumpAndSettle();
 
-  testWidgets(
-    'selecting the ask kind reveals the question input',
-    (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          const SizedBox.shrink(),
-          runtime: AiRuntime.local(InMemoryConversationRepository()),
-          settings: _readySettings,
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // No TextField until ask is selected.
-      expect(find.byType(TextField), findsNothing);
-
-      await tester.tap(find.text('提问'));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(TextField), findsOneWidget);
-      expect(find.text('输入关于这一页的问题'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'switching the askDocument filter changes the panel header',
-    (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          const SizedBox.shrink(),
-          runtime: AiRuntime.local(InMemoryConversationRepository()),
-          settings: _readySettings,
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('问这一页'), findsOneWidget);
-
-      await tester.tap(find.widgetWithText(FilterChip, '问这本书'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('问这本书'), findsWidgets);
-    },
-  );
-
-  testWidgets(
-    'a successful reply is appended to the conversation and shown',
-    (tester) async {
-      final client = RecordingModelClient(reply: '这是摘要');
-      final conversations = InMemoryConversationRepository();
-      await tester.pumpWidget(
-        _wrap(
-          const SizedBox.shrink(),
-          runtime: _RecordingRuntime(
-            conversations: conversations,
-            client: client,
-          ),
-          settings: _readySettings,
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('发送摘录'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('这是摘要'), findsOneWidget);
-      expect(client.calls, 1);
-      final stored = await conversations.load('design');
-      expect(stored, hasLength(1));
-      expect(stored.first.reply, '这是摘要');
-      expect(stored.first.kind, ReaderToolKind.summarize);
-    },
-  );
+    expect(find.text('这是摘要'), findsOneWidget);
+    expect(client.calls, 1);
+    final stored = await conversations.load('design');
+    expect(stored, hasLength(1));
+    expect(stored.first.reply, '这是摘要');
+    expect(stored.first.kind, ReaderToolKind.summarize);
+  });
 
   testWidgets(
     'an unavailable result surfaces the message without writing a turn',
@@ -218,42 +214,38 @@ void main() {
     },
   );
 
-  testWidgets(
-    'save as note persists the reply and shows a snackbar',
-    (tester) async {
-      final client = RecordingModelClient(reply: '笔记内容');
-      final conversations = InMemoryConversationRepository();
-      final annotations = _RecordingAnnotationRepository();
-      await tester.pumpWidget(
-        _wrap(
-          const SizedBox.shrink(),
-          runtime: _RecordingRuntime(
-            conversations: conversations,
-            annotations: annotations,
-            client: client,
-          ),
-          settings: _readySettings,
+  testWidgets('save as note persists the reply and shows a snackbar', (
+    tester,
+  ) async {
+    final client = RecordingModelClient(reply: '笔记内容');
+    final conversations = InMemoryConversationRepository();
+    final annotations = _RecordingAnnotationRepository();
+    await tester.pumpWidget(
+      _wrap(
+        const SizedBox.shrink(),
+        runtime: _RecordingRuntime(
+          conversations: conversations,
+          annotations: annotations,
+          client: client,
         ),
-      );
-      await tester.pumpAndSettle();
+        settings: _readySettings,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('发送摘录'));
-      await tester.pumpAndSettle();
-      // The reply is rendered inside the conversation history list.
-      expect(
-        find.textContaining('笔记内容', findRichText: true),
-        findsOneWidget,
-      );
+    await tester.tap(find.text('发送摘录'));
+    await tester.pumpAndSettle();
+    // The reply is rendered inside the conversation history list.
+    expect(find.textContaining('笔记内容', findRichText: true), findsOneWidget);
 
-      await tester.tap(find.text('保存为笔记'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('保存为笔记'));
+    await tester.pumpAndSettle();
 
-      expect(annotations.saved, hasLength(1));
-      expect(annotations.saved.first.note, '笔记内容');
-      expect(annotations.saved.first.quote, isEmpty);
-      expect(annotations.saved.first.locatorLabel, 'chapter-4 · 37%');
-    },
-  );
+    expect(annotations.saved, hasLength(1));
+    expect(annotations.saved.first.note, '笔记内容');
+    expect(annotations.saved.first.quote, isEmpty);
+    expect(annotations.saved.first.locatorLabel, 'chapter-4 · 37%');
+  });
 
   testWidgets(
     'a failing annotation repository shows the notes unavailable message',
@@ -281,149 +273,146 @@ void main() {
     },
   );
 
-  testWidgets(
-    'a tool exception is surfaced as a request failed message',
-    (tester) async {
-      final client = _ThrowingModelClient();
-      await tester.pumpWidget(
-        _wrap(
-          const SizedBox.shrink(),
-          runtime: _RecordingRuntime(
-            conversations: InMemoryConversationRepository(),
-            client: client,
-          ),
-          settings: _readySettings,
+  testWidgets('a tool exception is surfaced as a request failed message', (
+    tester,
+  ) async {
+    final client = _ThrowingModelClient();
+    await tester.pumpWidget(
+      _wrap(
+        const SizedBox.shrink(),
+        runtime: _RecordingRuntime(
+          conversations: InMemoryConversationRepository(),
+          client: client,
         ),
-      );
-      await tester.pumpAndSettle();
+        settings: _readySettings,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('发送摘录'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('发送摘录'));
+    await tester.pumpAndSettle();
 
-      expect(find.textContaining('请求失败'), findsOneWidget);
-    },
-  );
+    expect(find.textContaining('请求失败'), findsOneWidget);
+  });
 
-  testWidgets(
-    'proposals produce jump buttons that invoke onJump',
-    (tester) async {
-      final client = RecordingModelClient(reply: 'replies');
-      Locator? jumpedTo;
-      await tester.pumpWidget(
-        _wrap(
-          const SizedBox.shrink(),
-          runtime: _RecordingRuntime(
-            conversations: InMemoryConversationRepository(),
-            client: client,
-          ),
-          settings: _readySettings,
-          onJump: (locator) async {
-            jumpedTo = locator;
-          },
+  testWidgets('proposals produce jump buttons that invoke onJump', (
+    tester,
+  ) async {
+    final client = RecordingModelClient(reply: 'replies');
+    Locator? jumpedTo;
+    await tester.pumpWidget(
+      _wrap(
+        const SizedBox.shrink(),
+        runtime: _RecordingRuntime(
+          conversations: InMemoryConversationRepository(),
+          client: client,
         ),
-      );
-      await tester.pumpAndSettle();
+        settings: _readySettings,
+        onJump: (locator) async {
+          jumpedTo = locator;
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      // The sample document yields one search hit for "白", so the
-      // proposals row should appear after a request with askDocument=true.
-      await tester.tap(find.widgetWithText(FilterChip, '问这本书'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('提问'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), '白');
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('发送摘录'));
-      await tester.pumpAndSettle();
+    // The sample document yields one search hit for "白", so the
+    // proposals row should appear after a request with askDocument=true.
+    await tester.tap(find.widgetWithText(FilterChip, '问这本书'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('提问'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '白');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('发送摘录'));
+    await tester.pumpAndSettle();
 
-      final jumpButton = find
-          .widgetWithText(OutlinedButton, '跳转到 chapter-4 · 37%');
-      expect(jumpButton, findsOneWidget);
-      await tester.tap(jumpButton);
-      await tester.pumpAndSettle();
+    final jumpButton = find.widgetWithText(
+      OutlinedButton,
+      '跳转到 chapter-4 · 37%',
+    );
+    expect(jumpButton, findsOneWidget);
+    await tester.tap(jumpButton);
+    await tester.pumpAndSettle();
 
-      expect(jumpedTo, isA<EpubLocator>());
-      expect((jumpedTo! as EpubLocator).href, 'chapter-4');
-    },
-  );
+    expect(jumpedTo, isA<EpubLocator>());
+    expect((jumpedTo! as EpubLocator).href, 'chapter-4');
+  });
 
-  testWidgets(
-    'panel renders a stored conversation from the repository',
-    (tester) async {
-      final repo = InMemoryConversationRepository({
-        'design': [
-          ConversationTurn(
-            kind: ReaderToolKind.summarize,
-            reply: '先前的摘要',
-            locatorLabel: 'chapter-1',
-            createdAt: DateTime.utc(2026, 1, 1),
-          ),
-        ],
-      });
-      await tester.pumpWidget(
-        _wrap(
-          const SizedBox.shrink(),
-          runtime: AiRuntime.local(repo),
-          settings: _readySettings,
+  testWidgets('panel renders a stored conversation from the repository', (
+    tester,
+  ) async {
+    final repo = InMemoryConversationRepository({
+      'design': [
+        ConversationTurn(
+          kind: ReaderToolKind.summarize,
+          reply: '先前的摘要',
+          locatorLabel: 'chapter-1',
+          createdAt: DateTime.utc(2026, 1, 1),
         ),
-      );
-      await tester.pumpAndSettle();
+      ],
+    });
+    await tester.pumpWidget(
+      _wrap(
+        const SizedBox.shrink(),
+        runtime: AiRuntime.local(repo),
+        settings: _readySettings,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.text('问答记录'), findsOneWidget);
-      expect(find.text('先前的摘要'), findsOneWidget);
-      expect(find.text('chapter-1'), findsOneWidget);
-    },
-  );
+    expect(find.text('问答记录'), findsOneWidget);
+    expect(find.text('先前的摘要'), findsOneWidget);
+    expect(find.text('chapter-1'), findsOneWidget);
+  });
 
-  testWidgets(
-    'tapping a kind chip updates the active selection',
-    (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          const SizedBox.shrink(),
-          runtime: AiRuntime.local(InMemoryConversationRepository()),
-          settings: _readySettings,
+  testWidgets('tapping a kind chip updates the active selection', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        const SizedBox.shrink(),
+        runtime: AiRuntime.local(InMemoryConversationRepository()),
+        settings: _readySettings,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    ChoiceChip chipFor(String label) =>
+        tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, label));
+
+    expect(chipFor('总结').selected, isTrue);
+    expect(chipFor('解释').selected, isFalse);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, '解释'));
+    await tester.pumpAndSettle();
+
+    expect(chipFor('总结').selected, isFalse);
+    expect(chipFor('解释').selected, isTrue);
+  });
+
+  testWidgets('dispose does not crash after a request in flight', (
+    tester,
+  ) async {
+    final client = RecordingModelClient(reply: 'late');
+    await tester.pumpWidget(
+      _wrap(
+        const SizedBox.shrink(),
+        runtime: _RecordingRuntime(
+          conversations: InMemoryConversationRepository(),
+          client: client,
         ),
-      );
-      await tester.pumpAndSettle();
+        settings: _readySettings,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('发送摘录'));
+    await tester.pump();
 
-      ChoiceChip chipFor(String label) =>
-          tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, label));
-
-      expect(chipFor('总结').selected, isTrue);
-      expect(chipFor('解释').selected, isFalse);
-
-      await tester.tap(find.widgetWithText(ChoiceChip, '解释'));
-      await tester.pumpAndSettle();
-
-      expect(chipFor('总结').selected, isFalse);
-      expect(chipFor('解释').selected, isTrue);
-    },
-  );
-
-  testWidgets(
-    'dispose does not crash after a request in flight',
-    (tester) async {
-      final client = RecordingModelClient(reply: 'late');
-      await tester.pumpWidget(
-        _wrap(
-          const SizedBox.shrink(),
-          runtime: _RecordingRuntime(
-            conversations: InMemoryConversationRepository(),
-            client: client,
-          ),
-          settings: _readySettings,
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('发送摘录'));
-      await tester.pump();
-
-      // Replace the tree before the future settles; the panel must dispose
-      // its controllers cleanly.
-      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
-      await tester.pumpAndSettle();
-    },
-  );
+    // Replace the tree before the future settles; the panel must dispose
+    // its controllers cleanly.
+    await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+    await tester.pumpAndSettle();
+  });
 }
 
 class _ThrowingModelClient implements ModelClient {
@@ -438,11 +427,7 @@ class _RecordingRuntime extends AiRuntime {
     required this.client,
     required super.conversations,
     super.annotations,
-  }) : super(
-          useGateway: false,
-          baseUrl: '',
-          serverHasKey: false,
-        );
+  }) : super(useGateway: false, baseUrl: '', serverHasKey: false);
 
   final ModelClient client;
 

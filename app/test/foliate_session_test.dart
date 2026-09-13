@@ -192,51 +192,38 @@ void main() {
     expect(pages[1].html, '<p>ee</p>');
   });
 
-  test('paginateReflow falls back to end-of-slice when there is no whitespace',
-      () {
-    // 50 chars, no whitespace → each slice ends at start+pageCharLimit.
-    final text = 'x' * 50;
-    final pages = paginateReflow(
-      text: text,
-      html: '',
-      pageCharLimit: 10,
-    );
-    expect(pages, hasLength(5));
-    expect(pages[0].startOffset, 0);
-    expect(pages[0].endOffset, 10);
-    expect(pages[4].startOffset, 40);
-    expect(pages[4].endOffset, 50);
-    expect(pages.every((p) => p.html.startsWith('<p>')), isTrue);
-  });
+  test(
+    'paginateReflow falls back to end-of-slice when there is no whitespace',
+    () {
+      // 50 chars, no whitespace → each slice ends at start+pageCharLimit.
+      final text = 'x' * 50;
+      final pages = paginateReflow(text: text, html: '', pageCharLimit: 10);
+      expect(pages, hasLength(5));
+      expect(pages[0].startOffset, 0);
+      expect(pages[0].endOffset, 10);
+      expect(pages[4].startOffset, 40);
+      expect(pages[4].endOffset, 50);
+      expect(pages.every((p) => p.html.startsWith('<p>')), isTrue);
+    },
+  );
 
   test('paginateReflow advances past short pages', () {
     // With pageCharLimit=1, each page holds one character, including the
     // space at index 1 (which trims to an empty <p></p>).
-    final pages = paginateReflow(
-      text: 'a b',
-      html: '',
-      pageCharLimit: 1,
-    );
+    final pages = paginateReflow(text: 'a b', html: '', pageCharLimit: 1);
     expect(pages, hasLength(3));
     expect(pages.map((p) => p.startOffset).toList(), [0, 1, 2]);
     expect(pages.map((p) => p.endOffset).toList(), [1, 2, 3]);
     expect(pages.last.endOffset, 3);
   });
 
-  test(
-    'paginateReflow returns a single page when pageCharLimit is zero',
-    () {
-      // A zero pageCharLimit is an invalid configuration, but paginateReflow
-      // must not hang on it. The text length guard must catch this case and
-      // short-circuit before the loop tries to advance the cursor by zero.
-      final pages = paginateReflow(
-        text: 'non-empty',
-        html: '',
-        pageCharLimit: 0,
-      );
-      expect(pages, hasLength(1));
-      expect(pages.single.startOffset, 0);
-      expect(pages.single.endOffset, 'non-empty'.length);
-    },
-  );
+  test('paginateReflow returns a single page when pageCharLimit is zero', () {
+    // A zero pageCharLimit is an invalid configuration, but paginateReflow
+    // must not hang on it. The text length guard must catch this case and
+    // short-circuit before the loop tries to advance the cursor by zero.
+    final pages = paginateReflow(text: 'non-empty', html: '', pageCharLimit: 0);
+    expect(pages, hasLength(1));
+    expect(pages.single.startOffset, 0);
+    expect(pages.single.endOffset, 'non-empty'.length);
+  });
 }

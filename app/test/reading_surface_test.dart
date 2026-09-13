@@ -45,20 +45,22 @@ void main() {
       expect(surface.flutterFontFamily, 'Courier');
     });
 
-    test('sans family maps to the platform default and exposes no override',
-        () {
-      const surface = ReadingSurface(
-        fontSize: 18,
-        lineHeight: 1.7,
-        fontFamily: ReaderFontFamily.sans,
-        background: ReadingSurface.lightBackground,
-        color: ReadingSurface.lightInk,
-      );
-      expect(surface.flutterFontFamily, isNull);
-      // cssFontFamily for sans is already exercised indirectly via
-      // toFoliateCommand above, but assert it here so the branch is named.
-      expect(surface.cssFontFamily, contains('system-ui'));
-    });
+    test(
+      'sans family maps to the platform default and exposes no override',
+      () {
+        const surface = ReadingSurface(
+          fontSize: 18,
+          lineHeight: 1.7,
+          fontFamily: ReaderFontFamily.sans,
+          background: ReadingSurface.lightBackground,
+          color: ReadingSurface.lightInk,
+        );
+        expect(surface.flutterFontFamily, isNull);
+        // cssFontFamily for sans is already exercised indirectly via
+        // toFoliateCommand above, but assert it here so the branch is named.
+        expect(surface.cssFontFamily, contains('system-ui'));
+      },
+    );
   });
 
   group('equality and hashing', () {

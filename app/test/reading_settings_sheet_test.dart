@@ -15,8 +15,9 @@ void main() {
   // ── ReadingSettingsSheet with comic layout ──────────────────────────────
 
   group('ReadingSettingsSheet shows comic layout controls when requested', () {
-    testWidgets('comic layout section appears when showComicLayout is true',
-        (tester) async {
+    testWidgets('comic layout section appears when showComicLayout is true', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -39,36 +40,39 @@ void main() {
       expect(find.text('Right to left'), findsOneWidget);
     });
 
-    testWidgets('comic layout section is absent when showComicLayout is false',
-        (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            readerPrefsProvider.overrideWith((ref) => ReaderPrefsController()),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: const Scaffold(
-              body: ReadingSettingsSheet(showComicLayout: false),
+    testWidgets(
+      'comic layout section is absent when showComicLayout is false',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              readerPrefsProvider.overrideWith(
+                (ref) => ReaderPrefsController(),
+              ),
+            ],
+            child: MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: const Scaffold(
+                body: ReadingSettingsSheet(showComicLayout: false),
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      expect(find.text('Comics'), findsNothing);
-      expect(find.text('Single'), findsNothing);
-      expect(find.text('Double'), findsNothing);
-    });
+        expect(find.text('Comics'), findsNothing);
+        expect(find.text('Single'), findsNothing);
+        expect(find.text('Double'), findsNothing);
+      },
+    );
 
-    testWidgets('selecting vertical comic layout updates the preference',
-        (tester) async {
+    testWidgets('selecting vertical comic layout updates the preference', (
+      tester,
+    ) async {
       final prefs = ReaderPrefsController();
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            readerPrefsProvider.overrideWith((ref) => prefs),
-          ],
+          overrides: [readerPrefsProvider.overrideWith((ref) => prefs)],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
@@ -85,14 +89,13 @@ void main() {
       expect(prefs.comicLayout, ComicLayout.vertical);
     });
 
-    testWidgets('selecting double comic layout updates the preference',
-        (tester) async {
+    testWidgets('selecting double comic layout updates the preference', (
+      tester,
+    ) async {
       final prefs = ReaderPrefsController();
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            readerPrefsProvider.overrideWith((ref) => prefs),
-          ],
+          overrides: [readerPrefsProvider.overrideWith((ref) => prefs)],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
@@ -109,13 +112,13 @@ void main() {
       expect(prefs.comicLayout, ComicLayout.double);
     });
 
-    testWidgets('toggling RTL direction updates the preference', (tester) async {
+    testWidgets('toggling RTL direction updates the preference', (
+      tester,
+    ) async {
       final prefs = ReaderPrefsController();
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            readerPrefsProvider.overrideWith((ref) => prefs),
-          ],
+          overrides: [readerPrefsProvider.overrideWith((ref) => prefs)],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
@@ -146,72 +149,60 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            readerPrefsProvider.overrideWith((ref) => prefs),
-          ],
+          overrides: [readerPrefsProvider.overrideWith((ref) => prefs)],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: const Scaffold(
-              body: ReadingSettingsSheet(),
-            ),
+            home: const Scaffold(body: ReadingSettingsSheet()),
           ),
         ),
       );
 
       // Move font slider to a different value (within valid range).
-      tester.widget<Slider>(
-        find.byType(Slider).first,
-      ).onChanged!(22.0);
+      tester.widget<Slider>(find.byType(Slider).first).onChanged!(22.0);
       await tester.pump();
 
       expect(prefs.fontSize, 22.0);
       expect(prefs.fontSize, isNot(equals(initialFont)));
     });
 
-    testWidgets('line height slider drag updates the preference', (tester) async {
+    testWidgets('line height slider drag updates the preference', (
+      tester,
+    ) async {
       final prefs = ReaderPrefsController();
       await prefs.load();
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            readerPrefsProvider.overrideWith((ref) => prefs),
-          ],
+          overrides: [readerPrefsProvider.overrideWith((ref) => prefs)],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: const Scaffold(
-              body: ReadingSettingsSheet(),
-            ),
+            home: const Scaffold(body: ReadingSettingsSheet()),
           ),
         ),
       );
 
       // Second slider is line height.
-      tester.widget<Slider>(
-        find.byType(Slider).at(1),
-      ).onChanged!(2.0);
+      tester.widget<Slider>(find.byType(Slider).at(1)).onChanged!(2.0);
       await tester.pump();
 
       expect(prefs.lineHeight, 2.0);
     });
 
-    testWidgets('font family choice chip updates the preference', (tester) async {
+    testWidgets('font family choice chip updates the preference', (
+      tester,
+    ) async {
       final prefs = ReaderPrefsController();
       await prefs.load();
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            readerPrefsProvider.overrideWith((ref) => prefs),
-          ],
+          overrides: [readerPrefsProvider.overrideWith((ref) => prefs)],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: const Scaffold(
-              body: ReadingSettingsSheet(),
-            ),
+            home: const Scaffold(body: ReadingSettingsSheet()),
           ),
         ),
       );
@@ -228,15 +219,11 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            readerPrefsProvider.overrideWith((ref) => prefs),
-          ],
+          overrides: [readerPrefsProvider.overrideWith((ref) => prefs)],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: const Scaffold(
-              body: ReadingSettingsSheet(),
-            ),
+            home: const Scaffold(body: ReadingSettingsSheet()),
           ),
         ),
       );
@@ -253,15 +240,11 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            readerPrefsProvider.overrideWith((ref) => prefs),
-          ],
+          overrides: [readerPrefsProvider.overrideWith((ref) => prefs)],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: const Scaffold(
-              body: ReadingSettingsSheet(showPdfZoom: true),
-            ),
+            home: const Scaffold(body: ReadingSettingsSheet(showPdfZoom: true)),
           ),
         ),
       );
@@ -276,44 +259,45 @@ void main() {
   // ── AiSettingsCard provider branches ──────────────────────────────────
 
   group('AiSettingsCard renders ollama-specific fields', () {
-    testWidgets('ollama provider shows a TextField for model instead of dropdown',
-        (tester) async {
-      final repo = InMemoryAiSettingsRepository(
-        const AiSettings(
-          enabled: true,
-          provider: AiProvider.ollama,
-          model: '',
-        ),
-      );
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            aiSettingsRepositoryProvider.overrideWithValue(repo),
-            aiRuntimeProvider.overrideWithValue(
-              AiRuntime.local(InMemoryConversationRepository()),
-            ),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: const Scaffold(
-              body: AiSettingsCard(),
+    testWidgets(
+      'ollama provider shows a TextField for model instead of dropdown',
+      (tester) async {
+        final repo = InMemoryAiSettingsRepository(
+          const AiSettings(
+            enabled: true,
+            provider: AiProvider.ollama,
+            model: '',
+          ),
+        );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              aiSettingsRepositoryProvider.overrideWithValue(repo),
+              aiRuntimeProvider.overrideWithValue(
+                AiRuntime.local(InMemoryConversationRepository()),
+              ),
+            ],
+            child: MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: const Scaffold(body: AiSettingsCard()),
             ),
           ),
-        ),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      // Should find a TextField (ollama model input), not a DropdownButtonFormField
-      // for the model field when ollama is selected.
-      // The model label is "Model" (modelLabel from l10n).
-      // In ollama mode, it's a TextField; in deepseek mode it would be a DropdownButtonFormField.
-      final textFields = find.byType(TextField);
-      expect(textFields, findsWidgets);
-    });
+        // Should find a TextField (ollama model input), not a DropdownButtonFormField
+        // for the model field when ollama is selected.
+        // The model label is "Model" (modelLabel from l10n).
+        // In ollama mode, it's a TextField; in deepseek mode it would be a DropdownButtonFormField.
+        final textFields = find.byType(TextField);
+        expect(textFields, findsWidgets);
+      },
+    );
 
-    testWidgets('deepseek provider shows a DropdownButtonFormField for model',
-        (tester) async {
+    testWidgets('deepseek provider shows a DropdownButtonFormField for model', (
+      tester,
+    ) async {
       final repo = InMemoryAiSettingsRepository(
         const AiSettings(
           enabled: true,
@@ -334,9 +318,7 @@ void main() {
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: const Scaffold(
-              body: AiSettingsCard(),
-            ),
+            home: const Scaffold(body: AiSettingsCard()),
           ),
         ),
       );
@@ -368,9 +350,7 @@ void main() {
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: const Scaffold(
-              body: AiSettingsCard(),
-            ),
+            home: const Scaffold(body: AiSettingsCard()),
           ),
         ),
       );
@@ -389,7 +369,9 @@ void main() {
       expect(repo, isNotNull);
     });
 
-    testWidgets('enable switch toggles the assistant enabled flag', (tester) async {
+    testWidgets('enable switch toggles the assistant enabled flag', (
+      tester,
+    ) async {
       final repo = InMemoryAiSettingsRepository(
         const AiSettings(enabled: false),
       );
@@ -404,9 +386,7 @@ void main() {
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: const Scaffold(
-              body: AiSettingsCard(),
-            ),
+            home: const Scaffold(body: AiSettingsCard()),
           ),
         ),
       );
@@ -414,9 +394,7 @@ void main() {
 
       // Toggle the enable switch.
       tester
-          .widget<SwitchListTile>(
-            find.byType(SwitchListTile),
-          )
+          .widget<SwitchListTile>(find.byType(SwitchListTile))
           .onChanged
           ?.call(true);
       await tester.pumpAndSettle();

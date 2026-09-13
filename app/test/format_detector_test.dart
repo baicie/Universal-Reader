@@ -21,30 +21,57 @@ void main() {
   });
 
   test('detects mobi and azw3', () {
-    expect(detector.detect(const DocumentSource(name: 'kindle.mobi')), DocumentFormat.mobi);
-    expect(detector.detect(const DocumentSource(name: 'kindle.azw3')), DocumentFormat.azw3);
+    expect(
+      detector.detect(const DocumentSource(name: 'kindle.mobi')),
+      DocumentFormat.mobi,
+    );
+    expect(
+      detector.detect(const DocumentSource(name: 'kindle.azw3')),
+      DocumentFormat.azw3,
+    );
   });
 
   test('detects fb2', () {
-    expect(detector.detect(const DocumentSource(name: 'fiction.fb2')), DocumentFormat.fb2);
+    expect(
+      detector.detect(const DocumentSource(name: 'fiction.fb2')),
+      DocumentFormat.fb2,
+    );
   });
 
   test('detects txt', () {
-    expect(detector.detect(const DocumentSource(name: 'notes.txt')), DocumentFormat.txt);
+    expect(
+      detector.detect(const DocumentSource(name: 'notes.txt')),
+      DocumentFormat.txt,
+    );
   });
 
   test('detects markdown with both .md and .markdown extensions', () {
-    expect(detector.detect(const DocumentSource(name: 'readme.md')), DocumentFormat.markdown);
-    expect(detector.detect(const DocumentSource(name: 'readme.markdown')), DocumentFormat.markdown);
+    expect(
+      detector.detect(const DocumentSource(name: 'readme.md')),
+      DocumentFormat.markdown,
+    );
+    expect(
+      detector.detect(const DocumentSource(name: 'readme.markdown')),
+      DocumentFormat.markdown,
+    );
   });
 
   test('detects html with both .html and .htm extensions', () {
-    expect(detector.detect(const DocumentSource(name: 'page.html')), DocumentFormat.html);
-    expect(detector.detect(const DocumentSource(name: 'page.htm')), DocumentFormat.html);
+    expect(
+      detector.detect(const DocumentSource(name: 'page.html')),
+      DocumentFormat.html,
+    );
+    expect(
+      detector.detect(const DocumentSource(name: 'page.htm')),
+      DocumentFormat.html,
+    );
   });
 
   test('detects cbr', () {
-    expect(detector.detect(const DocumentSource(name: 'archive.cbr')), DocumentFormat.cbr);
+    expect(
+      detector.detect(const DocumentSource(name: 'archive.cbr')),
+      DocumentFormat.cbr,
+    );
   });
 
   test('returns unknown for unsupported sources', () {

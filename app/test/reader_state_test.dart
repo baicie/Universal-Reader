@@ -20,15 +20,15 @@ SampleReaderDocument _doc({String id = 'book-1'}) => SampleReaderDocument(
 /// [FoliateSession] inside the copyWith / loaded tests.
 class _StubHtmlReader implements HtmlChapteredDocument {
   _StubHtmlReader({DocumentMetadata? metadata})
-      : docMetadata =
-            metadata ??
-            const DocumentMetadata(
-              id: 'book-1',
-              title: 'A',
-              author: 'B',
-              format: DocumentFormat.epub,
-              type: DocumentType.reflow,
-            );
+    : docMetadata =
+          metadata ??
+          const DocumentMetadata(
+            id: 'book-1',
+            title: 'A',
+            author: 'B',
+            format: DocumentFormat.epub,
+            type: DocumentType.reflow,
+          );
 
   final DocumentMetadata docMetadata;
 
@@ -62,8 +62,7 @@ class _StubHtmlReader implements HtmlChapteredDocument {
       EpubLocator(href: currentChapterHref, progression: 0);
 
   @override
-  Future<String?> extractText(DocumentRange range) async =>
-      currentChapterText;
+  Future<String?> extractText(DocumentRange range) async => currentChapterText;
 
   @override
   Future<void> goTo(Locator locator) async {}
@@ -113,7 +112,10 @@ void main() {
         foliateFragment: 'frag',
         foliateScrollQuote: 'q',
       );
-      final cleared = rt.copyWith(foliateFragment: null, foliateScrollQuote: null);
+      final cleared = rt.copyWith(
+        foliateFragment: null,
+        foliateScrollQuote: null,
+      );
       expect(cleared.foliateFragment, isNull);
       expect(cleared.foliateScrollQuote, isNull);
     });
@@ -143,50 +145,53 @@ void main() {
   });
 
   group('ReaderRuntime.loaded preserves cross-cutting state', () {
-    test('keeps notes, pendingQuote, foliate, and search across the transition', () {
-      final rt = ReaderRuntime(
-        notes: [
-          ReaderAnnotation(
-            id: 'n1',
-            note: '',
-            createdAt: DateTime.utc(2025, 1, 1),
-          ),
-        ],
-        pendingQuote: 'q',
-        foliateSession: _buildSession(),
-        foliateFragment: 'frag',
-        foliateFragmentEpoch: 1,
-        foliateScrollQuote: 'sq',
-        foliateScrollQuoteEpoch: 2,
-        searchQuery: 'orange',
-        searchHits: const <SearchResult>[
-          SearchResult(
-            title: 't',
-            excerpt: 'e',
-            locator: EpubLocator(href: 'chapter-1', progression: 0),
-          ),
-        ],
-      );
+    test(
+      'keeps notes, pendingQuote, foliate, and search across the transition',
+      () {
+        final rt = ReaderRuntime(
+          notes: [
+            ReaderAnnotation(
+              id: 'n1',
+              note: '',
+              createdAt: DateTime.utc(2025, 1, 1),
+            ),
+          ],
+          pendingQuote: 'q',
+          foliateSession: _buildSession(),
+          foliateFragment: 'frag',
+          foliateFragmentEpoch: 1,
+          foliateScrollQuote: 'sq',
+          foliateScrollQuoteEpoch: 2,
+          searchQuery: 'orange',
+          searchHits: const <SearchResult>[
+            SearchResult(
+              title: 't',
+              excerpt: 'e',
+              locator: EpubLocator(href: 'chapter-1', progression: 0),
+            ),
+          ],
+        );
 
-      final loaded = rt.loaded(
-        document: _doc(),
-        body: 'b',
-        toc: const <TocItem>[],
-        progress: 0.1,
-      );
+        final loaded = rt.loaded(
+          document: _doc(),
+          body: 'b',
+          toc: const <TocItem>[],
+          progress: 0.1,
+        );
 
-      expect(loaded.loading, false);
-      expect(loaded.opened, isNotNull);
-      expect(loaded.notes, rt.notes);
-      expect(loaded.pendingQuote, 'q');
-      expect(loaded.foliateSession, rt.foliateSession);
-      expect(loaded.foliateFragment, 'frag');
-      expect(loaded.foliateFragmentEpoch, 1);
-      expect(loaded.foliateScrollQuote, 'sq');
-      expect(loaded.foliateScrollQuoteEpoch, 2);
-      expect(loaded.searchQuery, 'orange');
-      expect(loaded.searchHits, rt.searchHits);
-    });
+        expect(loaded.loading, false);
+        expect(loaded.opened, isNotNull);
+        expect(loaded.notes, rt.notes);
+        expect(loaded.pendingQuote, 'q');
+        expect(loaded.foliateSession, rt.foliateSession);
+        expect(loaded.foliateFragment, 'frag');
+        expect(loaded.foliateFragmentEpoch, 1);
+        expect(loaded.foliateScrollQuote, 'sq');
+        expect(loaded.foliateScrollQuoteEpoch, 2);
+        expect(loaded.searchQuery, 'orange');
+        expect(loaded.searchHits, rt.searchHits);
+      },
+    );
 
     test(
       'loaded() without fileBytes keeps the previous fileBytes (null default)',

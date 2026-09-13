@@ -25,24 +25,24 @@ void main() {
   group('ReaderJumpProposal', () {
     test('carries its locator and label', () {
       const locator = EpubLocator(href: 'OEBPS/ch1.xhtml');
-      const proposal = ReaderJumpProposal(
-        locator: locator,
-        label: 'chapter-1',
-      );
+      const proposal = ReaderJumpProposal(locator: locator, label: 'chapter-1');
       expect(proposal.locator, same(locator));
       expect(proposal.label, 'chapter-1');
     });
   });
 
   group('ReaderToolRequest', () {
-    test('defaults askDocument to false and range/locator/question to null', () {
-      const request = ReaderToolRequest(kind: ReaderToolKind.translate);
-      expect(request.kind, ReaderToolKind.translate);
-      expect(request.question, isNull);
-      expect(request.locator, isNull);
-      expect(request.range, isNull);
-      expect(request.askDocument, isFalse);
-    });
+    test(
+      'defaults askDocument to false and range/locator/question to null',
+      () {
+        const request = ReaderToolRequest(kind: ReaderToolKind.translate);
+        expect(request.kind, ReaderToolKind.translate);
+        expect(request.question, isNull);
+        expect(request.locator, isNull);
+        expect(request.range, isNull);
+        expect(request.askDocument, isFalse);
+      },
+    );
 
     test('every field can be supplied explicitly', () {
       const range = DocumentRange(
@@ -75,7 +75,9 @@ void main() {
     });
 
     test('unavailable factory marks unavailable and clears other fields', () {
-      const result = ReaderToolResult.unavailable('turn on the assistant first');
+      const result = ReaderToolResult.unavailable(
+        'turn on the assistant first',
+      );
       expect(result.unavailable, isTrue);
       expect(result.text, 'turn on the assistant first');
       expect(result.locatorLabel, isNull);

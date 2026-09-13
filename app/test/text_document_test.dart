@@ -7,20 +7,20 @@ import 'package:app/features/reader/open_reader.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 DocumentMetadata _txt({String title = 'notes'}) => DocumentMetadata(
-      id: 'notes',
-      title: title,
-      author: '',
-      format: DocumentFormat.txt,
-      type: DocumentType.reflow,
-    );
+  id: 'notes',
+  title: title,
+  author: '',
+  format: DocumentFormat.txt,
+  type: DocumentType.reflow,
+);
 
 DocumentMetadata _md({String title = 'md'}) => DocumentMetadata(
-      id: 'md',
-      title: title,
-      author: '',
-      format: DocumentFormat.markdown,
-      type: DocumentType.reflow,
-    );
+  id: 'md',
+  title: title,
+  author: '',
+  format: DocumentFormat.markdown,
+  type: DocumentType.reflow,
+);
 
 void main() {
   // ── baseline ────────────────────────────────────────────────────────────
@@ -82,7 +82,10 @@ void main() {
   });
 
   test('plain text files open as a text reader, binaries stay unavailable', () {
-    final text = openReaderDocument(metadata: _txt(), bytes: utf8.encode('from disk'));
+    final text = openReaderDocument(
+      metadata: _txt(),
+      bytes: utf8.encode('from disk'),
+    );
     expect(text, isA<TextReaderDocument>());
 
     final pdf = openReaderDocument(
@@ -196,16 +199,18 @@ void main() {
       expect(document.truncated, isTrue);
     });
 
-    test('currentLocator returns a TextLocator at section startOffset',
-        () async {
-      final document = TextReaderDocument.parse(
-        metadata: _txt(),
-        bytes: utf8.encode('Title\n\nbody\n\nBody2'),
-      );
-      await document.goTo(const TextLocator(offset: 12));
-      final locator = await document.currentLocator();
-      expect(locator, isA<TextLocator>());
-    });
+    test(
+      'currentLocator returns a TextLocator at section startOffset',
+      () async {
+        final document = TextReaderDocument.parse(
+          metadata: _txt(),
+          bytes: utf8.encode('Title\n\nbody\n\nBody2'),
+        );
+        await document.goTo(const TextLocator(offset: 12));
+        final locator = await document.currentLocator();
+        expect(locator, isA<TextLocator>());
+      },
+    );
 
     test('locatorForProgress never exceeds fullText length', () {
       final document = TextReaderDocument.parse(
@@ -213,7 +218,10 @@ void main() {
         bytes: utf8.encode('hello there'),
       );
       final locator = document.locatorForProgress(2.0) as TextLocator;
-      expect(locator.offset, lessThanOrEqualTo(document.parsed.fullText.length));
+      expect(
+        locator.offset,
+        lessThanOrEqualTo(document.parsed.fullText.length),
+      );
     });
 
     test('locatorForProgress(0) returns offset 0', () {
@@ -238,20 +246,24 @@ void main() {
       );
     });
 
-    test('goTo by TextLocator selects section with startOffset <= offset',
-        () async {
-      final document = TextReaderDocument.parse(
-        metadata: _txt(),
-        bytes: utf8.encode('# A\n\naaa\n\n# B\n\nbbb\n\n# C\n\nccc'),
-      );
-      // The offset of "B" body content.
-      final offsetB = document.parsed.fullText.indexOf('bbb');
-      await document.goTo(TextLocator(offset: offsetB));
-      expect(document.chapterIndex, greaterThan(0));
-      // The "ccc" exclusive is on its own section.
-      await document.goTo(TextLocator(offset: document.parsed.fullText.length));
-      expect(document.currentChapterText, contains('ccc'));
-    });
+    test(
+      'goTo by TextLocator selects section with startOffset <= offset',
+      () async {
+        final document = TextReaderDocument.parse(
+          metadata: _txt(),
+          bytes: utf8.encode('# A\n\naaa\n\n# B\n\nbbb\n\n# C\n\nccc'),
+        );
+        // The offset of "B" body content.
+        final offsetB = document.parsed.fullText.indexOf('bbb');
+        await document.goTo(TextLocator(offset: offsetB));
+        expect(document.chapterIndex, greaterThan(0));
+        // The "ccc" exclusive is on its own section.
+        await document.goTo(
+          TextLocator(offset: document.parsed.fullText.length),
+        );
+        expect(document.currentChapterText, contains('ccc'));
+      },
+    );
 
     test('goTo ignores Locator types it does not understand', () async {
       final document = TextReaderDocument.parse(
@@ -279,20 +291,22 @@ void main() {
       expect(text, equals('hello'));
     });
 
-    test('extractText with non-TextLocator defaults to full document',
-        () async {
-      final document = TextReaderDocument.parse(
-        metadata: _txt(),
-        bytes: utf8.encode('hello world'),
-      );
-      final text = await document.extractText(
-        const DocumentRange(
-          start: PdfLocator(page: 1),
-          end: PdfLocator(page: 99),
-        ),
-      );
-      expect(text, contains('hello world'));
-    });
+    test(
+      'extractText with non-TextLocator defaults to full document',
+      () async {
+        final document = TextReaderDocument.parse(
+          metadata: _txt(),
+          bytes: utf8.encode('hello world'),
+        );
+        final text = await document.extractText(
+          const DocumentRange(
+            start: PdfLocator(page: 1),
+            end: PdfLocator(page: 99),
+          ),
+        );
+        expect(text, contains('hello world'));
+      },
+    );
 
     test('extractText with start beyond length returns empty', () async {
       final document = TextReaderDocument.parse(
@@ -319,19 +333,21 @@ void main() {
       expect(progress, lessThanOrEqualTo(1));
     });
 
-    test('search returns a result for a single match with its offset',
-        () async {
-      final document = TextReaderDocument.parse(
-        metadata: _txt(),
-        bytes: utf8.encode('hello there friend'),
-      );
-      final results = await document.search('there');
-      expect(results, hasLength(1));
-      expect(
-        (results.first.locator as TextLocator).offset,
-        document.parsed.fullText.indexOf('there'),
-      );
-    });
+    test(
+      'search returns a result for a single match with its offset',
+      () async {
+        final document = TextReaderDocument.parse(
+          metadata: _txt(),
+          bytes: utf8.encode('hello there friend'),
+        );
+        final results = await document.search('there');
+        expect(results, hasLength(1));
+        expect(
+          (results.first.locator as TextLocator).offset,
+          document.parsed.fullText.indexOf('there'),
+        );
+      },
+    );
 
     test('search returns one hit per match in the full text', () async {
       // Reader search must report every match so the search pane can offer
@@ -377,20 +393,20 @@ void main() {
     test('getToc emits one entry per section preserving titles', () async {
       final document = TextReaderDocument.parse(
         metadata: _md(),
-        bytes: utf8.encode('# Alpha\n\nbody\n\n# Beta\n\nbody\n\n# Gamma\n\nbody'),
+        bytes: utf8.encode(
+          '# Alpha\n\nbody\n\n# Beta\n\nbody\n\n# Gamma\n\nbody',
+        ),
       );
       final toc = await document.getToc();
       expect(toc, hasLength(3));
-      expect(toc.map((item) => item.title).toList(),
-          equals(['Alpha', 'Beta', 'Gamma']));
       expect(
-        toc.every((item) => item.locator is TextLocator),
-        isTrue,
+        toc.map((item) => item.title).toList(),
+        equals(['Alpha', 'Beta', 'Gamma']),
       );
+      expect(toc.every((item) => item.locator is TextLocator), isTrue);
     });
 
-    test('chapterIndex clamps out-of-range goTo to a valid section',
-        () async {
+    test('chapterIndex clamps out-of-range goTo to a valid section', () async {
       final document = TextReaderDocument.parse(
         metadata: _txt(),
         bytes: utf8.encode('# A\n\na\n\n# B\n\nb'),
@@ -508,16 +524,18 @@ void main() {
       expect(parsed.sections.first.body, equals(''));
     });
 
-    test('plain text long title (over 40 runes) becomes a body, not a title',
-        () {
-      final long = 'x' * 80;
-      final parsed = parseTextDocument(
-        bytes: utf8.encode('$long\n\nbody'),
-        format: DocumentFormat.txt,
-      );
-      // The long block should not be split as title/body.
-      expect(parsed.sections.first.title, equals(''));
-    });
+    test(
+      'plain text long title (over 40 runes) becomes a body, not a title',
+      () {
+        final long = 'x' * 80;
+        final parsed = parseTextDocument(
+          bytes: utf8.encode('$long\n\nbody'),
+          format: DocumentFormat.txt,
+        );
+        // The long block should not be split as title/body.
+        expect(parsed.sections.first.title, equals(''));
+      },
+    );
 
     test('plain text short-title block is split as title + body', () {
       final parsed = parseTextDocument(
@@ -595,8 +613,7 @@ void main() {
         bytes: utf8.encode('# T\n\n$huge'),
         format: DocumentFormat.markdown,
       );
-      final rejoined =
-          parsed.sections.map((section) => section.body).join();
+      final rejoined = parsed.sections.map((section) => section.body).join();
       expect(rejoined.length, equals(huge.length));
       expect(rejoined, equals(huge));
     });

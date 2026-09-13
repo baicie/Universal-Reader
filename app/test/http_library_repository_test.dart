@@ -55,9 +55,9 @@ void _installPathProviderStub() {
   TestWidgetsFlutterBinding.ensureInitialized();
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(
-    const MethodChannel('plugins.flutter.io/path_provider'),
-    handle,
-  );
+        const MethodChannel('plugins.flutter.io/path_provider'),
+        handle,
+      );
 }
 
 void main() {
@@ -75,8 +75,10 @@ void main() {
 
     test('uri trims a trailing slash on the base URL', () {
       final repo = HttpLibraryRepository(baseUrl: 'http://x/');
-      expect(repo.uri('/v1/library/documents').toString(),
-          'http://x/v1/library/documents');
+      expect(
+        repo.uri('/v1/library/documents').toString(),
+        'http://x/v1/library/documents',
+      );
     });
 
     test('load() decodes the documents list', () async {
@@ -84,24 +86,24 @@ void main() {
         baseUrl: 'http://x',
         httpClient: _scripted({
           '/v1/library/documents': (_) => http.Response(
-                jsonEncode({
-                  'documents': [
-                    {
-                      'id': 'a',
-                      'title': 'Alpha',
-                      'author': 'A',
-                      'format': 'epub',
-                      'document_type': 'reflow',
-                      'cover_color': 1,
-                      'content_hash': 'h',
-                      'has_cover': false,
-                      'progress': 0.5,
-                      'last_opened_ms': 0,
-                    },
-                  ],
-                }),
-                200,
-              ),
+            jsonEncode({
+              'documents': [
+                {
+                  'id': 'a',
+                  'title': 'Alpha',
+                  'author': 'A',
+                  'format': 'epub',
+                  'document_type': 'reflow',
+                  'cover_color': 1,
+                  'content_hash': 'h',
+                  'has_cover': false,
+                  'progress': 0.5,
+                  'last_opened_ms': 0,
+                },
+              ],
+            }),
+            200,
+          ),
         }),
       );
       final docs = await repo.load();
@@ -114,8 +116,8 @@ void main() {
       final repo = HttpLibraryRepository(
         baseUrl: 'http://x',
         httpClient: _scripted({
-          '/v1/library/documents':
-              (_) => http.Response(jsonEncode(['nope']), 200),
+          '/v1/library/documents': (_) =>
+              http.Response(jsonEncode(['nope']), 200),
         }),
       );
       expect(await repo.load(), isEmpty);
@@ -125,8 +127,8 @@ void main() {
       final repo = HttpLibraryRepository(
         baseUrl: 'http://x',
         httpClient: _scripted({
-          '/v1/library/documents':
-              (_) => http.Response(jsonEncode({'documents': {}}), 200),
+          '/v1/library/documents': (_) =>
+              http.Response(jsonEncode({'documents': {}}), 200),
         }),
       );
       expect(await repo.load(), isEmpty);
@@ -191,18 +193,14 @@ void main() {
           '/v1/library/files': (_) => http.Response('no', 503),
         }),
       );
-      await expectLater(
-        repo.importBytes('x.bin', [0]),
-        throwsFormatException,
-      );
+      await expectLater(repo.importBytes('x.bin', [0]), throwsFormatException);
     });
 
     test('readFile returns null on 404', () async {
       final repo = HttpLibraryRepository(
         baseUrl: 'http://x',
         httpClient: _scripted({
-          '/v1/library/documents/missing/file':
-              (_) => http.Response('', 404),
+          '/v1/library/documents/missing/file': (_) => http.Response('', 404),
         }),
       );
       expect(await repo.readFile('missing'), isNull);
@@ -212,8 +210,8 @@ void main() {
       final repo = HttpLibraryRepository(
         baseUrl: 'http://x',
         httpClient: _scripted({
-          '/v1/library/documents/has/file':
-              (_) => http.Response.bytes([1, 2, 3], 200),
+          '/v1/library/documents/has/file': (_) =>
+              http.Response.bytes([1, 2, 3], 200),
         }),
       );
       expect(await repo.readFile('has'), [1, 2, 3]);
@@ -223,8 +221,7 @@ void main() {
       final repo = HttpLibraryRepository(
         baseUrl: 'http://x',
         httpClient: _scripted({
-          '/v1/library/documents/x/file':
-              (_) => http.Response('boom', 403),
+          '/v1/library/documents/x/file': (_) => http.Response('boom', 403),
         }),
       );
       await expectLater(repo.readFile('x'), throwsFormatException);
@@ -234,8 +231,7 @@ void main() {
       final repo = HttpLibraryRepository(
         baseUrl: 'http://x',
         httpClient: _scripted({
-          '/v1/library/documents/missing/cover':
-              (_) => http.Response('', 404),
+          '/v1/library/documents/missing/cover': (_) => http.Response('', 404),
         }),
       );
       expect(await repo.readCover('missing'), isNull);
@@ -245,8 +241,8 @@ void main() {
       final repo = HttpLibraryRepository(
         baseUrl: 'http://x',
         httpClient: _scripted({
-          '/v1/library/documents/has/cover':
-              (_) => http.Response.bytes([9, 8, 7], 200),
+          '/v1/library/documents/has/cover': (_) =>
+              http.Response.bytes([9, 8, 7], 200),
         }),
       );
       expect(await repo.readCover('has'), [9, 8, 7]);
@@ -256,35 +252,36 @@ void main() {
       final repo = HttpLibraryRepository(
         baseUrl: 'http://x',
         httpClient: _scripted({
-          '/v1/library/documents/x/cover':
-              (_) => http.Response('boom', 500),
+          '/v1/library/documents/x/cover': (_) => http.Response('boom', 500),
         }),
       );
       await expectLater(repo.readCover('x'), throwsFormatException);
     });
 
-    test('writeReadingState sends JSON with epoch millis and is ok on 200',
-        () async {
-      late http.Request seen;
-      final repo = HttpLibraryRepository(
-        baseUrl: 'http://x',
-        httpClient: MockClient((req) async {
-          seen = req;
-          return http.Response('', 200);
-        }),
-      );
-      final lastOpened = DateTime.utc(2026, 1, 2, 3, 4, 5);
-      await repo.writeReadingState(
-        id: 'a',
-        progress: 0.42,
-        lastOpened: lastOpened,
-      );
-      expect(seen.method, 'PATCH');
-      expect(seen.headers['content-type'], 'application/json');
-      final body = jsonDecode(seen.body) as Map<String, dynamic>;
-      expect(body['progress'], 0.42);
-      expect(body['last_opened_ms'], lastOpened.millisecondsSinceEpoch);
-    });
+    test(
+      'writeReadingState sends JSON with epoch millis and is ok on 200',
+      () async {
+        late http.Request seen;
+        final repo = HttpLibraryRepository(
+          baseUrl: 'http://x',
+          httpClient: MockClient((req) async {
+            seen = req;
+            return http.Response('', 200);
+          }),
+        );
+        final lastOpened = DateTime.utc(2026, 1, 2, 3, 4, 5);
+        await repo.writeReadingState(
+          id: 'a',
+          progress: 0.42,
+          lastOpened: lastOpened,
+        );
+        expect(seen.method, 'PATCH');
+        expect(seen.headers['content-type'], 'application/json');
+        final body = jsonDecode(seen.body) as Map<String, dynamic>;
+        expect(body['progress'], 0.42);
+        expect(body['last_opened_ms'], lastOpened.millisecondsSinceEpoch);
+      },
+    );
 
     test('writeReadingState throws on non-200', () async {
       final repo = HttpLibraryRepository(
@@ -362,45 +359,53 @@ void main() {
       await repo.save(const []);
     });
 
-    test('readFile URL-encodes document ids with reserved characters', () async {
-      // Document ids often come from filenames; Chinese, spaces, '#' or '%'
-      // in an id would otherwise produce an ambiguous URL. Encode the id so
-      // the server receives the original characters verbatim.
-      late http.Request seen;
-      final repo = HttpLibraryRepository(
-        baseUrl: 'http://x',
-        httpClient: MockClient((req) async {
-          seen = req;
-          if (req.url.path.endsWith('/file')) {
-            return http.Response.bytes([1, 2, 3], 200);
-          }
-          return http.Response('', 404);
-        }),
-      );
-      await repo.readFile('书 名 #1.epub');
-      expect(seen.url.path, '/v1/library/documents/${Uri.encodeComponent('书 名 #1.epub')}/file');
-    });
+    test(
+      'readFile URL-encodes document ids with reserved characters',
+      () async {
+        // Document ids often come from filenames; Chinese, spaces, '#' or '%'
+        // in an id would otherwise produce an ambiguous URL. Encode the id so
+        // the server receives the original characters verbatim.
+        late http.Request seen;
+        final repo = HttpLibraryRepository(
+          baseUrl: 'http://x',
+          httpClient: MockClient((req) async {
+            seen = req;
+            if (req.url.path.endsWith('/file')) {
+              return http.Response.bytes([1, 2, 3], 200);
+            }
+            return http.Response('', 404);
+          }),
+        );
+        await repo.readFile('书 名 #1.epub');
+        expect(
+          seen.url.path,
+          '/v1/library/documents/${Uri.encodeComponent('书 名 #1.epub')}/file',
+        );
+      },
+    );
 
-    test('writeReadingState URL-encodes document ids with reserved characters',
-        () async {
-      late http.Request seen;
-      final repo = HttpLibraryRepository(
-        baseUrl: 'http://x',
-        httpClient: MockClient((req) async {
-          seen = req;
-          return http.Response('', 200);
-        }),
-      );
-      await repo.writeReadingState(
-        id: 'book with space',
-        progress: 0,
-        lastOpened: DateTime.utc(2026, 1, 1),
-      );
-      expect(
-        seen.url.path,
-        '/v1/library/documents/${Uri.encodeComponent('book with space')}',
-      );
-    });
+    test(
+      'writeReadingState URL-encodes document ids with reserved characters',
+      () async {
+        late http.Request seen;
+        final repo = HttpLibraryRepository(
+          baseUrl: 'http://x',
+          httpClient: MockClient((req) async {
+            seen = req;
+            return http.Response('', 200);
+          }),
+        );
+        await repo.writeReadingState(
+          id: 'book with space',
+          progress: 0,
+          lastOpened: DateTime.utc(2026, 1, 1),
+        );
+        expect(
+          seen.url.path,
+          '/v1/library/documents/${Uri.encodeComponent('book with space')}',
+        );
+      },
+    );
   });
 
   group('resolveLibraryRepository', () {
@@ -453,17 +458,19 @@ void main() {
       expect(repo.usesRemoteStore, isFalse);
     });
 
-    test('default baseUrl path falls back when no client override is given',
-        () async {
-      // Pass a custom httpClient; this exercises the `baseUrl ?? libraryBaseUrl()`
-      // path without forcing `libraryBaseUrl()` to consult Uri.base.
-      final prefs = await SharedPreferences.getInstance();
-      final repo = await resolveLibraryRepository(
-        prefs,
-        httpClient: MockClient((_) async => http.Response('no', 500)),
-      );
-      expect(repo.usesRemoteStore, isFalse);
-    });
+    test(
+      'default baseUrl path falls back when no client override is given',
+      () async {
+        // Pass a custom httpClient; this exercises the `baseUrl ?? libraryBaseUrl()`
+        // path without forcing `libraryBaseUrl()` to consult Uri.base.
+        final prefs = await SharedPreferences.getInstance();
+        final repo = await resolveLibraryRepository(
+          prefs,
+          httpClient: MockClient((_) async => http.Response('no', 500)),
+        );
+        expect(repo.usesRemoteStore, isFalse);
+      },
+    );
 
     test(
       'falls back to local when no httpClient is provided and the probe fails',

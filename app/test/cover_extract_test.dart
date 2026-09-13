@@ -128,9 +128,8 @@ void main() {
                 .codeUnits,
         'OEBPS/zzz.png': [1, 2, 3],
         'OEBPS/aaa.jpg': tinyPngBytes(),
-        'OEBPS/ch1.xhtml':
-            '<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><body><p>x</p></body></html>'
-                .codeUnits,
+        'OEBPS/ch1.xhtml': '<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><body><p>x</p></body></html>'
+            .codeUnits,
       });
       expect(extractCover(fileName: 'book.epub', bytes: bytes), tinyPngBytes());
     });

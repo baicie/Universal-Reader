@@ -401,10 +401,7 @@ void main() {
     });
 
     test('keeps hasCover false when cover is null', () {
-      final doc = importedLibraryDocument(
-        'book.epub',
-        minimalEpubBytes(),
-      );
+      final doc = importedLibraryDocument('book.epub', minimalEpubBytes());
       expect(doc.metadata.hasCover, isFalse);
     });
 
@@ -517,18 +514,20 @@ void main() {
       expect(await repo.load(), hasLength(1));
     });
 
-    test('different bytes under the same name replace the previous entry', () async {
-      final repo = InMemoryLibraryRepository();
-      await repo.importBytes('notes.txt', [1, 2, 3]);
-      final second = await repo.importBytes('notes.txt', [4, 5, 6]);
-      final loaded = await repo.load();
-      expect(loaded, hasLength(1));
-      expect(loaded.single.metadata.contentHash,
-          contentHash([4, 5, 6]));
-      expect(loaded.single, same(second));
-      // File bytes are refreshed to the latest import.
-      expect(await repo.readFile('notes.txt'), [4, 5, 6]);
-    });
+    test(
+      'different bytes under the same name replace the previous entry',
+      () async {
+        final repo = InMemoryLibraryRepository();
+        await repo.importBytes('notes.txt', [1, 2, 3]);
+        final second = await repo.importBytes('notes.txt', [4, 5, 6]);
+        final loaded = await repo.load();
+        expect(loaded, hasLength(1));
+        expect(loaded.single.metadata.contentHash, contentHash([4, 5, 6]));
+        expect(loaded.single, same(second));
+        // File bytes are refreshed to the latest import.
+        expect(await repo.readFile('notes.txt'), [4, 5, 6]);
+      },
+    );
 
     test('readCover returns the bytes stored alongside import', () async {
       final repo = InMemoryLibraryRepository();
@@ -539,9 +538,9 @@ void main() {
 
     test('readCover stores cover bytes supplied via fixture', () async {
       // Build an epub that embed a cover inside a coverpage manifest entry.
-      final bytes = minimalEpubBytes(extraFiles: {
-        'OEBPS/cover.png': tinyPngBytes(),
-      });
+      final bytes = minimalEpubBytes(
+        extraFiles: {'OEBPS/cover.png': tinyPngBytes()},
+      );
       final repo = InMemoryLibraryRepository();
       await repo.importBytes('book.epub', bytes);
       final cover = await repo.readCover('book.epub');
@@ -598,13 +597,16 @@ void main() {
       expect(await repo.load(), isEmpty);
     });
 
-    test('usesRemoteStore is false for the local preferences backend', () async {
-      SharedPreferences.setMockInitialValues({});
-      final repo = SharedPreferencesLibraryRepository(
-        await SharedPreferences.getInstance(),
-      );
-      expect(repo.usesRemoteStore, isFalse);
-    });
+    test(
+      'usesRemoteStore is false for the local preferences backend',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final repo = SharedPreferencesLibraryRepository(
+          await SharedPreferences.getInstance(),
+        );
+        expect(repo.usesRemoteStore, isFalse);
+      },
+    );
   });
 
   group('LibraryDocumentCodec.fromJson defensive decoding', () {
@@ -673,9 +675,7 @@ void main() {
           'contentHash': '',
           'hasCover': false,
         },
-        'readingState': {
-          'lastOpened': DateTime(2026, 9, 1).toIso8601String(),
-        },
+        'readingState': {'lastOpened': DateTime(2026, 9, 1).toIso8601String()},
       });
       expect(doc.readingState.progress, 0);
     });

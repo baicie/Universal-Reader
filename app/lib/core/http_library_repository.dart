@@ -159,8 +159,9 @@ class HttpLibraryRepository implements LibraryRepository {
 
   @override
   Future<void> delete(String id) async {
-    final response = await httpClient
-        .delete(uri('/v1/library/documents/${Uri.encodeComponent(id)}'));
+    final response = await httpClient.delete(
+      uri('/v1/library/documents/${Uri.encodeComponent(id)}'),
+    );
     if (response.statusCode == 204 ||
         response.statusCode == 200 ||
         response.statusCode == 404) {

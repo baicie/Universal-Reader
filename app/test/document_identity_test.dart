@@ -52,7 +52,10 @@ void main() {
     });
 
     test('also handles AZW3/MOBI by reusing the EPUB parser', () {
-      final bytes = minimalEpubBytes(title: 'Kindle Book', author: 'Kindle Author');
+      final bytes = minimalEpubBytes(
+        title: 'Kindle Book',
+        author: 'Kindle Author',
+      );
       final azw3 = documentIdentity(
         fileName: 'kindle.azw3',
         bytes: bytes,
@@ -69,29 +72,37 @@ void main() {
       expect(mobi.author, 'Kindle Author');
     });
 
-    test('falls back to the file name when EPUB metadata has an empty title',
-        () {
-      final bytes = minimalEpubBytes(title: '   ', author: '');
-      final identity = documentIdentity(
-        fileName: 'design.epub',
-        bytes: bytes,
-        format: DocumentFormat.epub,
-      );
-      expect(identity.title, 'design');
-      expect(identity.author, isEmpty);
-    });
+    test(
+      'falls back to the file name when EPUB metadata has an empty title',
+      () {
+        final bytes = minimalEpubBytes(title: '   ', author: '');
+        final identity = documentIdentity(
+          fileName: 'design.epub',
+          bytes: bytes,
+          format: DocumentFormat.epub,
+        );
+        expect(identity.title, 'design');
+        expect(identity.author, isEmpty);
+      },
+    );
 
-    test('falls back to the file name when FB2 metadata has an empty title',
-        () {
-      final bytes = minimalFb2Bytes(title: '   ', authorFirst: '', authorLast: '');
-      final identity = documentIdentity(
-        fileName: 'war.fb2',
-        bytes: bytes,
-        format: DocumentFormat.fb2,
-      );
-      expect(identity.title, 'war');
-      expect(identity.author, isEmpty);
-    });
+    test(
+      'falls back to the file name when FB2 metadata has an empty title',
+      () {
+        final bytes = minimalFb2Bytes(
+          title: '   ',
+          authorFirst: '',
+          authorLast: '',
+        );
+        final identity = documentIdentity(
+          fileName: 'war.fb2',
+          bytes: bytes,
+          format: DocumentFormat.fb2,
+        );
+        expect(identity.title, 'war');
+        expect(identity.author, isEmpty);
+      },
+    );
 
     test('falls back to the file name when the EPUB bytes are corrupt', () {
       final identity = documentIdentity(

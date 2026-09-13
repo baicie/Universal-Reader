@@ -22,7 +22,9 @@ void main() {
     test('loading returns a loading state even when corrupt opened', () {
       final state = resolveReaderChapterState(
         loading: true,
-        opened: CorruptReaderDocument(metadata: library(DocumentFormat.epub).metadata),
+        opened: CorruptReaderDocument(
+          metadata: library(DocumentFormat.epub).metadata,
+        ),
         document: library(DocumentFormat.epub),
         isTruncated: false,
       );
@@ -33,7 +35,9 @@ void main() {
     test('loading wins over an unavailable opener', () {
       final state = resolveReaderChapterState(
         loading: true,
-        opened: UnavailableReaderDocument(metadata: library(DocumentFormat.epub).metadata),
+        opened: UnavailableReaderDocument(
+          metadata: library(DocumentFormat.epub).metadata,
+        ),
         document: library(DocumentFormat.epub),
         isTruncated: true,
       );
@@ -45,7 +49,9 @@ void main() {
     test('returns a corrupt state even when document is missing', () {
       final state = resolveReaderChapterState(
         loading: false,
-        opened: CorruptReaderDocument(metadata: library(DocumentFormat.pdf).metadata),
+        opened: CorruptReaderDocument(
+          metadata: library(DocumentFormat.pdf).metadata,
+        ),
         document: null,
         isTruncated: false,
       );
@@ -59,7 +65,9 @@ void main() {
     test('marks missingFile when the library entry is gone', () {
       final state = resolveReaderChapterState(
         loading: false,
-        opened: UnavailableReaderDocument(metadata: library(DocumentFormat.epub).metadata),
+        opened: UnavailableReaderDocument(
+          metadata: library(DocumentFormat.epub).metadata,
+        ),
         document: null,
         isTruncated: false,
       );
@@ -187,7 +195,9 @@ void main() {
     test('corrupt beats unavailable when both kinds could match', () {
       final state = resolveReaderChapterState(
         loading: false,
-        opened: CorruptReaderDocument(metadata: library(DocumentFormat.epub).metadata),
+        opened: CorruptReaderDocument(
+          metadata: library(DocumentFormat.epub).metadata,
+        ),
         document: null,
         isTruncated: false,
       );
@@ -197,7 +207,9 @@ void main() {
     test('unavailable beats ready when opener is unavailable', () {
       final state = resolveReaderChapterState(
         loading: false,
-        opened: UnavailableReaderDocument(metadata: library(DocumentFormat.html).metadata),
+        opened: UnavailableReaderDocument(
+          metadata: library(DocumentFormat.html).metadata,
+        ),
         document: library(DocumentFormat.html),
         isTruncated: true,
       );

@@ -167,30 +167,27 @@ void main() {
     expect(client, isA<OpenAiCompatibleClient>());
   });
 
-  test(
-    'resolveAiRuntime falls back to library.httpClient when httpClient is '
-    'omitted',
-    () async {
-      final client = MockClient((request) async {
-        if (request.url.path == '/v1/ai/status') {
-          return http.Response('{ "configured": true }', 200);
-        }
-        return http.Response('missing', 404);
-      });
-      SharedPreferences.setMockInitialValues({});
-      final preferences = await SharedPreferences.getInstance();
-      final runtime = await resolveAiRuntime(
-        HttpLibraryRepository(
-          baseUrl: 'http://127.0.0.1:8787',
-          httpClient: client,
-        ),
-        preferences,
-        // intentionally omitting httpClient to exercise the `??` branch
-      );
+  test('resolveAiRuntime falls back to library.httpClient when httpClient is '
+      'omitted', () async {
+    final client = MockClient((request) async {
+      if (request.url.path == '/v1/ai/status') {
+        return http.Response('{ "configured": true }', 200);
+      }
+      return http.Response('missing', 404);
+    });
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final runtime = await resolveAiRuntime(
+      HttpLibraryRepository(
+        baseUrl: 'http://127.0.0.1:8787',
+        httpClient: client,
+      ),
+      preferences,
+      // intentionally omitting httpClient to exercise the `??` branch
+    );
 
-      expect(runtime.useGateway, isTrue);
-      expect(runtime.serverHasKey, isTrue);
-      expect(runtime.conversations, isA<HttpConversationRepository>());
-    },
-  );
+    expect(runtime.useGateway, isTrue);
+    expect(runtime.serverHasKey, isTrue);
+    expect(runtime.conversations, isA<HttpConversationRepository>());
+  });
 }

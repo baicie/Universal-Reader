@@ -5,12 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   DocumentMetadata metadata(DocumentFormat format) => DocumentMetadata(
-        id: 'a',
-        title: 'A',
-        author: 'A',
-        format: format,
-        type: DocumentType.reflow,
-      );
+    id: 'a',
+    title: 'A',
+    author: 'A',
+    format: format,
+    type: DocumentType.reflow,
+  );
 
   group('readerCurrentBody', () {
     test('returns an empty string when the reader is null', () {
@@ -36,15 +36,12 @@ void main() {
       expect(readerCurrentBody(chaptered), 'Line 3');
     });
 
-    test(
-      'returns empty string for an unavailable (non-chaptered) opener',
-      () {
-        final unavailable = UnavailableReaderDocument(
-          metadata: metadata(DocumentFormat.epub),
-        );
-        expect(readerCurrentBody(unavailable), '');
-      },
-    );
+    test('returns empty string for an unavailable (non-chaptered) opener', () {
+      final unavailable = UnavailableReaderDocument(
+        metadata: metadata(DocumentFormat.epub),
+      );
+      expect(readerCurrentBody(unavailable), '');
+    });
   });
 
   group('splitTextParagraphs', () {
@@ -77,8 +74,10 @@ void main() {
     });
 
     test('preserves in-paragraph spaces and punctuation', () {
-      expect(splitTextParagraphs('Hello, world.\nGoodbye.'),
-          ['Hello, world.', 'Goodbye.']);
+      expect(splitTextParagraphs('Hello, world.\nGoodbye.'), [
+        'Hello, world.',
+        'Goodbye.',
+      ]);
     });
   });
 }

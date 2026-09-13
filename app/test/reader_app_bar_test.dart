@@ -46,101 +46,115 @@ void main() {
   }
 
   testWidgets('shows the book title', (tester) async {
-    await tester.pumpWidget(buildTestTarget(
-      title: 'My Novel',
-      ask: false,
-      showSearch: false,
-      showNotes: false,
-      bookmarks: false,
-      toc: false,
-    ));
+    await tester.pumpWidget(
+      buildTestTarget(
+        title: 'My Novel',
+        ask: false,
+        showSearch: false,
+        showNotes: false,
+        bookmarks: false,
+        toc: false,
+      ),
+    );
     expect(find.text('My Novel'), findsOneWidget);
   });
 
   testWidgets('back button calls onBack', (tester) async {
     var called = false;
-    await tester.pumpWidget(buildTestTarget(
-      title: 'Book',
-      ask: false,
-      showSearch: false,
-      showNotes: false,
-      bookmarks: false,
-      toc: false,
-      onBack: () => called = true,
-    ));
+    await tester.pumpWidget(
+      buildTestTarget(
+        title: 'Book',
+        ask: false,
+        showSearch: false,
+        showNotes: false,
+        bookmarks: false,
+        toc: false,
+        onBack: () => called = true,
+      ),
+    );
     await tester.tap(find.byIcon(Icons.arrow_back));
     expect(called, isTrue);
   });
 
   testWidgets('search toggle calls onSearchToggle', (tester) async {
     var searchCalls = 0;
-    await tester.pumpWidget(buildTestTarget(
-      title: 'Book',
-      ask: false,
-      showSearch: false,
-      showNotes: false,
-      bookmarks: false,
-      toc: false,
-      onSearchToggle: () => searchCalls++,
-    ));
+    await tester.pumpWidget(
+      buildTestTarget(
+        title: 'Book',
+        ask: false,
+        showSearch: false,
+        showNotes: false,
+        bookmarks: false,
+        toc: false,
+        onSearchToggle: () => searchCalls++,
+      ),
+    );
     await tester.tap(find.byIcon(Icons.search));
     expect(searchCalls, 1);
   });
 
   testWidgets('ask toggle calls onAskToggle', (tester) async {
     var askCalls = 0;
-    await tester.pumpWidget(buildTestTarget(
-      title: 'Book',
-      ask: false,
-      showSearch: false,
-      showNotes: false,
-      bookmarks: false,
-      toc: false,
-      onAskToggle: () => askCalls++,
-    ));
+    await tester.pumpWidget(
+      buildTestTarget(
+        title: 'Book',
+        ask: false,
+        showSearch: false,
+        showNotes: false,
+        bookmarks: false,
+        toc: false,
+        onAskToggle: () => askCalls++,
+      ),
+    );
     await tester.tap(find.byIcon(Icons.chat_bubble_outline));
     expect(askCalls, 1);
   });
 
   testWidgets('add bookmark button is tappable', (tester) async {
     var bookmarkCalls = 0;
-    await tester.pumpWidget(buildTestTarget(
-      title: 'Book',
-      ask: false,
-      showSearch: false,
-      showNotes: false,
-      bookmarks: false,
-      toc: false,
-      onAddBookmark: () => bookmarkCalls++,
-    ));
+    await tester.pumpWidget(
+      buildTestTarget(
+        title: 'Book',
+        ask: false,
+        showSearch: false,
+        showNotes: false,
+        bookmarks: false,
+        toc: false,
+        onAddBookmark: () => bookmarkCalls++,
+      ),
+    );
     await tester.tap(find.byKey(addBookmarkButtonKey));
     expect(bookmarkCalls, 1);
   });
 
   testWidgets('settings button calls onOpenSettings', (tester) async {
     var settingsCalls = 0;
-    await tester.pumpWidget(buildTestTarget(
-      title: 'Book',
-      ask: false,
-      showSearch: false,
-      showNotes: false,
-      bookmarks: false,
-      toc: false,
-      onOpenSettings: () => settingsCalls++,
-    ));
+    await tester.pumpWidget(
+      buildTestTarget(
+        title: 'Book',
+        ask: false,
+        showSearch: false,
+        showNotes: false,
+        bookmarks: false,
+        toc: false,
+        onOpenSettings: () => settingsCalls++,
+      ),
+    );
     await tester.tap(find.byIcon(Icons.text_fields));
     expect(settingsCalls, 1);
   });
 
   testWidgets('active states render without crashing', (tester) async {
-    await tester.pumpWidget(buildTestTarget(
-      title: 'Book',
-      ask: true,
-      showSearch: true,
-      showNotes: true,
-      bookmarks: true,
-      toc: true,
-    ));
+    await tester.pumpWidget(
+      buildTestTarget(
+        title: 'Book',
+        ask: true,
+        showSearch: true,
+        showNotes: true,
+        bookmarks: true,
+        toc: true,
+      ),
+    );
     expect(find.byIcon(Icons.chat_bubble), findsOneWidget);
     expect(find.byIcon(Icons.search), findsOneWidget);
     expect(find.byIcon(Icons.sticky_note_2), findsOneWidget);

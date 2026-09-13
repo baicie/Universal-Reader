@@ -63,10 +63,7 @@ class ReaderAppBar extends StatelessWidget implements PreferredSizeWidget {
         title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-        ),
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
       ),
       actions: [
         IconButton(
@@ -79,10 +76,7 @@ class ReaderAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         IconButton(
           tooltip: l10n.searchInBook,
-          icon: Icon(
-            Icons.search,
-            color: showSearch ? accent : ink,
-          ),
+          icon: Icon(Icons.search, color: showSearch ? accent : ink),
           onPressed: onSearchToggle,
         ),
         IconButton(

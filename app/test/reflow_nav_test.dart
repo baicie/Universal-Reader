@@ -193,31 +193,16 @@ void main() {
     expect(const ReflowTurnStay() == const ReflowTurnStay(), isTrue);
     expect(const ReflowTurnStay().hashCode, 0);
 
-    expect(
-      const ReflowTurnPage(2) == const ReflowTurnPage(2),
-      isTrue,
-    );
-    expect(
-      const ReflowTurnPage(2).hashCode,
-      const ReflowTurnPage(2).hashCode,
-    );
-    expect(
-      const ReflowTurnPage(2) == const ReflowTurnPage(3),
-      isFalse,
-    );
+    expect(const ReflowTurnPage(2) == const ReflowTurnPage(2), isTrue);
+    expect(const ReflowTurnPage(2).hashCode, const ReflowTurnPage(2).hashCode);
+    expect(const ReflowTurnPage(2) == const ReflowTurnPage(3), isFalse);
 
-    expect(
-      const ReflowTurnChapter(1) == const ReflowTurnChapter(1),
-      isTrue,
-    );
+    expect(const ReflowTurnChapter(1) == const ReflowTurnChapter(1), isTrue);
     expect(
       const ReflowTurnChapter(1).hashCode,
       const ReflowTurnChapter(1).hashCode,
     );
-    expect(
-      const ReflowTurnChapter(1) == const ReflowTurnChapter(2),
-      isFalse,
-    );
+    expect(const ReflowTurnChapter(1) == const ReflowTurnChapter(2), isFalse);
     expect(
       const ReflowTurnChapter(1, lastPage: true) ==
           const ReflowTurnChapter(1, lastPage: true),
@@ -269,15 +254,17 @@ void main() {
     expect(resolved, 'oebps/sub/%');
   });
 
-  test('internal href collapses `..` segments against the current directory',
-      () {
-    // Starting from OEBPS/ch1.xhtml the resolver must walk out of `ch1`
-    // before entering the sibling target. `_normalizeReflowPath` is the
-    // branch being exercised here.
-    final resolved = reflowInternalHref(
-      currentHref: 'OEBPS/sub/ch1.xhtml',
-      raw: '../ch2.xhtml',
-    );
-    expect(resolved, 'oebps/ch2.xhtml');
-  });
+  test(
+    'internal href collapses `..` segments against the current directory',
+    () {
+      // Starting from OEBPS/ch1.xhtml the resolver must walk out of `ch1`
+      // before entering the sibling target. `_normalizeReflowPath` is the
+      // branch being exercised here.
+      final resolved = reflowInternalHref(
+        currentHref: 'OEBPS/sub/ch1.xhtml',
+        raw: '../ch2.xhtml',
+      );
+      expect(resolved, 'oebps/ch2.xhtml');
+    },
+  );
 }

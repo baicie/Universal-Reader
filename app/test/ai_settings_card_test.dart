@@ -27,9 +27,7 @@ Future<void> pumpSettingsCard(
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: child ?? const AiSettingsCard(),
-        ),
+        home: Scaffold(body: child ?? const AiSettingsCard()),
       ),
     ),
   );
@@ -38,8 +36,9 @@ Future<void> pumpSettingsCard(
 
 void main() {
   group('AiSettingsCard endpoint field', () {
-    testWidgets('endpoint TextField is shown when useGateway is false',
-        (tester) async {
+    testWidgets('endpoint TextField is shown when useGateway is false', (
+      tester,
+    ) async {
       await pumpSettingsCard(
         tester,
         repository: InMemoryAiSettingsRepository(
@@ -55,12 +54,18 @@ void main() {
       );
 
       // The endpoint field label must be present.
-      expect(find.text(AppLocalizations.of(tester.element(find.byType(Scaffold))).endpointLabel),
-          findsOneWidget);
+      expect(
+        find.text(
+          AppLocalizations.of(tester.element(find.byType(Scaffold)))
+              .endpointLabel,
+        ),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('endpoint TextField is hidden when useGateway is true',
-        (tester) async {
+    testWidgets('endpoint TextField is hidden when useGateway is true', (
+      tester,
+    ) async {
       await pumpSettingsCard(
         tester,
         repository: InMemoryAiSettingsRepository(
@@ -81,14 +86,20 @@ void main() {
       );
 
       // With gateway mode, the endpoint field must not be rendered.
-      expect(find.text(AppLocalizations.of(tester.element(find.byType(Scaffold))).endpointLabel),
-          findsNothing);
+      expect(
+        find.text(
+          AppLocalizations.of(tester.element(find.byType(Scaffold)))
+              .endpointLabel,
+        ),
+        findsNothing,
+      );
     });
   });
 
   group('AiSettingsCard gateway note', () {
-    testWidgets('gateway note is shown when useGateway is true',
-        (tester) async {
+    testWidgets('gateway note is shown when useGateway is true', (
+      tester,
+    ) async {
       await pumpSettingsCard(
         tester,
         repository: InMemoryAiSettingsRepository(const AiSettings()),
@@ -104,8 +115,9 @@ void main() {
       expect(find.text(l10n.assistantGatewayNote), findsOneWidget);
     });
 
-    testWidgets('gateway note is NOT shown when useGateway is false',
-        (tester) async {
+    testWidgets('gateway note is NOT shown when useGateway is false', (
+      tester,
+    ) async {
       await pumpSettingsCard(
         tester,
         repository: InMemoryAiSettingsRepository(const AiSettings()),
@@ -118,53 +130,58 @@ void main() {
   });
 
   group('AiSettingsCard apiKey field', () {
-    testWidgets('apiKey hint uses the optional label when serverHasKey is true',
-        (tester) async {
-      await pumpSettingsCard(
-        tester,
-        repository: InMemoryAiSettingsRepository(
-          const AiSettings(
-            enabled: true,
-            provider: AiProvider.deepseek,
-            endpoint: DeepSeek.endpoint,
-            model: DeepSeek.defaultModel,
-            apiKey: '',
+    testWidgets(
+      'apiKey hint uses the optional label when serverHasKey is true',
+      (tester) async {
+        await pumpSettingsCard(
+          tester,
+          repository: InMemoryAiSettingsRepository(
+            const AiSettings(
+              enabled: true,
+              provider: AiProvider.deepseek,
+              endpoint: DeepSeek.endpoint,
+              model: DeepSeek.defaultModel,
+              apiKey: '',
+            ),
           ),
-        ),
-        runtime: AiRuntime(
-          useGateway: false,
-          baseUrl: '',
-          serverHasKey: true,
-          conversations: InMemoryConversationRepository(),
-        ),
-      );
-
-      final l10n = AppLocalizations.of(tester.element(find.byType(Scaffold)));
-      expect(find.text(l10n.apiKeyOptionalHint), findsOneWidget);
-    });
-
-    testWidgets('apiKey hint uses the required label when serverHasKey is false',
-        (tester) async {
-      await pumpSettingsCard(
-        tester,
-        repository: InMemoryAiSettingsRepository(
-          const AiSettings(
-            enabled: true,
-            provider: AiProvider.deepseek,
-            endpoint: DeepSeek.endpoint,
-            model: DeepSeek.defaultModel,
-            apiKey: '',
+          runtime: AiRuntime(
+            useGateway: false,
+            baseUrl: '',
+            serverHasKey: true,
+            conversations: InMemoryConversationRepository(),
           ),
-        ),
-        runtime: AiRuntime.local(InMemoryConversationRepository()),
-      );
+        );
 
-      final l10n = AppLocalizations.of(tester.element(find.byType(Scaffold)));
-      expect(find.text(l10n.apiKeyHint), findsOneWidget);
-    });
+        final l10n = AppLocalizations.of(tester.element(find.byType(Scaffold)));
+        expect(find.text(l10n.apiKeyOptionalHint), findsOneWidget);
+      },
+    );
 
-    testWidgets('apiKey TextField is NOT shown for the ollama provider',
-        (tester) async {
+    testWidgets(
+      'apiKey hint uses the required label when serverHasKey is false',
+      (tester) async {
+        await pumpSettingsCard(
+          tester,
+          repository: InMemoryAiSettingsRepository(
+            const AiSettings(
+              enabled: true,
+              provider: AiProvider.deepseek,
+              endpoint: DeepSeek.endpoint,
+              model: DeepSeek.defaultModel,
+              apiKey: '',
+            ),
+          ),
+          runtime: AiRuntime.local(InMemoryConversationRepository()),
+        );
+
+        final l10n = AppLocalizations.of(tester.element(find.byType(Scaffold)));
+        expect(find.text(l10n.apiKeyHint), findsOneWidget);
+      },
+    );
+
+    testWidgets('apiKey TextField is NOT shown for the ollama provider', (
+      tester,
+    ) async {
       await pumpSettingsCard(
         tester,
         repository: InMemoryAiSettingsRepository(
@@ -186,8 +203,9 @@ void main() {
   });
 
   group('AiSettingsCard provider dropdown', () {
-    testWidgets('switching from deepseek to ollama clears endpoint and model',
-        (tester) async {
+    testWidgets('switching from deepseek to ollama clears endpoint and model', (
+      tester,
+    ) async {
       final repo = InMemoryAiSettingsRepository(
         const AiSettings(
           enabled: true,
@@ -236,8 +254,9 @@ void main() {
       expect(saved.model, isEmpty);
     });
 
-    testWidgets('switching from ollama to deepseek resets endpoint and model',
-        (tester) async {
+    testWidgets('switching from ollama to deepseek resets endpoint and model', (
+      tester,
+    ) async {
       final repo = InMemoryAiSettingsRepository(
         const AiSettings(
           enabled: true,
@@ -267,14 +286,11 @@ void main() {
   });
 
   group('AiSettingsCard ollama model TextField', () {
-    testWidgets('ollama model TextField fires onChanged on text entry',
-        (tester) async {
+    testWidgets('ollama model TextField fires onChanged on text entry', (
+      tester,
+    ) async {
       final repo = InMemoryAiSettingsRepository(
-        const AiSettings(
-          enabled: true,
-          provider: AiProvider.ollama,
-          model: '',
-        ),
+        const AiSettings(enabled: true, provider: AiProvider.ollama, model: ''),
       );
       await pumpSettingsCard(
         tester,
@@ -285,8 +301,10 @@ void main() {
       // Find the model TextField (ollama mode → TextField, not Dropdown).
       final textFields = tester.widgetList<TextField>(find.byType(TextField));
       final modelField = textFields.firstWhere(
-        (f) => f.decoration?.labelText ==
-            AppLocalizations.of(tester.element(find.byType(Scaffold))).modelLabel,
+        (f) =>
+            f.decoration?.labelText ==
+            AppLocalizations.of(tester.element(find.byType(Scaffold)))
+                .modelLabel,
       );
 
       modelField.onChanged?.call('llama3.2:latest');
@@ -298,8 +316,9 @@ void main() {
   });
 
   group('AiSettingsCard deepseek model dropdown', () {
-    testWidgets('deepseek dropdown renders with the saved model selected',
-        (tester) async {
+    testWidgets('deepseek dropdown renders with the saved model selected', (
+      tester,
+    ) async {
       // The DropdownButtonFormField<String> reflects the saved model.
       final repo = InMemoryAiSettingsRepository(
         const AiSettings(
@@ -323,13 +342,17 @@ void main() {
       // Flutter's DropdownButton composes the selected item's child into the
       // tree, so the saved model text must be visible.
       expect(
-        find.descendant(of: dropdownFinder, matching: find.text('custom-model-42')),
+        find.descendant(
+          of: dropdownFinder,
+          matching: find.text('custom-model-42'),
+        ),
         findsOneWidget,
       );
     });
 
-    testWidgets('deepseek model dropdown selection fires update',
-        (tester) async {
+    testWidgets('deepseek model dropdown selection fires update', (
+      tester,
+    ) async {
       final repo = InMemoryAiSettingsRepository(
         const AiSettings(
           enabled: true,
@@ -360,28 +383,32 @@ void main() {
 
   group('AiSettingsCard _sync', () {
     testWidgets(
-        'TextEditingControllers are pre-filled from repository on first load',
-        (tester) async {
-      await pumpSettingsCard(
-        tester,
-        repository: InMemoryAiSettingsRepository(
-          const AiSettings(
-            enabled: true,
-            provider: AiProvider.deepseek,
-            endpoint: 'https://custom.endpoint.example/',
-            model: 'custom-model',
-            apiKey: 'sk-synced',
+      'TextEditingControllers are pre-filled from repository on first load',
+      (tester) async {
+        await pumpSettingsCard(
+          tester,
+          repository: InMemoryAiSettingsRepository(
+            const AiSettings(
+              enabled: true,
+              provider: AiProvider.deepseek,
+              endpoint: 'https://custom.endpoint.example/',
+              model: 'custom-model',
+              apiKey: 'sk-synced',
+            ),
           ),
-        ),
-        runtime: AiRuntime.local(InMemoryConversationRepository()),
-      );
+          runtime: AiRuntime.local(InMemoryConversationRepository()),
+        );
 
-      // The card pre-fills the endpoint field from the repository.
-      final endpointField = tester.widget<TextField>(
-        find.byType(TextField).first,
-      );
-      expect(endpointField.controller?.text, 'https://custom.endpoint.example/');
-    });
+        // The card pre-fills the endpoint field from the repository.
+        final endpointField = tester.widget<TextField>(
+          find.byType(TextField).first,
+        );
+        expect(
+          endpointField.controller?.text,
+          'https://custom.endpoint.example/',
+        );
+      },
+    );
   });
 
   group('AiSettingsCard privacy note', () {

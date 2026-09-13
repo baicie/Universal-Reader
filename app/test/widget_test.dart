@@ -153,9 +153,7 @@ void main() {
     expect(find.text('设计中的设计'), findsNothing);
   });
 
-  testWidgets('fb2 nested toc shows both navigable chapters', (
-    tester,
-  ) async {
+  testWidgets('fb2 nested toc shows both navigable chapters', (tester) async {
     final repository = InMemoryLibraryRepository();
     await repository.importBytes('book.fb2', fb2NestedSectionBytes());
     await tester.pumpWidget(
@@ -1335,7 +1333,9 @@ void main() {
     expect(renamed.metadata.author, '某作者');
   });
 
-  testWidgets('epub bookmark with CFI locator jumps to the right page', (tester) async {
+  testWidgets('epub bookmark with CFI locator jumps to the right page', (
+    tester,
+  ) async {
     final repository = InMemoryLibraryRepository();
     await repository.importBytes('story.epub', minimalEpubBytes());
     // Open the document to discover chapter 2's normalized href.
@@ -1358,19 +1358,16 @@ void main() {
       cfi: 'epubcfi($ch2Href:0)',
     );
     final notes = InMemoryAnnotationRepository();
-    await notes.save(
-      'story.epub',
-      [
-        ReaderAnnotation(
-          id: 'bm-1',
-          note: '',
-          quote: 'second chapter text',
-          locatorLabel: encodeLocator(bookmarkLocator),
-          source: bookmarkSource,
-          createdAt: DateTime(2026, 9, 8),
-        ),
-      ],
-    );
+    await notes.save('story.epub', [
+      ReaderAnnotation(
+        id: 'bm-1',
+        note: '',
+        quote: 'second chapter text',
+        locatorLabel: encodeLocator(bookmarkLocator),
+        source: bookmarkSource,
+        createdAt: DateTime(2026, 9, 8),
+      ),
+    ]);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -1428,10 +1425,7 @@ void main() {
     // Tap the empty area outside the SelectableText so the gesture shell
     // can swallow the hit and toggle chrome off.
     final selectableRect = tester.getRect(find.byType(SelectableText).first);
-    final below = Offset(
-      selectableRect.center.dx,
-      selectableRect.bottom + 24,
-    );
+    final below = Offset(selectableRect.center.dx, selectableRect.bottom + 24);
     await tester.tapAt(below);
     await tester.pumpAndSettle();
     // Tapping the body toggles chrome off, which removes the app bar.
@@ -1442,8 +1436,9 @@ void main() {
     expect(find.byType(ReaderAppBar), findsOneWidget);
   });
 
-  testWidgets('add bookmark in an epub opens the panel and shows snackbar',
-      (tester) async {
+  testWidgets('add bookmark in an epub opens the panel and shows snackbar', (
+    tester,
+  ) async {
     final repository = InMemoryLibraryRepository();
     await repository.importBytes('story.epub', minimalEpubBytes());
     final notes = InMemoryAnnotationRepository();
@@ -1479,8 +1474,9 @@ void main() {
     expect(saved.quote, isEmpty);
   });
 
-  testWidgets('remove a saved bookmark via the panel updates the store',
-      (tester) async {
+  testWidgets('remove a saved bookmark via the panel updates the store', (
+    tester,
+  ) async {
     final repository = InMemoryLibraryRepository();
     await repository.importBytes('notes.txt', utf8.encode('hello from notes'));
     final notes = InMemoryAnnotationRepository();
@@ -1526,39 +1522,41 @@ void main() {
     expect(remaining, isEmpty);
   });
 
-  testWidgets('right arrow advances an epub through the last page of a chapter',
-      (tester) async {
-    final repository = InMemoryLibraryRepository();
-    await repository.importBytes('story.epub', minimalEpubBytes());
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          libraryRepositoryProvider.overrideWithValue(repository),
-          aiSettingsRepositoryProvider.overrideWithValue(
-            InMemoryAiSettingsRepository(),
-          ),
-        ],
-        child: const UniversalReaderApp(),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 250));
-    await tester.tap(find.text('Fixture Book').first);
-    await tester.pumpAndSettle();
-    // The reader opens on chapter 1 with body visible.
-    expect(find.textContaining('hello from epub'), findsOneWidget);
-    // Pressing the right arrow should advance through the single page and
-    // then into the next chapter, surfacing its body on screen.
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
-    await tester.pumpAndSettle();
-    expect(find.textContaining('second chapter text'), findsOneWidget);
-    expect(find.textContaining('hello from epub'), findsNothing);
-    // Pressing the left arrow from chapter 2's first page should wrap back
-    // to chapter 1 and request its last page (the only page here).
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
-    await tester.pumpAndSettle();
-    expect(find.textContaining('hello from epub'), findsOneWidget);
-    expect(find.textContaining('second chapter text'), findsNothing);
-  });
+  testWidgets(
+    'right arrow advances an epub through the last page of a chapter',
+    (tester) async {
+      final repository = InMemoryLibraryRepository();
+      await repository.importBytes('story.epub', minimalEpubBytes());
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            libraryRepositoryProvider.overrideWithValue(repository),
+            aiSettingsRepositoryProvider.overrideWithValue(
+              InMemoryAiSettingsRepository(),
+            ),
+          ],
+          child: const UniversalReaderApp(),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.tap(find.text('Fixture Book').first);
+      await tester.pumpAndSettle();
+      // The reader opens on chapter 1 with body visible.
+      expect(find.textContaining('hello from epub'), findsOneWidget);
+      // Pressing the right arrow should advance through the single page and
+      // then into the next chapter, surfacing its body on screen.
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('second chapter text'), findsOneWidget);
+      expect(find.textContaining('hello from epub'), findsNothing);
+      // Pressing the left arrow from chapter 2's first page should wrap back
+      // to chapter 1 and request its last page (the only page here).
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('hello from epub'), findsOneWidget);
+      expect(find.textContaining('second chapter text'), findsNothing);
+    },
+  );
 }
 
 class _ThrowingAnnotationRepository implements AnnotationRepository {

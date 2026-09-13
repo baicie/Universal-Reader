@@ -17,14 +17,14 @@ class _StubLocalizations extends AppLocalizations {
 }
 
 SampleReaderDocument _doc() => SampleReaderDocument(
-      metadata: const DocumentMetadata(
-        id: 'book-1',
-        title: 'A',
-        author: 'B',
-        format: DocumentFormat.epub,
-        type: DocumentType.reflow,
-      ),
-    );
+  metadata: const DocumentMetadata(
+    id: 'book-1',
+    title: 'A',
+    author: 'B',
+    format: DocumentFormat.epub,
+    type: DocumentType.reflow,
+  ),
+);
 
 void main() {
   group('readerProgressLabel', () {

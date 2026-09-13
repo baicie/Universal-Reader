@@ -36,38 +36,42 @@ void main() {
     expect(await document.search('   '), isEmpty);
   });
 
-  test('a missing term returns no hits and does not fall back to another book',
-      () async {
-    final document = makeDocument(
-      firstBody: 'apples and oranges',
-      secondBody: 'pears and grapes',
-    );
-    expect(await document.search('kiwi'), isEmpty);
-  });
+  test(
+    'a missing term returns no hits and does not fall back to another book',
+    () async {
+      final document = makeDocument(
+        firstBody: 'apples and oranges',
+        secondBody: 'pears and grapes',
+      );
+      expect(await document.search('kiwi'), isEmpty);
+    },
+  );
 
-  test('a hit returns an EpubLocator, the chapter title, and a contextual excerpt',
-      () async {
-    const prefix =
-        'a quiet morning over the harbour while the gulls slept on the pier';
-    const suffix =
-        'then the bells rang from the chapel on the hill above the village';
-    final document = makeDocument(
-      firstBody: '$prefix needle $suffix',
-      firstTitle: 'prologue',
-    );
+  test(
+    'a hit returns an EpubLocator, the chapter title, and a contextual excerpt',
+    () async {
+      const prefix =
+          'a quiet morning over the harbour while the gulls slept on the pier';
+      const suffix =
+          'then the bells rang from the chapel on the hill above the village';
+      final document = makeDocument(
+        firstBody: '$prefix needle $suffix',
+        firstTitle: 'prologue',
+      );
 
-    final hits = await document.search('needle');
-    expect(hits, hasLength(1));
-    final hit = hits.single;
-    expect(hit.title, 'prologue');
-    final locator = hit.locator;
-    expect(locator, isA<EpubLocator>());
-    expect((locator as EpubLocator).href, 'oebps/ch1.xhtml');
-    expect(locator.fragment, isNull);
-    expect(hit.excerpt, contains('needle'));
-    // Excerpt should be at least as long as the query itself and trimmed.
-    expect(hit.excerpt.trim(), isNot(equals('')));
-  });
+      final hits = await document.search('needle');
+      expect(hits, hasLength(1));
+      final hit = hits.single;
+      expect(hit.title, 'prologue');
+      final locator = hit.locator;
+      expect(locator, isA<EpubLocator>());
+      expect((locator as EpubLocator).href, 'oebps/ch1.xhtml');
+      expect(locator.fragment, isNull);
+      expect(hit.excerpt, contains('needle'));
+      // Excerpt should be at least as long as the query itself and trimmed.
+      expect(hit.excerpt.trim(), isNot(equals('')));
+    },
+  );
 
   test('hits across chapters each point at their own href', () async {
     final document = makeDocument(
@@ -79,8 +83,9 @@ void main() {
 
     final hits = await document.search('lorem');
     expect(hits, hasLength(2));
-    final hrefs =
-        hits.map((h) => (h.locator as EpubLocator).href).toList(growable: false);
+    final hrefs = hits
+        .map((h) => (h.locator as EpubLocator).href)
+        .toList(growable: false);
     expect(hrefs, ['oebps/ch1.xhtml', 'oebps/ch2.xhtml']);
     expect(hits.map((h) => h.title), ['alpha', 'beta']);
     for (final hit in hits) {

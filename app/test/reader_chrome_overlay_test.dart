@@ -69,8 +69,9 @@ void main() {
     expect(find.text('§2/5'), findsNothing);
   });
 
-  testWidgets('selection bar replaces progress bar when pendingQuote is set',
-      (tester) async {
+  testWidgets('selection bar replaces progress bar when pendingQuote is set', (
+    tester,
+  ) async {
     const runtime = ReaderRuntime(pendingQuote: 'a selected sentence');
     await tester.pumpWidget(wrap(runtime: runtime));
     await tester.pump();
@@ -78,17 +79,16 @@ void main() {
     expect(find.text('Save selection'), findsOneWidget);
   });
 
-  testWidgets(
-    'whitespace-only pendingQuote is treated as no selection',
-    (tester) async {
-      const runtime = ReaderRuntime(pendingQuote: '   \n   ');
-      await tester.pumpWidget(wrap(runtime: runtime));
-      await tester.pump();
-      // Whitespace trim → no selection bar; progress bar still appears.
-      expect(find.text('Save selection'), findsNothing);
-      expect(find.text('§2/5'), findsOneWidget);
-    },
-  );
+  testWidgets('whitespace-only pendingQuote is treated as no selection', (
+    tester,
+  ) async {
+    const runtime = ReaderRuntime(pendingQuote: '   \n   ');
+    await tester.pumpWidget(wrap(runtime: runtime));
+    await tester.pump();
+    // Whitespace trim → no selection bar; progress bar still appears.
+    expect(find.text('Save selection'), findsNothing);
+    expect(find.text('§2/5'), findsOneWidget);
+  });
 
   testWidgets('selection bar fades out when chrome is hidden', (tester) async {
     const runtime = ReaderRuntime(pendingQuote: 'a real selection');
@@ -108,20 +108,20 @@ void main() {
     expect(find.text('§2/5'), findsOneWidget);
   });
 
-  testWidgets(
-    'does not render AI panel when no document is opened',
-    (tester) async {
-      const runtime = ReaderRuntime(loading: false);
-      await tester.pumpWidget(wrap(runtime: runtime, ask: true));
-      await tester.pump();
-      // ask=true but opened=null → no AI panel. The chrome overlay still
-      // shows the bottom progress bar.
-      expect(find.text('§2/5'), findsOneWidget);
-    },
-  );
+  testWidgets('does not render AI panel when no document is opened', (
+    tester,
+  ) async {
+    const runtime = ReaderRuntime(loading: false);
+    await tester.pumpWidget(wrap(runtime: runtime, ask: true));
+    await tester.pump();
+    // ask=true but opened=null → no AI panel. The chrome overlay still
+    // shows the bottom progress bar.
+    expect(find.text('§2/5'), findsOneWidget);
+  });
 
-  testWidgets('renders the AI panel when ask and opened are both set',
-      (tester) async {
+  testWidgets('renders the AI panel when ask and opened are both set', (
+    tester,
+  ) async {
     final document = UnavailableReaderDocument(
       metadata: const DocumentMetadata(
         id: 'p',
@@ -154,10 +154,7 @@ void main() {
               height: 800,
               width: 1200,
               child: ReaderChromeOverlay(
-                runtime: ReaderRuntime(
-                  loading: false,
-                  opened: document,
-                ),
+                runtime: ReaderRuntime(loading: false, opened: document),
                 chrome: true,
                 ask: true,
                 wide: true,

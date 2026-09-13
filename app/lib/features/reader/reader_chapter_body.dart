@@ -4,9 +4,8 @@ import '../../core/reader_chapter_state.dart';
 import '../../core/reading_surface.dart';
 import '../../l10n/l10n.dart';
 
-export '../../core/reader_chapter_state.dart' show
-    ReaderChapterState,
-    ReaderChapterKind;
+export '../../core/reader_chapter_state.dart'
+    show ReaderChapterState, ReaderChapterKind;
 
 /// Renders the body of a plain-text reader chapter, switching between
 /// loading / corrupt / unavailable / ready states.

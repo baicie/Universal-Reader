@@ -42,7 +42,9 @@ List<int> minimalFb2Bytes({
   for (var i = 0; i < chapterTitles.length; i++) {
     buffer.writeln('  <section>');
     buffer.writeln('    <title>${_xml(chapterTitles[i])}</title>');
-    for (final para in (chapterBodies.length > i ? chapterBodies[i] : '').split('\n')) {
+    for (final para in (chapterBodies.length > i ? chapterBodies[i] : '').split(
+      '\n',
+    )) {
       if (para.isNotEmpty) {
         buffer.writeln('    <p>${_xml(para)}</p>');
       }
@@ -205,8 +207,10 @@ List<int> fb2WithInlineImageBytes({
   buffer.writeln('    <book-title>${_xml(title)}</book-title>');
   buffer.writeln('  </title-info>');
   buffer.writeln('</description>');
-  buffer.writeln('<binary id="cover.png" content-type="image/png">'
-      '$pngBase64</binary>');
+  buffer.writeln(
+    '<binary id="cover.png" content-type="image/png">'
+    '$pngBase64</binary>',
+  );
   buffer.writeln('<body>');
   buffer.writeln('  <section>');
   buffer.writeln('    <title>${_xml(chapterTitle)}</title>');
@@ -221,9 +225,7 @@ List<int> fb2WithInlineImageBytes({
 /// paragraph with `id="anchor1"` and a paragraph with an `<a l:href="#anchor1">`
 /// inside another paragraph. The first chapter's html should have its `#`
 /// href rewritten to point at the second chapter and re-anchor.
-List<int> fb2WithCrossReferenceBytes({
-  String title = 'Cross Ref Book',
-}) {
+List<int> fb2WithCrossReferenceBytes({String title = 'Cross Ref Book'}) {
   final buffer = StringBuffer();
   buffer.writeln(
     '<?xml version="1.0" encoding="UTF-8"?>'
@@ -239,8 +241,10 @@ List<int> fb2WithCrossReferenceBytes({
   buffer.writeln('  <section>');
   buffer.writeln('    <title>Chapter A</title>');
   buffer.writeln('    <p id="anchor1">target paragraph</p>');
-  buffer.writeln('    <p>link below goes to '
-      '<a l:href="#anchor1">the anchor</a>.</p>');
+  buffer.writeln(
+    '    <p>link below goes to '
+    '<a l:href="#anchor1">the anchor</a>.</p>',
+  );
   buffer.writeln('  </section>');
   buffer.writeln('</body>');
   buffer.writeln('</FictionBook>');
@@ -250,9 +254,7 @@ List<int> fb2WithCrossReferenceBytes({
 /// Returns FB2 bytes with a body containing two top-level sections
 /// ("Part I" and "Part II"), each with a child section ("Chapter One" /
 /// "Chapter Two"). Used by widget tests that navigate a nested TOC.
-List<int> fb2NestedSectionBytes({
-  String title = 'FB2 Book',
-}) {
+List<int> fb2NestedSectionBytes({String title = 'FB2 Book'}) {
   final buffer = StringBuffer();
   buffer.writeln(
     '<?xml version="1.0" encoding="UTF-8"?>'
@@ -291,9 +293,7 @@ List<int> fb2CoverpageBytes({
   bool corruptBinary = false,
 }) {
   final png = imageBytes ?? _defaultPng();
-  final encoded = corruptBinary
-      ? '!!!not-base64!!!'
-      : base64.encode(png);
+  final encoded = corruptBinary ? '!!!not-base64!!!' : base64.encode(png);
   final buffer = StringBuffer();
   buffer.writeln(
     '<?xml version="1.0" encoding="UTF-8"?>'
@@ -331,13 +331,73 @@ String _xml(String text) {
 // pulling in image_fixture.dart (which is only needed when a test reads the
 // bytes back).
 List<int> _defaultPng() => [
-  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
-  0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
-  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-  0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
-  0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,
-  0x54, 0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00,
-  0x00, 0x03, 0x01, 0x01, 0x00, 0x18, 0xDD, 0x8D,
-  0xB0, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E,
-  0x44, 0xAE, 0x42, 0x60, 0x82,
+  0x89,
+  0x50,
+  0x4E,
+  0x47,
+  0x0D,
+  0x0A,
+  0x1A,
+  0x0A,
+  0x00,
+  0x00,
+  0x00,
+  0x0D,
+  0x49,
+  0x48,
+  0x44,
+  0x52,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x08,
+  0x02,
+  0x00,
+  0x00,
+  0x00,
+  0x90,
+  0x77,
+  0x53,
+  0xDE,
+  0x00,
+  0x00,
+  0x00,
+  0x0C,
+  0x49,
+  0x44,
+  0x41,
+  0x54,
+  0x08,
+  0xD7,
+  0x63,
+  0xF8,
+  0xCF,
+  0xC0,
+  0x00,
+  0x00,
+  0x03,
+  0x01,
+  0x01,
+  0x00,
+  0x18,
+  0xDD,
+  0x8D,
+  0xB0,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x49,
+  0x45,
+  0x4E,
+  0x44,
+  0xAE,
+  0x42,
+  0x60,
+  0x82,
 ];

@@ -39,41 +39,46 @@ void main() {
   });
 
   group('OpenAiCompatibleClient.complete', () {
-    test('POSTs to the chat completions URL with the expected payload', () async {
-      late http.Request seen;
-      final client = MockClient((req) async {
-        seen = req;
-        return http.Response(
-          jsonEncode({
-            'choices': [
-              {'message': {'content': '  hello world  '}},
-            ],
-          }),
-          200,
+    test(
+      'POSTs to the chat completions URL with the expected payload',
+      () async {
+        late http.Request seen;
+        final client = MockClient((req) async {
+          seen = req;
+          return http.Response(
+            jsonEncode({
+              'choices': [
+                {
+                  'message': {'content': '  hello world  '},
+                },
+              ],
+            }),
+            200,
+          );
+        });
+        final model = OpenAiCompatibleClient(
+          endpoint: 'https://api.deepseek.com',
+          model: 'deepseek-chat',
+          httpClient: client,
         );
-      });
-      final model = OpenAiCompatibleClient(
-        endpoint: 'https://api.deepseek.com',
-        model: 'deepseek-chat',
-        httpClient: client,
-      );
-      final text = await model.complete(const [
-        {'role': 'system', 'content': 'you are an assistant'},
-        {'role': 'user', 'content': 'hi'},
-      ]);
-      expect(text, 'hello world');
-      expect(seen.method, 'POST');
-      expect(
-        seen.url.toString(),
-        'https://api.deepseek.com/v1/chat/completions',
-      );
-      expect(seen.headers['content-type'], 'application/json');
-      expect(seen.headers['authorization'], isNull);
-      final body = jsonDecode(seen.body) as Map<String, dynamic>;
-      expect(body['model'], 'deepseek-chat');
-      expect(body['temperature'], 0.2);
-      expect(body['messages'], hasLength(2));
-    });
+        final text = await model.complete(const [
+          {'role': 'system', 'content': 'you are an assistant'},
+          {'role': 'user', 'content': 'hi'},
+        ]);
+        expect(text, 'hello world');
+        expect(seen.method, 'POST');
+        expect(
+          seen.url.toString(),
+          'https://api.deepseek.com/v1/chat/completions',
+        );
+        expect(seen.headers['content-type'], 'application/json');
+        expect(seen.headers['authorization'], isNull);
+        final body = jsonDecode(seen.body) as Map<String, dynamic>;
+        expect(body['model'], 'deepseek-chat');
+        expect(body['temperature'], 0.2);
+        expect(body['messages'], hasLength(2));
+      },
+    );
 
     test('sends a Bearer header when an api key is configured', () async {
       late http.Request seen;
@@ -82,7 +87,9 @@ void main() {
         return http.Response(
           jsonEncode({
             'choices': [
-              {'message': {'content': 'ok'}},
+              {
+                'message': {'content': 'ok'},
+              },
             ],
           }),
           200,
@@ -160,7 +167,9 @@ void main() {
         (_) async => http.Response(
           jsonEncode({
             'choices': [
-              {'message': {'content': '   '}},
+              {
+                'message': {'content': '   '},
+              },
             ],
           }),
           200,
@@ -182,7 +191,9 @@ void main() {
     test('throws FormatException when message is missing entirely', () async {
       final client = MockClient(
         (_) async => http.Response(
-          jsonEncode({'choices': [{}]}),
+          jsonEncode({
+            'choices': [{}],
+          }),
           200,
         ),
       );
@@ -346,10 +357,7 @@ void main() {
 
     test('invokes the optional onComplete callback', () async {
       final captured = <List<Map<String, String>>>[];
-      final client = RecordingModelClient(
-        reply: 'r',
-        onComplete: captured.add,
-      );
+      final client = RecordingModelClient(reply: 'r', onComplete: captured.add);
       await client.complete(const [
         {'role': 'user', 'content': 'hi'},
       ]);

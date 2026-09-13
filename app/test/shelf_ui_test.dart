@@ -188,63 +188,61 @@ void main() {
     },
   );
 
-  testWidgets(
-    'confirmAndDeleteBook deletes the document when confirmed',
-    (tester) async {
-      final repository = InMemoryLibraryRepository([
-        _buildDocument(),
-        _buildDocument(id: _otherId, title: 'Other Book'),
-      ]);
-      final container = ProviderContainer(
-        overrides: [
-          libraryRepositoryProvider.overrideWithValue(repository),
-          aiSettingsRepositoryProvider.overrideWithValue(
-            InMemoryAiSettingsRepository(),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
+  testWidgets('confirmAndDeleteBook deletes the document when confirmed', (
+    tester,
+  ) async {
+    final repository = InMemoryLibraryRepository([
+      _buildDocument(),
+      _buildDocument(id: _otherId, title: 'Other Book'),
+    ]);
+    final container = ProviderContainer(
+      overrides: [
+        libraryRepositoryProvider.overrideWithValue(repository),
+        aiSettingsRepositoryProvider.overrideWithValue(
+          InMemoryAiSettingsRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            locale: const Locale('zh'),
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Consumer(
-              builder: (context, ref, _) {
-                // Eagerly watch the library provider so the controller finishes
-                // loading before we tap into the dialog-driven actions below.
-                ref.watch(libraryProvider);
-                return Scaffold(
-                  body: ElevatedButton(
-                    onPressed: () =>
-                        confirmAndDeleteBook(context, ref, _docId),
-                    child: const Text('delete'),
-                  ),
-                );
-              },
-            ),
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Consumer(
+            builder: (context, ref, _) {
+              // Eagerly watch the library provider so the controller finishes
+              // loading before we tap into the dialog-driven actions below.
+              ref.watch(libraryProvider);
+              return Scaffold(
+                body: ElevatedButton(
+                  onPressed: () => confirmAndDeleteBook(context, ref, _docId),
+                  child: const Text('delete'),
+                ),
+              );
+            },
           ),
         ),
-      );
-      await tester.pump(const Duration(milliseconds: 250));
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
 
-      await tester.tap(find.text('delete'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('delete'));
+    await tester.pumpAndSettle();
 
-      final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
-      expect(find.text(l10n.confirmDelete), findsOneWidget);
+    final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
+    expect(find.text(l10n.confirmDelete), findsOneWidget);
 
-      await tester.tap(find.text(l10n.confirmDelete));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text(l10n.confirmDelete));
+    await tester.pumpAndSettle();
 
-      final stored = await repository.load();
-      expect(stored.any((d) => d.metadata.id == _docId), isFalse);
-      expect(stored.any((d) => d.metadata.id == _otherId), isTrue);
-    },
-  );
+    final stored = await repository.load();
+    expect(stored.any((d) => d.metadata.id == _docId), isFalse);
+    expect(stored.any((d) => d.metadata.id == _otherId), isTrue);
+  });
 
   testWidgets(
     'BookActionsButton -> new collection creates a collection and adds the book',
@@ -305,8 +303,7 @@ void main() {
                 ref.watch(libraryProvider);
                 return Scaffold(
                   body: ElevatedButton(
-                    onPressed: () =>
-                        showCreateCollectionDialog(context, ref),
+                    onPressed: () => showCreateCollectionDialog(context, ref),
                     child: const Text('new'),
                   ),
                 );

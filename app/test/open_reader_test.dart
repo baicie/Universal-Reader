@@ -33,18 +33,10 @@ DocumentMetadata _metadata({
 List<int> _comicBytes() {
   final archive = Archive();
   archive.add(
-    ArchiveFile(
-      'pages/01.png',
-      tinyPngBytes().length,
-      tinyPngBytes(),
-    ),
+    ArchiveFile('pages/01.png', tinyPngBytes().length, tinyPngBytes()),
   );
   archive.add(
-    ArchiveFile(
-      'pages/02.png',
-      tinyPngBytes().length,
-      tinyPngBytes(),
-    ),
+    ArchiveFile('pages/02.png', tinyPngBytes().length, tinyPngBytes()),
   );
   return ZipEncoder().encode(archive);
 }
@@ -104,8 +96,7 @@ void main() {
       expect(document, isA<EpubReaderDocument>());
     });
 
-    test('returns a corrupt document when the epub cannot be unzipped',
-        () {
+    test('returns a corrupt document when the epub cannot be unzipped', () {
       final document = openReaderDocument(
         metadata: _metadata(id: 'book.epub', format: DocumentFormat.epub),
         bytes: const [1, 2, 3],
@@ -219,13 +210,9 @@ void main() {
   });
 
   group('openReaderDocument for unknown formats', () {
-    test('returns UnavailableReaderDocument for an unsupported extension',
-        () {
+    test('returns UnavailableReaderDocument for an unsupported extension', () {
       final document = openReaderDocument(
-        metadata: _metadata(
-          id: 'book.xyz',
-          format: DocumentFormat.unknown,
-        ),
+        metadata: _metadata(id: 'book.xyz', format: DocumentFormat.unknown),
         bytes: const [1, 2, 3],
       );
       expect(document, isA<UnavailableReaderDocument>());

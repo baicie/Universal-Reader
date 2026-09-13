@@ -9,7 +9,11 @@ List<int> minimalPdfBytes({
   List<String> pages = const ['hello from pdf'],
   List<List<String>>? stringsPerPage,
 }) {
-  final perPage = stringsPerPage ?? [for (final p in pages) [p]];
+  final perPage =
+      stringsPerPage ??
+      [
+        for (final p in pages) [p],
+      ];
   assert(perPage.length == pages.length || stringsPerPage != null);
   final objects = <String>['1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj'];
   final kids = [for (var i = 0; i < pages.length; i++) '${3 + i * 2} 0 R']
@@ -64,8 +68,5 @@ List<int> minimalPdfBytes({
 
 /// Wraps [bytes] with [count] whitespace characters before the %PDF- header.
 List<int> pdfBytesWithLeadingWhitespace(List<int> bytes, {int count = 4}) {
-  return [
-    ...List<int>.filled(count, 0x20),
-    ...bytes,
-  ];
+  return [...List<int>.filled(count, 0x20), ...bytes];
 }
