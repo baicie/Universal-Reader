@@ -150,6 +150,13 @@
 - The normal Release workflow runs the same validation after checking secret presence and before any platform build.
 - Planned Hardening O close date: 2027-02-07. Implementation completed on 2026-09-14.
 
+## v1.0 Hardening P complete: signing credential bootstrap
+
+- Added a local PowerShell helper that validates a release keystore, alias, and private-key password before changing GitHub state.
+- The helper uploads Android secrets through `gh` stdin, avoiding command-line secret exposure and repository files.
+- Added `-ValidateOnly` for dry validation and environment-variable support for non-interactive password input.
+- Planned Hardening P close date: 2027-02-21. Implementation completed on 2026-09-14.
+
 ## v1.0 Hardening K complete: release candidate gate
 
 - Froze the app, Rust workspace, Cargo lock, and changelog at `1.0.0-rc.1`.

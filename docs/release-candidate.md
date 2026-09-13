@@ -41,6 +41,22 @@ The dry run builds every platform artifact, uses debug signing for Android, gene
 
 After configuring Android secrets, run the manual `Signing preflight` workflow. It decodes the keystore outside the repository, validates the alias and key password, and prints only the public certificate fingerprint.
 
+The local PowerShell helper can validate and upload the four secrets without writing them to disk:
+
+```powershell
+cd app
+./tool/configure_android_signing.ps1 `
+  -Keystore C:\secure\universal-reader-release.jks `
+  -Alias universal-reader `
+  -ValidateOnly
+
+./tool/configure_android_signing.ps1 `
+  -Keystore C:\secure\universal-reader-release.jks `
+  -Alias universal-reader
+```
+
+Set `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_PASSWORD` in the shell to avoid interactive prompts. The upload uses stdin, not command-line arguments.
+
 ## Commands
 
 ```powershell
