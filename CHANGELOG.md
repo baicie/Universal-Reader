@@ -6,7 +6,7 @@
 - Froze Reader Runtime `1.0.0`, locator schema v1, versioned local persistence, and the read-only plugin contract.
 - Added compatibility corpus, 10k scale, native mobile ABI, physical-device, simulator, release upgrade/rollback, and package launch rehearsal gates.
 - Frozen versions across `app/pubspec.yaml`, the Rust workspace, `Cargo.lock`, and this changelog.
-- Release publication now verifies tag/version alignment and generates `SHA256SUMS`.
+- Release publication now verifies tag/version alignment, generates release notes from this changelog, and attaches `release-manifest.json` plus `SHA256SUMS`.
 
 ## 0.0.1-dev.12 - 2026-08-31
 

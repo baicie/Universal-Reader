@@ -125,7 +125,7 @@
 
 - Froze the app, Rust workspace, Cargo lock, and changelog at `1.0.0-rc.1`.
 - Added a release version checker that requires an optional release tag to match every version source.
-- The Release workflow now verifies versions before publication and generates `SHA256SUMS` for all release assets.
+- The Release workflow now verifies versions before publication, generates release notes from the matching changelog section, and attaches a structured release manifest plus `SHA256SUMS`.
 - Documented the remaining manual gate: signed platform artifacts plus physical-device installation.
 - Planned Hardening K close date: 2026-12-13. Implementation completed on 2026-09-14.
 

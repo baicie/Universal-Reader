@@ -614,6 +614,18 @@ jobs:
     needs: [verify, android, web, windows, linux, macos-native, macos-universal, server-linux, server-windows, web-server-linux, web-server-windows]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.0'
+          cache: true
+
       - name: Download release artifacts
         uses: actions/download-artifact@v8
         with:
@@ -623,11 +635,20 @@ jobs:
 
       - name: Generate release checksums
         run: |
-          cd artifacts
-          find . -type f ! -name 'SHA256SUMS' -print0 |
-            sort -z |
-            xargs -0 sha256sum > SHA256SUMS
-          test -s SHA256SUMS
+          dart run app/tool/release_manifest.dart \
+            --artifacts artifacts \
+            --version "${RELEASE_TAG#v}" \
+            --commit "$GITHUB_SHA" \
+            --output artifacts
+          test -s artifacts/SHA256SUMS
+          test -s artifacts/release-manifest.json
+
+      - name: Generate release notes
+        run: |
+          dart run app/tool/extract_changelog_section.dart \
+            "$RELEASE_TAG" \
+            --file CHANGELOG.md > release-notes.md
+          test -s release-notes.md
 
       - name: Create GitHub Release
         env:
@@ -643,12 +664,4 @@ jobs:
             --repo "${{ github.repository }}" \
             --title "Universal Reader ${{ env.RELEASE_TAG }}" \
             --prerelease \
-            --notes-file <(printf '%s\n' \
-              '## Universal Reader ${{ env.RELEASE_TAG }}' \
-              '' \
-              '- Flutter Library / Reader / Settings MVP' \
-              '- Local-first library persistence' \
-              '- Rust local backend service with health and document format detection APIs' \
-              '- Combined web + Rust server archives for Linux and Windows: extract, run the server, and open http://host:8787/ (set UNIVERSAL_READER_SERVER_BIND=0.0.0.0 to listen beyond localhost)' \
-              '- Platform packages plus architecture packages for Android, Windows, Linux, and macOS; Windows includes x86_64 ZIP and EXE installer packages, while macOS includes Universal, arm64, and x86_64 DMG installers; Android also includes split ABI APKs (debug-signed for this development release)' \
-              '- Reader Runtime adapter contracts for future Rust and native renderers')
+            --notes-file release-notes.md
