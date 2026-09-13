@@ -8,6 +8,7 @@
 - Frozen versions across `app/pubspec.yaml`, the Rust workspace, `Cargo.lock`, and this changelog.
 - Release publication now verifies tag/version alignment, generates release notes from this changelog, and attaches `release-manifest.json` plus `SHA256SUMS`.
 - Release publication builds an unsigned iOS `Runner.app` archive and verifies its bundle version plus native mobile symbols.
+- Release publication independently verifies every manifest entry, SHA-256 value, and the exact asset file set before creating the release.
 
 ## 0.0.1-dev.12 - 2026-08-31
 

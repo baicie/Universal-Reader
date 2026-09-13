@@ -128,6 +128,13 @@
 - The unsigned iOS archive participates in `release-manifest.json` and `SHA256SUMS`; signed IPA and device installation remain manual signing gates.
 - Planned Hardening L close date: 2026-12-27. Implementation completed on 2026-09-14.
 
+## v1.0 Hardening M complete: independent release asset verification
+
+- Added a verifier that validates manifest schema, product, version, commit, sizes, SHA-256 values, sum file consistency, and the exact artifact file set.
+- The release workflow runs the verifier before publishing, so modified, missing, duplicate, or unlisted assets cannot be released.
+- Added regression coverage for modified files, extra files, version mismatches, and manifest/hash formatting.
+- Planned Hardening M close date: 2027-01-10. Implementation completed on 2026-09-14.
+
 ## v1.0 Hardening K complete: release candidate gate
 
 - Froze the app, Rust workspace, Cargo lock, and changelog at `1.0.0-rc.1`.

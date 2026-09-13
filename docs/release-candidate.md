@@ -16,7 +16,7 @@ The current candidate is:
 - `Native smoke`: nightly/manual Android emulator and iOS Simulator conversion tests.
 - `Release rehearsal`: released persistence upgrade/rollback, Windows launch, Web launch, and Android APK launch.
 - `Physical device smoke`: manually dispatched real-device conversion and optional signed package install.
-- Release publication: tag/version verification, structured `release-manifest.json`, and `SHA256SUMS` generation.
+- Release publication: tag/version verification, structured `release-manifest.json`, `SHA256SUMS`, and independent asset verification.
 - iOS release: unsigned `Runner.app` archive with bundle version and native-symbol verification.
 
 ## Manual checklist

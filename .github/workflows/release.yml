@@ -697,6 +697,10 @@ jobs:
             --output artifacts
           test -s artifacts/SHA256SUMS
           test -s artifacts/release-manifest.json
+          dart run app/tool/verify_release_assets.dart \
+            --directory artifacts \
+            --version "${RELEASE_TAG#v}" \
+            --commit "$GITHUB_SHA"
 
       - name: Generate release notes
         run: |
