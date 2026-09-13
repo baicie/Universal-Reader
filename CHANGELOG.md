@@ -28,7 +28,7 @@
 ### Performance
 - Reduced unnecessary widget rebuilds in `IsolatedFoliateView` by avoiding expensive HTML string comparison
 
-## Unreleased
+## 0.0.1-dev.13 - 2026-09-13
 
 - Reading settings for line height, body font, and paper (match app / light / dark) reach the Foliate host and the text fallback.
 - Imported GBK/GB18030 TXT and Markdown decode as Chinese instead of replacement characters. Bytes that are neither UTF-8 nor GB18030 stay corrupt.
@@ -62,6 +62,21 @@
 - Library-wide search returns one entry per document whose title, author, id, or stored note (quote / note / locator label) contains the query. Metadata hits appear before note hits; metadata matches demote the same document's note hit; an unreadable note store does not delete metadata hits; an empty query returns every document.
 - PDF document test coverage is full across page navigation, locators, text extraction, search, TOC, and parser sniffs (header detection, BOM tolerance, escape unescaping, multi-string pages, corruption).
 - Text / Markdown / HTML document test coverage is full across the same API and decoding (UTF-16 BE/LE BOM, UTF-8 BOM stripping, GB18030 fallback, CRLF normalization, chunked-section packing, HTML stripping, Markdown heading fallback).
+
+### Test Coverage Improvements
+- Lifted `comic_layout_test.dart` to 100% line coverage.
+- Closed remaining coverage gaps in reflow nav, EPUB nav-resolver fallback, `extractText` locator edge cases, AI tool / runtime http-client fallback paths, library controller platform picker, bridge chapter-command shape, and reading-surface equality.
+- Pinned chapter-command shape and reading-surface equality with regression tests.
+- Silenced remaining analyze warnings (`equal-elements-in-set`, `prefer-final-locals`) across test files without semantic changes.
+
+### Code Health
+- Refreshed `pubspec.lock` for the new dev dependencies.
+- Refactored `LibraryController` to inject the file picker through a typedef, making the default platform picker path testable.
+
+### Formatting
+- Applied `dart format` to `lib/` and `test/` (72 files were out of compliance). CI's `dart format --output=none --set-exit-if-changed` step is green again.
+
+## Unreleased
 
 ## 0.0.1-dev.11 - 2026-08-29
 
