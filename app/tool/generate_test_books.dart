@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 
 import '../test/support/docx_fixture.dart';
+import '../test/support/cb7_fixture.dart';
 import '../test/support/epub_fixture.dart';
 import '../test/support/fb2_fixture.dart';
 import '../test/support/image_fixture.dart';
@@ -42,6 +43,7 @@ Future<void> main() async {
       'page-01.png': tinyPngBytes(),
       'page-02.png': tinyPngBytes(),
     }),
+    'cb7/minimal.cb7': syntheticCb7Bytes(),
     'cbz/minimal.cbz': zipNamedFiles({
       'page-01.png': tinyPngBytes(),
       'page-02.png': tinyPngBytes(),

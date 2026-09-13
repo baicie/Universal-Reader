@@ -57,6 +57,7 @@ pub fn detect_format(file_name: &str) -> Option<DetectedFormat> {
         "odt" => ("odt", "reflow"),
         "rtf" => ("rtf", "reflow"),
         "cbt" => ("cbt", "comic"),
+        "cb7" => ("cb7", "comic"),
         "cbz" => ("cbz", "comic"),
         "cbr" => ("cbr", "comic"),
         _ => return None,
@@ -77,6 +78,12 @@ pub fn detect_format_bytes(file_name: &str, bytes: &[u8]) -> Option<DetectedForm
     if is_rar(bytes) {
         return Some(DetectedFormat {
             format: "cbr",
+            document_type: "comic",
+        });
+    }
+    if is_7z(bytes) {
+        return Some(DetectedFormat {
+            format: "cb7",
             document_type: "comic",
         });
     }
@@ -196,6 +203,10 @@ fn detect_zip(bytes: &[u8]) -> Option<DetectedFormat> {
 
 fn is_rar(bytes: &[u8]) -> bool {
     bytes.len() >= 7 && bytes.starts_with(b"Rar!\x1A\x07") && matches!(bytes[6], 0x00 | 0x01)
+}
+
+fn is_7z(bytes: &[u8]) -> bool {
+    bytes.starts_with(&[0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C])
 }
 
 fn looks_like_rtf(bytes: &[u8]) -> bool {
@@ -1025,6 +1036,13 @@ mod tests {
                 document_type: "comic",
             })
         );
+        assert_eq!(
+            detect_format("comic.cb7"),
+            Some(DetectedFormat {
+                format: "cb7",
+                document_type: "comic",
+            })
+        );
     }
 
     #[test]
@@ -1119,6 +1137,13 @@ mod tests {
             detect_format_bytes("book.bin", &tar_with_image_name("page.png")),
             Some(DetectedFormat {
                 format: "cbt",
+                document_type: "comic",
+            })
+        );
+        assert_eq!(
+            detect_format_bytes("book.bin", b"7z\xBC\xAF\x27\x1C"),
+            Some(DetectedFormat {
+                format: "cb7",
                 document_type: "comic",
             })
         );

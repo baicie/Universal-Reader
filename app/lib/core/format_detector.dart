@@ -34,6 +34,7 @@ class FormatDetector {
     if (name.endsWith('.odt')) return DocumentFormat.odt;
     if (name.endsWith('.rtf')) return DocumentFormat.rtf;
     if (name.endsWith('.cbt')) return DocumentFormat.cbt;
+    if (name.endsWith('.cb7')) return DocumentFormat.cb7;
     if (name.endsWith('.cbz')) return DocumentFormat.cbz;
     if (name.endsWith('.cbr')) return DocumentFormat.cbr;
     return DocumentFormat.unknown;
@@ -44,6 +45,7 @@ class FormatDetector {
       return DocumentFormat.pdf;
     }
     if (_isRar(bytes)) return DocumentFormat.cbr;
+    if (_is7z(bytes)) return DocumentFormat.cb7;
     if (_looksLikeRtf(bytes)) return DocumentFormat.rtf;
     if (_isTar(bytes)) return _detectTar(bytes);
     if (_startsWith(bytes, const [0x50, 0x4B])) return _detectZip(bytes);
@@ -210,6 +212,15 @@ class FormatDetector {
       if (bytes[i] != signature[i]) return false;
     }
     return bytes[6] == 0x00 || bytes[6] == 0x01;
+  }
+
+  bool _is7z(List<int> bytes) {
+    if (bytes.length < 6) return false;
+    const signature = [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];
+    for (var i = 0; i < signature.length; i++) {
+      if (bytes[i] != signature[i]) return false;
+    }
+    return true;
   }
 
   bool _isTar(List<int> bytes) {

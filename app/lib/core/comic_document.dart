@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:koni_archive_core/koni_archive_core.dart';
 import 'package:koni_rar/koni_rar.dart';
+import 'package:koni_sevenz/koni_sevenz.dart';
 
 import 'cover_extract.dart';
 import 'models.dart';
@@ -34,7 +35,11 @@ class ComicReaderDocument implements ChapteredDocument {
     required List<int> bytes,
   }) async {
     if (!_isRar(bytes)) {
-      return ComicReaderDocument.parse(metadata: metadata, bytes: bytes);
+      if (!_is7z(bytes)) {
+        return ComicReaderDocument.parse(metadata: metadata, bytes: bytes);
+      }
+      final pages = await _sevenZPages(bytes);
+      return ComicReaderDocument._(metadata: metadata, pages: pages);
     }
     final pages = await _rarPages(bytes);
     return ComicReaderDocument._(metadata: metadata, pages: pages);
@@ -92,30 +97,7 @@ class ComicReaderDocument implements ChapteredDocument {
           maxEntrySize: _maxRarEntryBytes,
         ),
       );
-      final pages = <ComicPage>[];
-      for (final entry in reader.entries) {
-        if (entry.type != ArchiveEntryType.file ||
-            !looksLikeImageName(entry.path)) {
-          continue;
-        }
-        final output = BytesBuilder(copy: false);
-        await for (final chunk in reader.openRead(entry)) {
-          output.add(chunk);
-        }
-        pages.add(
-          ComicPage(
-            name: entry.path.replaceAll('\\', '/').split('/').last,
-            bytes: output.takeBytes(),
-          ),
-        );
-      }
-      pages.sort(
-        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-      );
-      if (pages.isEmpty) {
-        throw const FormatException('corrupt comic');
-      }
-      return pages;
+      return await _readerPages(reader);
     } on FormatException {
       rethrow;
     } catch (_) {
@@ -124,6 +106,56 @@ class ComicReaderDocument implements ChapteredDocument {
       await reader?.close();
       await source.close();
     }
+  }
+
+  static Future<List<ComicPage>> _sevenZPages(List<int> bytes) async {
+    final source = MemoryByteSource(
+      Uint8List.fromList(bytes),
+      name: 'comic.cb7',
+    );
+    ArchiveReader? reader;
+    try {
+      reader = await const SevenZFormat().openReader(
+        source,
+        const ArchiveReadOptions(
+          maxEntryCount: _maxRarEntries,
+          maxEntrySize: _maxRarEntryBytes,
+        ),
+      );
+      return await _readerPages(reader);
+    } on FormatException {
+      rethrow;
+    } catch (_) {
+      throw const FormatException('corrupt comic');
+    } finally {
+      await reader?.close();
+      await source.close();
+    }
+  }
+
+  static Future<List<ComicPage>> _readerPages(ArchiveReader reader) async {
+    final pages = <ComicPage>[];
+    for (final entry in reader.entries) {
+      if (entry.type != ArchiveEntryType.file ||
+          !looksLikeImageName(entry.path)) {
+        continue;
+      }
+      final output = BytesBuilder(copy: false);
+      await for (final chunk in reader.openRead(entry)) {
+        output.add(chunk);
+      }
+      pages.add(
+        ComicPage(
+          name: entry.path.replaceAll('\\', '/').split('/').last,
+          bytes: output.takeBytes(),
+        ),
+      );
+    }
+    pages.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    if (pages.isEmpty) {
+      throw const FormatException('corrupt comic');
+    }
+    return pages;
   }
 
   @override
@@ -225,6 +257,15 @@ bool _isTar(List<int> bytes) {
     checksum += i >= 148 && i < 156 ? 0x20 : bytes[i];
   }
   return checksum == stored;
+}
+
+bool _is7z(List<int> bytes) {
+  if (bytes.length < 6) return false;
+  const signature = [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];
+  for (var i = 0; i < signature.length; i++) {
+    if (bytes[i] != signature[i]) return false;
+  }
+  return true;
 }
 
 int? _tarOctal(List<int> bytes, int start, int end) {

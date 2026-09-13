@@ -36,6 +36,9 @@
 - **[cbt-reader.md](cbt-reader.md)** - CBT 漫画阅读器
   TAR 漫画容器、图片排序和共享漫画布局
 
+- **[cb7-reader.md](cb7-reader.md)** - CB7 漫画阅读器
+  7z 漫画容器、LZMA/LZMA2 解码和共享漫画布局
+
 ## 功能模块
 
 ### 书库管理

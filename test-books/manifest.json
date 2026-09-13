@@ -72,6 +72,12 @@
     "sha256": "65d6bb2ade6811d31076ca532a685093cf0b033c2516a59f72a5e28720ded7dd"
   },
   {
+    "path": "cb7/minimal.cb7",
+    "format": "cb7",
+    "bytes": 809,
+    "sha256": "a18121ce059c33c7442c2a9c652bd940317dd94a3a8e396c2e60aac906a89d9a"
+  },
+  {
     "path": "cbz/minimal.cbz",
     "format": "cbz",
     "bytes": 356,

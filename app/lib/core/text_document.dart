@@ -25,6 +25,7 @@ extension PlainTextFormat on DocumentFormat {
       this == DocumentFormat.odt ||
       this == DocumentFormat.rtf ||
       this == DocumentFormat.cbt ||
+      this == DocumentFormat.cb7 ||
       this == DocumentFormat.mobi ||
       this == DocumentFormat.azw3 ||
       this == DocumentFormat.fb2;

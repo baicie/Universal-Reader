@@ -17,7 +17,8 @@
 - Added ODT on the same reflow contract with mimetype detection, metadata, inherited text styles, headings, lists, tables, and hyperlinks.
 - Added RTF control-word parsing, metadata, ANSI/GBK/UTF-8 escapes, Unicode text, inline formatting, and basic tables.
 - Added CBT TAR comic detection, ordered image pages, cover extraction, and the shared comic layout.
-- Remaining v0.3 formats: CB7, CHM, and DjVu.
+- Added CB7 7z detection and LZMA/LZMA2 comic decoding with solid-block and CRC support.
+- Remaining v0.3 formats: CHM and DjVu.
 
 ## PDF 测试覆盖提升（最新完成）
 

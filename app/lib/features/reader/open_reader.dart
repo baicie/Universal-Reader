@@ -18,7 +18,8 @@ Future<ReaderDocument> openReaderDocumentAsync({
       bytes.isNotEmpty &&
       (metadata.format == DocumentFormat.cbz ||
           metadata.format == DocumentFormat.cbr ||
-          metadata.format == DocumentFormat.cbt)) {
+          metadata.format == DocumentFormat.cbt ||
+          metadata.format == DocumentFormat.cb7)) {
     try {
       return await ComicReaderDocument.parseAsync(
         metadata: metadata,
@@ -84,7 +85,8 @@ ReaderDocument openReaderDocument({
     }
     if (metadata.format == DocumentFormat.cbz ||
         metadata.format == DocumentFormat.cbr ||
-        metadata.format == DocumentFormat.cbt) {
+        metadata.format == DocumentFormat.cbt ||
+        metadata.format == DocumentFormat.cb7) {
       try {
         return ComicReaderDocument.parse(metadata: metadata, bytes: bytes);
       } on FormatException {

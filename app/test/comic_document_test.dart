@@ -4,6 +4,7 @@ import 'package:app/core/reader_runtime.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/epub_fixture.dart';
+import 'support/cb7_fixture.dart';
 import 'support/image_fixture.dart';
 import 'support/rar_fixture.dart';
 
@@ -43,6 +44,17 @@ void main() {
     );
     expect(document.chapterCount, 2);
     expect(document.currentPage.name, 'page-01.png');
+  });
+
+  test('opens a cb7 as ordered image pages', () async {
+    final document = await ComicReaderDocument.parseAsync(
+      metadata: metadata.copyWith(format: DocumentFormat.cb7),
+      bytes: syntheticCb7Bytes(),
+    );
+    expect(document.chapterCount, 3);
+    expect(document.pages[0].name, 'page001.png');
+    expect(document.pages[1].name, 'page002.png');
+    expect(document.pages[2].name, 'page003.png');
   });
 
   test('opens a real RAR cbr as ordered image pages', () async {

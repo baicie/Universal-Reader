@@ -15,6 +15,7 @@ import 'package:app/features/reader/open_reader.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/epub_fixture.dart';
+import 'support/cb7_fixture.dart';
 import 'support/docx_fixture.dart';
 import 'support/fb2_fixture.dart';
 import 'support/image_fixture.dart';
@@ -212,6 +213,15 @@ void main() {
       );
       expect(document, isA<ComicReaderDocument>());
       expect((document as ComicReaderDocument).pages, hasLength(2));
+    });
+
+    test('parses a cb7 archive of images', () async {
+      final document = await openReaderDocumentAsync(
+        metadata: _metadata(id: 'book.cb7', format: DocumentFormat.cb7),
+        bytes: syntheticCb7Bytes(),
+      );
+      expect(document, isA<ComicReaderDocument>());
+      expect((document as ComicReaderDocument).pages, hasLength(3));
     });
 
     test('parses a non-zip cbr archive of images', () async {

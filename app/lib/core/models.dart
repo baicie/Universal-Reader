@@ -11,6 +11,7 @@ enum DocumentFormat {
   odt,
   rtf,
   cbt,
+  cb7,
   cbz,
   cbr,
   unknown,
@@ -32,6 +33,7 @@ extension DocumentFormatLabel on DocumentFormat {
     DocumentFormat.odt => 'ODT',
     DocumentFormat.rtf => 'RTF',
     DocumentFormat.cbt => 'CBT',
+    DocumentFormat.cb7 => 'CB7',
     DocumentFormat.cbz => 'CBZ',
     DocumentFormat.cbr => 'CBR',
     DocumentFormat.unknown => 'FILE',
@@ -41,7 +43,8 @@ extension DocumentFormatLabel on DocumentFormat {
     DocumentFormat.pdf => DocumentType.fixedPage,
     DocumentFormat.cbz ||
     DocumentFormat.cbr ||
-    DocumentFormat.cbt => DocumentType.comic,
+    DocumentFormat.cbt ||
+    DocumentFormat.cb7 => DocumentType.comic,
     _ => DocumentType.reflow,
   };
 }
