@@ -6,6 +6,7 @@ use std::{
 
 const MAX_INPUT_BYTES: usize = 64 * 1024 * 1024;
 
+pub const UR_NATIVE_API_VERSION: u32 = 1;
 pub const UR_OK: i32 = 0;
 pub const UR_INVALID_ARGUMENT: i32 = 1;
 pub const UR_CORRUPT: i32 = 2;
@@ -21,7 +22,7 @@ pub struct UrBytes {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn ur_native_api_version() -> u32 {
-    1
+    UR_NATIVE_API_VERSION
 }
 
 /// Converts a CHM byte buffer to EPUB through the shared native core.
@@ -140,6 +141,12 @@ unsafe fn convert_with(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reports_the_public_api_version() {
+        assert_eq!(ur_native_api_version(), UR_NATIVE_API_VERSION);
+        assert_eq!(UR_NATIVE_API_VERSION, 1);
+    }
 
     #[test]
     fn chm_fixture_converts_through_c_abi() {

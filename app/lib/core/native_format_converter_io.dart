@@ -33,15 +33,20 @@ typedef _ChmDart = int Function(
 );
 typedef _DjvuNative = Int32 Function(Pointer<Uint8>, Size, Pointer<_UrBytes>);
 typedef _DjvuDart = int Function(Pointer<Uint8>, int, Pointer<_UrBytes>);
+typedef _VersionNative = Uint32 Function();
+typedef _VersionDart = int Function();
 typedef _FreeNative = Void Function(_UrBytes);
 typedef _FreeDart = void Function(_UrBytes);
 
 class _NativeFormatConverter implements NativeFormatConverter {
   _NativeFormatConverter(DynamicLibrary library)
-    : _chm = library.lookupFunction<_ChmNative, _ChmDart>('ur_chm_to_epub'),
+    : apiVersion = _readApiVersion(library),
+      _chm = library.lookupFunction<_ChmNative, _ChmDart>('ur_chm_to_epub'),
       _djvu = library.lookupFunction<_DjvuNative, _DjvuDart>('ur_djvu_to_cbz'),
       _free = library.lookupFunction<_FreeNative, _FreeDart>('ur_bytes_free');
 
+  @override
+  final int apiVersion;
   final _ChmDart _chm;
   final _DjvuDart _djvu;
   final _FreeDart _free;
@@ -99,17 +104,40 @@ class _NativeFormatConverter implements NativeFormatConverter {
   }
 }
 
+int _readApiVersion(DynamicLibrary library) {
+  final version = library.lookupFunction<_VersionNative, _VersionDart>(
+    'ur_native_api_version',
+  )();
+  if (version != supportedNativeFormatApiVersion) {
+    throw StateError(
+      'Unsupported native format API version $version; '
+      'expected $supportedNativeFormatApiVersion.',
+    );
+  }
+  return version;
+}
+
 NativeFormatConverter? _cached;
 bool _attempted = false;
+String? _loadError;
+
+String? get nativeFormatLoadError => _loadError;
 
 NativeFormatConverter? createNativeFormatConverter() {
   if (_attempted) return _cached;
   _attempted = true;
   final library = _openLibrary();
-  if (library == null) return null;
+  if (library == null) {
+    _loadError = 'Native library was not found.';
+    return null;
+  }
   try {
     _cached = _NativeFormatConverter(library);
-  } on ArgumentError {
+  } on ArgumentError catch (error) {
+    _loadError = 'Native library symbol lookup failed: $error';
+    return null;
+  } on StateError catch (error) {
+    _loadError = error.message;
     return null;
   }
   return _cached;

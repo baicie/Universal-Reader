@@ -40,11 +40,14 @@ void main() {
 
     expect(sha256.convert(chm).toString(), _chmSha256);
     expect(sha256.convert(djvu).toString(), _djvuSha256);
+    final converter = createNativeFormatConverter();
     expect(
-      createNativeFormatConverter(),
+      converter,
       isNotNull,
       reason: 'The native library was not found by DynamicLibrary.',
     );
+    expect(converter!.apiVersion, supportedNativeFormatApiVersion);
+    expect(nativeFormatLoadError, isNull);
 
     final chmDocument = await openReaderDocumentAsync(
       metadata: _metadata('minimal.chm', DocumentFormat.chm),

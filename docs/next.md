@@ -78,6 +78,14 @@
 - Added Android emulator and iOS Simulator smoke tests that load the native library and convert the fixed CHM/DjVu corpus.
 - Added a physical-device smoke harness and self-hosted workflow for connected-device conversion plus optional signed release installation / launch.
 - Physical-device execution still requires attached hardware and platform signing credentials.
+
+## v1.0 Hardening F complete: native ABI compatibility guard
+
+- Promoted the native C ABI version to a Rust public constant and C header macro.
+- Dart now verifies `ur_native_api_version()` before looking up conversion symbols.
+- Version mismatch, missing symbols, and missing libraries produce an explicit load diagnostic and a safe unavailable-reader fallback.
+- Device smoke tests assert the loaded API version, while a host-side contract test keeps Dart, Rust, and C declarations aligned.
+- Planned Hardening F close date: 2026-10-04. Implementation completed on 2026-09-13.
 - Planned Hardening E close date: 2026-11-15. Implementation completed on 2026-09-13.
 
 ## PDF 测试覆盖提升（最新完成）

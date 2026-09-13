@@ -116,6 +116,8 @@ Android `.so` 会通过 Gradle `jniLibs` 进入 APK；iOS 由 XCFramework 的 de
 
 App 打开 CHM/DjVu 时会先尝试原生转换，再复用现有 `EpubReaderDocument` / `ComicReaderDocument`；同步 `openReaderDocument` 路径仍不会转换。
 
+Dart 在查找转换符号前会调用 `ur_native_api_version()`。当前支持版本为 `1`，Dart 常量、Rust 常量和 C 头宏由单元测试保持一致；版本不匹配时 App 会安全回退而不会调用不兼容 ABI。
+
 ## 设备侧 smoke 验证
 
 `app/integration_test/native_format_converter_smoke_test.dart` 会在真实 Android / iOS 运行环境中加载原生库，使用固定 SHA-256 的 `test-books` 样本完成 CHM -> EPUB 和 DjVu -> CBZ 转换，并断言结果可被现有阅读器打开。

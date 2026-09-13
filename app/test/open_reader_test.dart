@@ -57,6 +57,9 @@ class _FakeNativeConverter implements NativeFormatConverter {
   final List<int>? djvuResult;
 
   @override
+  int get apiVersion => supportedNativeFormatApiVersion;
+
+  @override
   Future<List<int>?> chmToEpub({
     required String fileName,
     required List<int> bytes,

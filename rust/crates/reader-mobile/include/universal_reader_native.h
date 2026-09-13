@@ -8,6 +8,8 @@
 extern "C" {
 #endif
 
+#define UR_NATIVE_API_VERSION 1u
+
 enum {
   UR_OK = 0,
   UR_INVALID_ARGUMENT = 1,
