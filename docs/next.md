@@ -135,6 +135,14 @@
 - Added regression coverage for modified files, extra files, version mismatches, and manifest/hash formatting.
 - Planned Hardening M close date: 2027-01-10. Implementation completed on 2026-09-14.
 
+## v1.0 Hardening N complete: complete RC dry run
+
+- Added `source_ref` and `dry_run` controls to the Release workflow.
+- Dry runs can build the full platform matrix from `main` using the future RC version without creating a git tag.
+- Android uses debug signing only when a dry run has no release keystore; all other artifacts are still packaged and verified.
+- The dry run generates release notes, manifest, and `SHA256SUMS`, verifies every asset, and uploads one complete artifact bundle without publishing a release.
+- Planned Hardening N close date: 2027-01-24. Implementation completed on 2026-09-14.
+
 ## v1.0 Hardening K complete: release candidate gate
 
 - Froze the app, Rust workspace, Cargo lock, and changelog at `1.0.0-rc.1`.

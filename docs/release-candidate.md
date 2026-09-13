@@ -28,6 +28,17 @@ The current candidate is:
 - [ ] Release notes come from the matching `CHANGELOG.md` section.
 - [ ] Published `release-manifest.json` and `SHA256SUMS` are attached and match downloaded assets.
 
+Before a tag exists, run the complete release matrix as a dry run:
+
+```powershell
+gh workflow run release.yml `
+  -f tag=v1.0.0-rc.1 `
+  -f source_ref=main `
+  -f dry_run=true
+```
+
+The dry run builds every platform artifact, uses debug signing for Android, generates release notes, creates the manifest, verifies all hashes, and uploads the complete bundle without creating a GitHub Release.
+
 ## Commands
 
 ```powershell

@@ -10,6 +10,16 @@ on:
         description: Existing tag to release
         required: true
         type: string
+      source_ref:
+        description: Source ref to build, defaults to the tag
+        required: false
+        default: ''
+        type: string
+      dry_run:
+        description: Build, manifest, and verify without publishing a GitHub Release
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -20,6 +30,8 @@ concurrency:
 
 env:
   RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  RELEASE_REF: ${{ inputs.source_ref || inputs.tag || github.ref_name }}
+  DRY_RUN: ${{ inputs.dry_run || false }}
 
 jobs:
   verify:
@@ -32,7 +44,7 @@ jobs:
       - name: Checkout release tag
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -42,7 +54,12 @@ jobs:
           cache: true
 
       - name: Verify tag and version sources
-        run: dart run tool/check_release_versions.dart --tag "$RELEASE_TAG"
+        run: |
+          if [[ "$DRY_RUN" == true ]]; then
+            dart run tool/check_release_versions.dart
+          else
+            dart run tool/check_release_versions.dart --tag "$RELEASE_TAG"
+          fi
 
       - name: Verify release signing prerequisites
         env:
@@ -52,8 +69,8 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         shell: bash
         run: |
-          if [[ "$RELEASE_TAG" == *-dev.* ]]; then
-            echo "Development release: release signing is not required."
+          if [[ "$DRY_RUN" == true || "$RELEASE_TAG" == *-dev.* ]]; then
+            echo "Dry run or development release: release signing is not required."
             exit 0
           fi
           for variable in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
@@ -73,7 +90,7 @@ jobs:
       - name: Checkout release tag
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -126,7 +143,7 @@ jobs:
       - name: Checkout release tag
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -153,8 +170,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ contains(env.RELEASE_TAG, '-dev.') }}" == "true" && -z "${ANDROID_KEYSTORE_BASE64:-}" ]]; then
-            echo "Development release: building unsigned APKs with the Gradle debug signing key"
+          if [[ "$DRY_RUN" == true || "${{ contains(env.RELEASE_TAG, '-dev.') }}" == "true" ]] && [[ -z "${ANDROID_KEYSTORE_BASE64:-}" ]]; then
+            echo "Dry run or development release: building APKs with the Gradle debug signing key"
             exit 0
           fi
 
@@ -218,7 +235,7 @@ jobs:
       - name: Checkout release tag
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -281,7 +298,7 @@ jobs:
       - name: Checkout release tag
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -348,7 +365,7 @@ jobs:
       - name: Checkout release tag
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -464,7 +481,7 @@ jobs:
       - name: Checkout release tag
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -519,7 +536,7 @@ jobs:
       - name: Checkout release tag
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -561,7 +578,7 @@ jobs:
       - name: Checkout release tag
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -665,14 +682,14 @@ jobs:
           if-no-files-found: error
 
   publish:
-    name: Publish GitHub Release
+    name: Package release
     needs: [verify, android, web, windows, linux, macos-native, macos-universal, ios, server-linux, server-windows, web-server-linux, web-server-windows]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout release tag
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -710,6 +727,7 @@ jobs:
           test -s release-notes.md
 
       - name: Create GitHub Release
+        if: ${{ inputs.dry_run != true }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -724,3 +742,11 @@ jobs:
             --title "Universal Reader ${{ env.RELEASE_TAG }}" \
             --prerelease \
             --notes-file release-notes.md
+
+      - name: Upload dry-run artifact bundle
+        if: ${{ inputs.dry_run == true }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: universal-reader-${{ env.RELEASE_TAG }}-dry-run
+          path: artifacts/**
+          if-no-files-found: error
