@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'support/epub_fixture.dart';
 
 class _TogglingChapterDocument implements HtmlChapteredDocument {
-  _TogglingChapterDocument(this._href);
+  const _TogglingChapterDocument(this._href);
 
   final DocumentMetadata _metadata = const DocumentMetadata(
     id: 'toggle',
@@ -19,7 +19,7 @@ class _TogglingChapterDocument implements HtmlChapteredDocument {
     format: DocumentFormat.epub,
     type: DocumentType.reflow,
   );
-  String _href;
+  final String _href;
 
   @override
   DocumentMetadata get metadata => _metadata;
