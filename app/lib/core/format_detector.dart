@@ -31,6 +31,7 @@ class FormatDetector {
       return DocumentFormat.html;
     }
     if (name.endsWith('.docx')) return DocumentFormat.docx;
+    if (name.endsWith('.odt')) return DocumentFormat.odt;
     if (name.endsWith('.cbz')) return DocumentFormat.cbz;
     if (name.endsWith('.cbr')) return DocumentFormat.cbr;
     return DocumentFormat.unknown;
@@ -84,6 +85,9 @@ class FormatDetector {
           );
           if (content.trim() == 'application/epub+zip') {
             return DocumentFormat.epub;
+          }
+          if (content.trim() == 'application/vnd.oasis.opendocument.text') {
+            return DocumentFormat.odt;
           }
         }
       }

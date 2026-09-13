@@ -7,6 +7,7 @@ import '../test/support/docx_fixture.dart';
 import '../test/support/epub_fixture.dart';
 import '../test/support/fb2_fixture.dart';
 import '../test/support/image_fixture.dart';
+import '../test/support/odt_fixture.dart';
 import '../test/support/pdf_fixture.dart';
 import '../test/support/rar_fixture.dart';
 
@@ -34,6 +35,7 @@ Future<void> main() async {
       '</body></html>',
     ),
     'docx/minimal.docx': minimalDocxBytes(),
+    'odt/minimal.odt': minimalOdtBytes(),
     'cbz/minimal.cbz': zipNamedFiles({
       'page-01.png': tinyPngBytes(),
       'page-02.png': tinyPngBytes(),

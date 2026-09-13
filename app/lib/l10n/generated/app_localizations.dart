@@ -983,7 +983,7 @@ abstract class AppLocalizations {
   /// No description provided for @readerUnavailable.
   ///
   /// In zh, this message translates to:
-  /// **'{format} 阅读器尚未接入。当前可以阅读 TXT、Markdown、HTML、EPUB、PDF、DOCX、漫画、MOBI/AZW3 和 FB2。'**
+  /// **'{format} 阅读器尚未接入。当前可以阅读 TXT、Markdown、HTML、EPUB、PDF、DOCX、ODT、漫画、MOBI/AZW3 和 FB2。'**
   String readerUnavailable(String format);
 
   /// No description provided for @readerMissingFile.

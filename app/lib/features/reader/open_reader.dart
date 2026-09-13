@@ -4,6 +4,7 @@ import '../../core/epub_document.dart';
 import '../../core/fb2_document.dart';
 import '../../core/mobi_document.dart';
 import '../../core/models.dart';
+import '../../core/odt_document.dart';
 import '../../core/pdf_document.dart';
 import '../../core/reader_runtime.dart';
 import '../../core/text_document.dart';
@@ -47,6 +48,13 @@ ReaderDocument openReaderDocument({
     if (metadata.format == DocumentFormat.docx) {
       try {
         return DocxReaderDocument.parse(metadata: metadata, bytes: bytes);
+      } on FormatException {
+        return CorruptReaderDocument(metadata: metadata);
+      }
+    }
+    if (metadata.format == DocumentFormat.odt) {
+      try {
+        return OdtReaderDocument.parse(metadata: metadata, bytes: bytes);
       } on FormatException {
         return CorruptReaderDocument(metadata: metadata);
       }

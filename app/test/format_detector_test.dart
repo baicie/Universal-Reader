@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'support/docx_fixture.dart';
 import 'support/epub_fixture.dart';
 import 'support/image_fixture.dart';
+import 'support/odt_fixture.dart';
 import 'support/rar_fixture.dart';
 
 void main() {
@@ -111,6 +112,15 @@ void main() {
         DocumentSource(name: 'book.bin', bytes: minimalDocxBytes()),
       ),
       DocumentFormat.docx,
+    );
+  });
+
+  test('detects odt content when the extension is unrelated', () {
+    expect(
+      detector.detect(
+        DocumentSource(name: 'book.bin', bytes: minimalOdtBytes()),
+      ),
+      DocumentFormat.odt,
     );
   });
 

@@ -22,6 +22,7 @@ extension PlainTextFormat on DocumentFormat {
       this == DocumentFormat.cbz ||
       this == DocumentFormat.cbr ||
       this == DocumentFormat.docx ||
+      this == DocumentFormat.odt ||
       this == DocumentFormat.mobi ||
       this == DocumentFormat.azw3 ||
       this == DocumentFormat.fb2;

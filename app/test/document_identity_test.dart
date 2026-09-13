@@ -3,6 +3,7 @@ import 'package:app/core/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/docx_fixture.dart';
+import 'support/odt_fixture.dart';
 import 'support/epub_fixture.dart';
 import 'support/fb2_fixture.dart';
 
@@ -175,5 +176,16 @@ void main() {
 
     expect(identity.title, 'Office Title');
     expect(identity.author, 'Office Author');
+  });
+
+  test('reads ODT metadata properties', () {
+    final identity = documentIdentity(
+      fileName: 'fallback.odt',
+      bytes: minimalOdtBytes(title: 'ODT Title', author: 'ODT Author'),
+      format: DocumentFormat.odt,
+    );
+
+    expect(identity.title, 'ODT Title');
+    expect(identity.author, 'ODT Author');
   });
 }

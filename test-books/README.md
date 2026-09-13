@@ -1,7 +1,7 @@
 # Compatibility Corpus
 
 This directory contains one minimal, synthetic book for every main format:
-EPUB, PDF, MOBI, AZW3, FB2, TXT, Markdown, HTML, DOCX, CBZ, and CBR.
+EPUB, PDF, MOBI, AZW3, FB2, TXT, Markdown, HTML, DOCX, ODT, CBZ, and CBR.
 
 The corpus exists for import, format detection, reader-engine, and release
 smoke tests. It is intentionally tiny and deterministic. Regenerate it from

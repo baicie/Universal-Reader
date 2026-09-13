@@ -7,6 +7,7 @@ import 'package:app/core/epub_document.dart';
 import 'package:app/core/fb2_document.dart';
 import 'package:app/core/mobi_document.dart';
 import 'package:app/core/models.dart';
+import 'package:app/core/odt_document.dart';
 import 'package:app/core/pdf_document.dart';
 import 'package:app/core/text_document.dart';
 import 'package:app/features/reader/open_reader.dart';
@@ -17,6 +18,7 @@ import 'support/docx_fixture.dart';
 import 'support/fb2_fixture.dart';
 import 'support/image_fixture.dart';
 import 'support/pdf_fixture.dart';
+import 'support/odt_fixture.dart';
 import 'support/rar_fixture.dart';
 
 DocumentMetadata _metadata({
@@ -120,6 +122,24 @@ void main() {
     test('returns a corrupt document when the docx cannot be unzipped', () {
       final document = openReaderDocument(
         metadata: _metadata(id: 'book.docx', format: DocumentFormat.docx),
+        bytes: const [1, 2, 3],
+      );
+      expect(document, isA<CorruptReaderDocument>());
+    });
+  });
+
+  group('openReaderDocument for odt', () {
+    test('parses a valid odt', () {
+      final document = openReaderDocument(
+        metadata: _metadata(id: 'book.odt', format: DocumentFormat.odt),
+        bytes: minimalOdtBytes(),
+      );
+      expect(document, isA<OdtReaderDocument>());
+    });
+
+    test('returns a corrupt document when the odt cannot be unzipped', () {
+      final document = openReaderDocument(
+        metadata: _metadata(id: 'book.odt', format: DocumentFormat.odt),
         bytes: const [1, 2, 3],
       );
       expect(document, isA<CorruptReaderDocument>());

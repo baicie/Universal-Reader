@@ -54,6 +54,12 @@
     "sha256": "72d0fa417af955efc7229e92ac2064955f58eb573c25648aff60a0add3906fdf"
   },
   {
+    "path": "odt/minimal.odt",
+    "format": "odt",
+    "bytes": 1219,
+    "sha256": "935ef0bead11881f79dd1460b4d09eb3680415471508c4d475674fcc05c4d761"
+  },
+  {
     "path": "cbz/minimal.cbz",
     "format": "cbz",
     "bytes": 356,

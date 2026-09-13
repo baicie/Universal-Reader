@@ -27,6 +27,9 @@
 - **[docx-reader.md](docx-reader.md)** - DOCX 阅读器实现
   WordprocessingML 解析、章节划分和当前支持范围
 
+- **[odt-reader.md](odt-reader.md)** - ODT 阅读器实现
+  OpenDocument Text 解析和共享 Office reflow 管线
+
 ## 功能模块
 
 ### 书库管理

@@ -54,6 +54,7 @@ pub fn detect_format(file_name: &str) -> Option<DetectedFormat> {
         "md" | "markdown" => ("markdown", "reflow"),
         "html" | "htm" => ("html", "reflow"),
         "docx" => ("docx", "reflow"),
+        "odt" => ("odt", "reflow"),
         "cbz" => ("cbz", "comic"),
         "cbr" => ("cbr", "comic"),
         _ => return None,
@@ -150,6 +151,12 @@ fn detect_zip(bytes: &[u8]) -> Option<DetectedFormat> {
             if content.trim() == "application/epub+zip" {
                 return Some(DetectedFormat {
                     format: "epub",
+                    document_type: "reflow",
+                });
+            }
+            if content.trim() == "application/vnd.oasis.opendocument.text" {
+                return Some(DetectedFormat {
+                    format: "odt",
                     document_type: "reflow",
                 });
             }
@@ -903,6 +910,13 @@ mod tests {
                 document_type: "reflow",
             })
         );
+        assert_eq!(
+            detect_format("report.odt"),
+            Some(DetectedFormat {
+                format: "odt",
+                document_type: "reflow",
+            })
+        );
     }
 
     #[test]
@@ -944,6 +958,27 @@ mod tests {
             detect_format_bytes("book.bin", &bytes),
             Some(DetectedFormat {
                 format: "docx",
+                document_type: "reflow",
+            })
+        );
+    }
+
+    #[test]
+    fn detects_odt_content_with_an_unrelated_extension() {
+        let cursor = Cursor::new(Vec::new());
+        let mut zip = zip::ZipWriter::new(cursor);
+        let options = zip::write::SimpleFileOptions::default();
+        zip.start_file("mimetype", options).unwrap();
+        zip.write_all(b"application/vnd.oasis.opendocument.text")
+            .unwrap();
+        zip.start_file("content.xml", options).unwrap();
+        zip.write_all(b"<office:document-content/>").unwrap();
+        let bytes = zip.finish().unwrap().into_inner();
+
+        assert_eq!(
+            detect_format_bytes("book.bin", &bytes),
+            Some(DetectedFormat {
+                format: "odt",
                 document_type: "reflow",
             })
         );
