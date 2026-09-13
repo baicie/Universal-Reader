@@ -1,0 +1,128 @@
+name: Physical device smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Physical device platform
+        required: true
+        type: choice
+        options:
+          - android
+          - ios
+      device_id:
+        description: Flutter device id, required when more than one device is attached
+        required: false
+        type: string
+      release_artifact:
+        description: Optional signed APK or Runner.app path on the self-hosted runner
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Android physical smoke
+    if: inputs.platform == 'android'
+    runs-on: [self-hosted, linux, universal-reader, android-device]
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.0'
+          cache: true
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Android native libraries
+        working-directory: rust
+        run: cargo ndk -t arm64-v8a -t armeabi-v7a -o target/android/jniLibs build -p universal-reader-mobile --release
+
+      - name: Run physical smoke
+        shell: bash
+        env:
+          DEVICE_ID: ${{ inputs.device_id }}
+          RELEASE_ARTIFACT: ${{ inputs.release_artifact }}
+        run: |
+          args=(--platform=android --report=physical-smoke-report.md)
+          if [[ -n "$DEVICE_ID" ]]; then
+            args+=(--device-id="$DEVICE_ID")
+          fi
+          if [[ -n "$RELEASE_ARTIFACT" ]]; then
+            args+=(--release-artifact="$RELEASE_ARTIFACT")
+          fi
+          dart run tool/physical_smoke.dart "${args[@]}"
+
+      - name: Upload physical smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: physical-smoke-android
+          path: app/physical-smoke-report.md
+          if-no-files-found: warn
+
+  ios:
+    name: iOS physical smoke
+    if: inputs.platform == 'ios'
+    runs-on: [self-hosted, macOS, universal-reader, ios-device]
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.0'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build iOS XCFramework
+        working-directory: rust
+        run: bash tool/build-mobile-ios.sh
+
+      - name: Run physical smoke
+        shell: bash
+        env:
+          DEVICE_ID: ${{ inputs.device_id }}
+          RELEASE_ARTIFACT: ${{ inputs.release_artifact }}
+        run: |
+          args=(--platform=ios --report=physical-smoke-report.md)
+          if [[ -n "$DEVICE_ID" ]]; then
+            args+=(--device-id="$DEVICE_ID")
+          fi
+          if [[ -n "$RELEASE_ARTIFACT" ]]; then
+            args+=(--release-artifact="$RELEASE_ARTIFACT")
+          fi
+          dart run tool/physical_smoke.dart "${args[@]}"
+
+      - name: Upload physical smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: physical-smoke-ios
+          path: app/physical-smoke-report.md
+          if-no-files-found: warn
