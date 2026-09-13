@@ -17,6 +17,9 @@
 - **[release-rehearsal.md](release-rehearsal.md)** - 发布升级演练
   上一版发布金样、升级/回滚读取和发布包身份校验
 
+- **[release-candidate.md](release-candidate.md)** - Release Candidate 门禁
+  版本冻结、自动门禁、checksum 和人工发布清单
+
 - **[performance-baseline.md](performance-baseline.md)** - 10k 书库性能基线
   大规模书库查询、筛选和排序的回归范围
 

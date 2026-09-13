@@ -26,6 +26,8 @@ flutter build windows --release
 
 Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK 和 arm64-v8a、armeabi-v7a、x86_64 架构 APK；Windows 提供通用 ZIP、x86_64 ZIP 和 x86_64 `.exe` 安装包；Linux 提供通用包和 x86_64 包；macOS 提供 Universal、arm64、x86_64 三种 `.dmg` 安装包，并保留对应 `.tar.gz` 包。服务器部署还可下载 `web-server` 合包（Linux `.tar.gz` / Windows `.zip`），内含 Rust 服务与 Flutter Web 静态资源。
 
+当前版本冻结为 `1.0.0-rc.1`；发布门禁和人工检查清单见 `docs/release-candidate.md`。
+
 ## 当前实现
 
 - Flutter Material 3 响应式界面

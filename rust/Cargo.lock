@@ -1705,7 +1705,7 @@ checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
 
 [[package]]
 name = "universal-reader-format-native"
-version = "0.0.1-dev.13"
+version = "1.0.0-rc.1"
 dependencies = [
  "djvu-rs",
  "libchm",
@@ -1715,14 +1715,14 @@ dependencies = [
 
 [[package]]
 name = "universal-reader-mobile"
-version = "0.0.1-dev.13"
+version = "1.0.0-rc.1"
 dependencies = [
  "universal-reader-format-native",
 ]
 
 [[package]]
 name = "universal-reader-server"
-version = "0.0.1-dev.13"
+version = "1.0.0-rc.1"
 dependencies = [
  "axum",
  "base64",

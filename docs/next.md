@@ -121,6 +121,14 @@
 - Extended the manual `Release rehearsal` workflow with selectable `windows`, `web`, `android`, and `all` launch scopes.
 - Planned Hardening J close date: 2026-11-29. Implementation completed on 2026-09-14.
 
+## v1.0 Hardening K complete: release candidate gate
+
+- Froze the app, Rust workspace, Cargo lock, and changelog at `1.0.0-rc.1`.
+- Added a release version checker that requires an optional release tag to match every version source.
+- The Release workflow now verifies versions before publication and generates `SHA256SUMS` for all release assets.
+- Documented the remaining manual gate: signed platform artifacts plus physical-device installation.
+- Planned Hardening K close date: 2026-12-13. Implementation completed on 2026-09-14.
+
 ## PDF 测试覆盖提升（最新完成）
 
 将 PDF 文档测试覆盖率从基线提升至 100%（1 个提交）。
