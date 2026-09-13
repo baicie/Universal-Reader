@@ -21,9 +21,7 @@ sha2 = "0.10"
 hmac = "0.12"
 time = "0.3"
 notify = "6.1"
-libchm = "0.3"
-djvu-rs = { version = "0.32.1", features = ["cbz"] }
-tempfile = "3"
+universal-reader-format-native = { path = "../reader-format-native" }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

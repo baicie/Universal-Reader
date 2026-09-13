@@ -103,6 +103,8 @@
 - Added a bounded cover LRU and a 10k lazy-grid regression so offscreen covers are neither loaded nor retained indefinitely.
 - Added restartable folder scan sessions with 1–500 item batches and progress reporting in the Sources card.
 - Completed the mobile CHM/DjVu decoder audit; the recommended implementation is a shared Rust static library with a minimal C ABI, packaged in Hardening D.
+- Extracted CHM/DjVu conversion into `reader-format-native`, shared by the server and the new `reader-mobile` C ABI library.
+- Added Android arm64-v8a, armeabi-v7a, and x86_64 builds plus an iOS device/simulator XCFramework build pipeline, with fixture tests, corrupt-input coverage, artifact uploads, size reports, and MIT / Apache-2.0 license review.
 
 ## 0.0.1-dev.11 - 2026-08-29
 

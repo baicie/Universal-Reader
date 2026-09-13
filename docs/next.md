@@ -58,12 +58,22 @@
 - Added `docs/mobile-decoders.md`; the audit recommends a shared Rust static library with a minimal C ABI and rejects `flutter_rust_bridge`.
 - Planned Hardening C close date: 2026-10-18. Implementation completed on 2026-09-13.
 
-## v1.0 Hardening D planned
+## v1.0 Hardening D complete: shared mobile native core
 
-- Package the shared Rust CHM/DjVu converters as Android and iOS binaries.
-- Add device/ABI matrix builds and corrupt-input tests.
-- Measure per-ABI app size and complete third-party license review.
-- Planned Hardening D close date: 2026-11-01.
+- Extracted CHM/DjVu conversion into the shared `reader-format-native` crate used by both the server and mobile C ABI.
+- Added `reader-mobile` with `cdylib`/`staticlib`, a versioned C header, bounded buffers, explicit error codes, and Rust-owned memory release.
+- Added Android arm64-v8a / armeabi-v7a / x86_64 builds through `cargo-ndk`.
+- Added an iOS XCFramework build for device and simulator targets.
+- Added C ABI fixture tests, corrupt-input tests, artifact upload, ABI size reporting, and license review.
+- Planned Hardening D close date: 2026-11-01. Core implementation completed on 2026-09-13.
+
+## v1.0 Hardening E planned
+
+- Link the XCFramework into the iOS Runner target and copy Android `.so` files into the Flutter app package.
+- Add a conditional Dart FFI bridge with `dart:io`-only loading and web-safe fallback.
+- Route mobile CHM/DjVu opening through the native converter when the local service is unavailable.
+- Add signed device and simulator smoke tests.
+- Planned Hardening E close date: 2026-11-15.
 
 ## PDF 测试覆盖提升（最新完成）
 

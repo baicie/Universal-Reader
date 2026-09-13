@@ -1,5 +1,9 @@
 [workspace]
-members = ["crates/reader-server"]
+members = [
+    "crates/reader-format-native",
+    "crates/reader-mobile",
+    "crates/reader-server",
+]
 resolver = "2"
 
 [workspace.package]

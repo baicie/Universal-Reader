@@ -44,7 +44,7 @@ Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK
 - `test-books/` 提供 28 份兼容语料：每种主格式的最小样本、边界样本与 SHA-256 清单
 - CHM 在 Rust 服务可用时解包并转换为 EPUB 阅读；移动端直接解析仍待原生嵌入
 - DjVu 在 Rust 服务可用时按页渲染并转换为 CBZ 阅读；移动端直接解析仍待原生嵌入
-- 移动端 CHM/DjVu 已完成共享 Rust 静态库路线审计，具体 ABI 打包排入 Hardening D
+- CHM/DjVu 转换核心已抽成共享 Rust crate；Android `.so` 与 iOS XCFramework 已有构建脚本和 CI 产物，Flutter 运行时链接排入 Hardening E
 
 ## 阅读助手（DeepSeek）
 

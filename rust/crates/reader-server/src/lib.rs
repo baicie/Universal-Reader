@@ -25,8 +25,6 @@ use tower_http::{
 };
 
 mod ai;
-mod chm;
-mod djvu;
 mod extract;
 mod library;
 mod metadata_sync;

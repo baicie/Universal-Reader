@@ -87,6 +87,82 @@ jobs:
       - name: Build server
         run: cargo build --workspace --release
 
+  native-android:
+    name: Android native core
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+
+      - name: Build Android native libraries
+        run: cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -o target/android/jniLibs build -p universal-reader-mobile --release
+
+      - name: Verify ABI outputs
+        run: test -f target/android/jniLibs/arm64-v8a/libuniversal_reader_native.so && test -f target/android/jniLibs/armeabi-v7a/libuniversal_reader_native.so && test -f target/android/jniLibs/x86_64/libuniversal_reader_native.so
+
+      - name: Report ABI sizes
+        run: du -h target/android/jniLibs/*/*.so
+
+      - name: Upload Android native libraries
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-reader-native-android
+          path: rust/target/android/jniLibs
+
+  native-ios:
+    name: iOS native core
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Build iOS XCFramework
+        run: bash tool/build-mobile-ios.sh
+
+      - name: Verify XCFramework
+        run: test -d target/ios/UniversalReaderNative.xcframework
+
+      - name: Report XCFramework size
+        run: du -sh target/ios/UniversalReaderNative.xcframework
+
+      - name: Upload iOS XCFramework
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-reader-native-ios
+          path: rust/target/ios/UniversalReaderNative.xcframework
+
   flutter-android:
     name: Android build
     runs-on: ubuntu-latest

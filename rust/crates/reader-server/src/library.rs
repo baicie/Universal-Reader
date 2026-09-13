@@ -250,15 +250,15 @@ impl LibraryStore {
         let mut content_name = file_name.clone();
         match detected.format {
             "chm" => {
-                stored_content = crate::chm::convert_to_epub(&file_name, content)
+                stored_content = reader_format_native::chm::convert_to_epub(&file_name, content)
                     .ok_or(LibraryError::Unsupported)?;
                 stored_extension = "epub".to_string();
                 stored_format = "epub";
                 stored_document_type = "reflow";
             }
             "djvu" => {
-                stored_content =
-                    crate::djvu::convert_to_cbz(content).ok_or(LibraryError::Unsupported)?;
+                stored_content = reader_format_native::djvu::convert_to_cbz(content)
+                    .ok_or(LibraryError::Unsupported)?;
                 stored_extension = "cbz".to_string();
                 stored_format = "cbz";
                 stored_document_type = "comic";
