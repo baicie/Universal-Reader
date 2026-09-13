@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 
+import '../test/support/docx_fixture.dart';
 import '../test/support/epub_fixture.dart';
 import '../test/support/fb2_fixture.dart';
 import '../test/support/image_fixture.dart';
@@ -32,6 +33,7 @@ Future<void> main() async {
       '<body><h1>Compatibility sample</h1><p>HTML import works.</p>'
       '</body></html>',
     ),
+    'docx/minimal.docx': minimalDocxBytes(),
     'cbz/minimal.cbz': zipNamedFiles({
       'page-01.png': tinyPngBytes(),
       'page-02.png': tinyPngBytes(),

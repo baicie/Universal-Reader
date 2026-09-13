@@ -84,6 +84,7 @@
 - Added the generated `test-books/` compatibility corpus with one minimal sample for EPUB, PDF, MOBI, AZW3, FB2, TXT, Markdown, HTML, CBZ, and CBR. A compatibility test verifies each sample's digest, detected format, and reader opening path.
 - Added the iOS Runner project with bundle id `io.universalreader.app`, localhost transport access, and Universal Reader display metadata.
 - Aligned Flutter and Rust package versions with the `0.0.1-dev.13` changelog line.
+- Started the v0.3 Office line with DOCX reflow support. DOCX is detected from `word/document.xml`, reads core title/author properties, splits Heading 1/2 into reader chapters, and renders paragraphs, heading levels, bold/italic/underline/strike/script runs, external hyperlinks, lists, and basic tables.
 
 ## 0.0.1-dev.11 - 2026-08-29
 

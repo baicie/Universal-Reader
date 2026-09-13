@@ -344,6 +344,7 @@ List<int> zipNamedFiles(
   final archive = Archive();
   files.forEach((name, bytes) {
     final file = ArchiveFile(name, bytes.length, bytes);
+    file.lastModTime = DateTime.utc(2026, 1, 1).millisecondsSinceEpoch ~/ 1000;
     if (uncompressed.contains(name)) {
       file.compression = CompressionType.none;
     }

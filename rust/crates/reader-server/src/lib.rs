@@ -53,6 +53,7 @@ pub fn detect_format(file_name: &str) -> Option<DetectedFormat> {
         "txt" => ("txt", "reflow"),
         "md" | "markdown" => ("markdown", "reflow"),
         "html" | "htm" => ("html", "reflow"),
+        "docx" => ("docx", "reflow"),
         "cbz" => ("cbz", "comic"),
         "cbr" => ("cbr", "comic"),
         _ => return None,
@@ -133,6 +134,7 @@ fn detect_zip(bytes: &[u8]) -> Option<DetectedFormat> {
     let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).ok()?;
     let mut has_image = false;
     let mut has_opf = false;
+    let mut has_word_document = false;
     for index in 0..archive.len() {
         let file = archive.by_index(index).ok()?;
         if !file.is_file() {
@@ -141,6 +143,7 @@ fn detect_zip(bytes: &[u8]) -> Option<DetectedFormat> {
         let name = file.name().replace('\\', "/").to_ascii_lowercase();
         has_image |= looks_like_image_name(&name);
         has_opf |= name.ends_with(".opf");
+        has_word_document |= name == "word/document.xml";
         if name == "mimetype" {
             let mut content = String::new();
             let _ = file.take(64).read_to_string(&mut content);
@@ -155,6 +158,12 @@ fn detect_zip(bytes: &[u8]) -> Option<DetectedFormat> {
     if has_opf {
         return Some(DetectedFormat {
             format: "epub",
+            document_type: "reflow",
+        });
+    }
+    if has_word_document {
+        return Some(DetectedFormat {
+            format: "docx",
             document_type: "reflow",
         });
     }
@@ -887,6 +896,13 @@ mod tests {
                 document_type: "comic",
             })
         );
+        assert_eq!(
+            detect_format("report.docx"),
+            Some(DetectedFormat {
+                format: "docx",
+                document_type: "reflow",
+            })
+        );
     }
 
     #[test]
@@ -910,6 +926,24 @@ mod tests {
             detect_format_bytes("book.bin", &bytes),
             Some(DetectedFormat {
                 format: "epub",
+                document_type: "reflow",
+            })
+        );
+    }
+
+    #[test]
+    fn detects_docx_content_with_an_unrelated_extension() {
+        let cursor = Cursor::new(Vec::new());
+        let mut zip = zip::ZipWriter::new(cursor);
+        let options = zip::write::SimpleFileOptions::default();
+        zip.start_file("word/document.xml", options).unwrap();
+        zip.write_all(b"<w:document/>").unwrap();
+        let bytes = zip.finish().unwrap().into_inner();
+
+        assert_eq!(
+            detect_format_bytes("book.bin", &bytes),
+            Some(DetectedFormat {
+                format: "docx",
                 document_type: "reflow",
             })
         );

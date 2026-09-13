@@ -1,3 +1,4 @@
+import 'docx_document.dart';
 import 'epub_document.dart';
 import 'fb2_document.dart';
 import 'models.dart';
@@ -31,6 +32,12 @@ DocumentIdentity documentIdentity({
         );
       case DocumentFormat.fb2:
         final parsed = parseFb2(bytes);
+        return DocumentIdentity(
+          title: parsed.title.trim().isEmpty ? fallback : parsed.title.trim(),
+          author: parsed.author.trim(),
+        );
+      case DocumentFormat.docx:
+        final parsed = parseDocx(bytes, fallbackTitle: fallback);
         return DocumentIdentity(
           title: parsed.title.trim().isEmpty ? fallback : parsed.title.trim(),
           author: parsed.author.trim(),

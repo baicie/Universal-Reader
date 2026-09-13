@@ -30,6 +30,7 @@ class FormatDetector {
     if (name.endsWith('.html') || name.endsWith('.htm')) {
       return DocumentFormat.html;
     }
+    if (name.endsWith('.docx')) return DocumentFormat.docx;
     if (name.endsWith('.cbz')) return DocumentFormat.cbz;
     if (name.endsWith('.cbr')) return DocumentFormat.cbr;
     return DocumentFormat.unknown;
@@ -68,11 +69,13 @@ class FormatDetector {
     try {
       final archive = ZipDecoder().decodeBytes(bytes);
       final names = <String>{};
+      var hasWordDocument = false;
       var hasImage = false;
       for (final file in archive) {
         if (!file.isFile) continue;
         final name = file.name.replaceAll('\\', '/').toLowerCase();
         names.add(name);
+        hasWordDocument |= name == 'word/document.xml';
         if (_hasImageExtension(name)) hasImage = true;
         if (name == 'mimetype') {
           final content = utf8.decode(
@@ -88,6 +91,7 @@ class FormatDetector {
           names.any((name) => name.endsWith('.opf'))) {
         return DocumentFormat.epub;
       }
+      if (hasWordDocument) return DocumentFormat.docx;
       if (hasImage) return DocumentFormat.cbz;
     } on Exception {
       return null;

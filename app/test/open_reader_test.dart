@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:archive/archive.dart';
 import 'package:app/core/comic_document.dart';
+import 'package:app/core/docx_document.dart';
 import 'package:app/core/epub_document.dart';
 import 'package:app/core/fb2_document.dart';
 import 'package:app/core/mobi_document.dart';
@@ -12,6 +13,7 @@ import 'package:app/features/reader/open_reader.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/epub_fixture.dart';
+import 'support/docx_fixture.dart';
 import 'support/fb2_fixture.dart';
 import 'support/image_fixture.dart';
 import 'support/pdf_fixture.dart';
@@ -100,6 +102,24 @@ void main() {
     test('returns a corrupt document when the epub cannot be unzipped', () {
       final document = openReaderDocument(
         metadata: _metadata(id: 'book.epub', format: DocumentFormat.epub),
+        bytes: const [1, 2, 3],
+      );
+      expect(document, isA<CorruptReaderDocument>());
+    });
+  });
+
+  group('openReaderDocument for docx', () {
+    test('parses a valid docx', () {
+      final document = openReaderDocument(
+        metadata: _metadata(id: 'book.docx', format: DocumentFormat.docx),
+        bytes: minimalDocxBytes(),
+      );
+      expect(document, isA<DocxReaderDocument>());
+    });
+
+    test('returns a corrupt document when the docx cannot be unzipped', () {
+      final document = openReaderDocument(
+        metadata: _metadata(id: 'book.docx', format: DocumentFormat.docx),
         bytes: const [1, 2, 3],
       );
       expect(document, isA<CorruptReaderDocument>());

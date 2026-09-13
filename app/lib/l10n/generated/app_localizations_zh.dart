@@ -476,7 +476,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String readerUnavailable(String format) {
-    return '$format 阅读器尚未接入。当前可以阅读 TXT、Markdown、HTML、EPUB、PDF、漫画、MOBI/AZW3 和 FB2。';
+    return '$format 阅读器尚未接入。当前可以阅读 TXT、Markdown、HTML、EPUB、PDF、DOCX、漫画、MOBI/AZW3 和 FB2。';
   }
 
   @override

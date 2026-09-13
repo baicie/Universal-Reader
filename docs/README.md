@@ -24,6 +24,9 @@
 - **[text-reader.md](text-reader.md)** - 文本阅读器实现  
   TXT、Markdown、HTML 等纯文本格式的阅读支持
 
+- **[docx-reader.md](docx-reader.md)** - DOCX 阅读器实现
+  WordprocessingML 解析、章节划分和当前支持范围
+
 ## 功能模块
 
 ### 书库管理

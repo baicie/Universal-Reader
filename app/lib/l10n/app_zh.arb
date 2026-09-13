@@ -203,7 +203,7 @@
       "total": {"type": "int"}
     }
   },
-  "readerUnavailable": "{format} 阅读器尚未接入。当前可以阅读 TXT、Markdown、HTML、EPUB、PDF、漫画、MOBI/AZW3 和 FB2。",
+  "readerUnavailable": "{format} 阅读器尚未接入。当前可以阅读 TXT、Markdown、HTML、EPUB、PDF、DOCX、漫画、MOBI/AZW3 和 FB2。",
   "@readerUnavailable": {
     "placeholders": {
       "format": {"type": "String"}

@@ -1,4 +1,5 @@
 import '../../core/comic_document.dart';
+import '../../core/docx_document.dart';
 import '../../core/epub_document.dart';
 import '../../core/fb2_document.dart';
 import '../../core/mobi_document.dart';
@@ -42,6 +43,13 @@ ReaderDocument openReaderDocument({
     }
     if (metadata.format == DocumentFormat.html) {
       return TextReaderDocument.parse(metadata: metadata, bytes: bytes);
+    }
+    if (metadata.format == DocumentFormat.docx) {
+      try {
+        return DocxReaderDocument.parse(metadata: metadata, bytes: bytes);
+      } on FormatException {
+        return CorruptReaderDocument(metadata: metadata);
+      }
     }
     if (metadata.format == DocumentFormat.epub) {
       try {

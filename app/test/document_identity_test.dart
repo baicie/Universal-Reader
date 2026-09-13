@@ -2,6 +2,7 @@ import 'package:app/core/document_identity.dart';
 import 'package:app/core/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/docx_fixture.dart';
 import 'support/epub_fixture.dart';
 import 'support/fb2_fixture.dart';
 
@@ -163,5 +164,16 @@ void main() {
       );
       expect(identity.title, 'Padded Title');
     });
+  });
+
+  test('reads DOCX core properties', () {
+    final identity = documentIdentity(
+      fileName: 'fallback.docx',
+      bytes: minimalDocxBytes(title: 'Office Title', author: 'Office Author'),
+      format: DocumentFormat.docx,
+    );
+
+    expect(identity.title, 'Office Title');
+    expect(identity.author, 'Office Author');
   });
 }

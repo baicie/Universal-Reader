@@ -9,6 +9,13 @@
 - Added content-first format detection in Flutter and the Rust service: PDF/RAR magic, ZIP EPUB/CBZ structure, MobiPocket headers, FB2/HTML/Markdown/text heuristics, with the original extension fallback.
 - Added pure-Dart RAR4/RAR5 decoding for non-ZIP CBR comics, including real synthetic CBR coverage.
 
+## v0.3 started: DOCX
+
+- Added DOCX to the shared `DocumentFormat` and both content-first detectors.
+- Added a WordprocessingML reader with chapter headings, basic inline formatting, hyperlinks, lists, tables, core metadata, shared reflow locators, search, and TOC.
+- Added a generated DOCX compatibility sample and parser/factory/identity coverage.
+- Remaining Office/DjVu scope: ODT, RTF, DjVu, CHM, CB7, and CBT.
+
 ## PDF 测试覆盖提升（最新完成）
 
 将 PDF 文档测试覆盖率从基线提升至 100%（1 个提交）。

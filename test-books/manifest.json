@@ -3,7 +3,7 @@
     "path": "epub/minimal.epub",
     "format": "epub",
     "bytes": 1592,
-    "sha256": "f2b09462469da69b9eedb3d0f08cf676cd8057c002e83acc697b3a743e89b709"
+    "sha256": "bf1c5b118fa0eaf72660c5c04dc9f6a9c1ec2b00733bfe2a30cdc238afaf3444"
   },
   {
     "path": "pdf/minimal.pdf",
@@ -48,10 +48,16 @@
     "sha256": "4dd7172239a9f00411660b4b8ce2c62f79d4f33b676c433ee754182f333c7941"
   },
   {
+    "path": "docx/minimal.docx",
+    "format": "docx",
+    "bytes": 1883,
+    "sha256": "72d0fa417af955efc7229e92ac2064955f58eb573c25648aff60a0add3906fdf"
+  },
+  {
     "path": "cbz/minimal.cbz",
     "format": "cbz",
     "bytes": 356,
-    "sha256": "b745fba1aaec3ca36e1a9ba115e62508e89704b1b796d3edeeebbc7975fcc001"
+    "sha256": "84aa19966bba7fc823d8de6f322de589d4ad0d21e2a0bc9ed3474a9296d76d54"
   },
   {
     "path": "cbr/minimal.cbr",

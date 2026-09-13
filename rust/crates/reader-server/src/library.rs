@@ -674,6 +674,7 @@ pub fn content_type_for(format: &str) -> &'static str {
         "txt" => "text/plain; charset=utf-8",
         "markdown" => "text/markdown; charset=utf-8",
         "html" => "text/html; charset=utf-8",
+        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         _ => "application/octet-stream",
     }
 }

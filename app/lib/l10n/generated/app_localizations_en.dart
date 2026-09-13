@@ -488,7 +488,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String readerUnavailable(String format) {
-    return '$format is not readable yet. TXT, Markdown, HTML, EPUB, PDF, comics, MOBI/AZW3, and FB2 work now.';
+    return '$format is not readable yet. TXT, Markdown, HTML, EPUB, PDF, DOCX, comics, MOBI/AZW3, and FB2 work now.';
   }
 
   @override
