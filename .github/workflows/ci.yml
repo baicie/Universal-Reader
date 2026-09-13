@@ -281,18 +281,7 @@ jobs:
           target: default
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: |
-            cd app
-            for attempt in 1 2; do
-              echo "Android native smoke attempt ${attempt}"
-              if timeout 12m flutter test integration_test/native_format_converter_smoke_test.dart -d emulator-5554 --timeout=5m; then
-                exit 0
-              fi
-              adb -s emulator-5554 logcat -d -t 400 > "android-smoke-attempt-${attempt}.log" || true
-              adb -s emulator-5554 shell input keyevent 82 || true
-              sleep 10
-            done
-            exit 1
+          script: cd app && for attempt in 1 2; do echo "Android native smoke attempt ${attempt}"; if timeout 12m flutter test integration_test/native_format_converter_smoke_test.dart -d emulator-5554 --timeout=5m; then exit 0; fi; adb -s emulator-5554 logcat -d -t 400 > "android-smoke-attempt-${attempt}.log" || true; adb -s emulator-5554 shell input keyevent 82 || true; sleep 10; done; exit 1
 
       - name: Upload Android smoke diagnostics
         if: always()
