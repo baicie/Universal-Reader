@@ -54,11 +54,17 @@ extension DocumentFormatLabel on DocumentFormat {
 }
 
 class DocumentSource {
-  const DocumentSource({required this.name, this.path, this.bytes});
+  const DocumentSource({
+    required this.name,
+    this.path,
+    this.bytes,
+    this.metadata,
+  });
 
   final String name;
   final String? path;
   final List<int>? bytes;
+  final DocumentMetadata? metadata;
 }
 
 class DocumentMetadata {

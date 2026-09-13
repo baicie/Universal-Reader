@@ -42,12 +42,14 @@
 - Cached the controller's visible document list with invalidation on search, filters, shelves, imports, deletes, renames, progress, and note-search hits.
 - Planned Hardening A close date: 2026-09-20. Implementation completed on 2026-09-13.
 
-## v1.0 Hardening B planned
+## v1.0 Hardening B complete: adapters, corpus, service scale
 
-- Introduce a real adapter registry behind the stable `DocumentAdapter` contract.
-- Expand the compatibility corpus beyond one minimal sample per format.
-- Add Rust SQLite and cover-loading measurements at 10k documents.
-- Planned Hardening B close date: 2026-10-04.
+- Replaced the unused adapter interface path with `ReaderAdapterRegistry`; sync and async open now share registered format adapters.
+- Added `DocumentSource.metadata` as an additive public contract field and covered default metadata derivation.
+- Expanded `test-books/` from one minimal sample per format to 28 samples, including nested EPUB/FB2, leading-space PDF, UTF-8 BOM CJK TXT, heading-free Markdown, script-bearing HTML, CJK office files, nested comic paths, and comic cover pages.
+- Added a Rust SQLite 10k load/lookup test and a 10k-catalog cover lookup test.
+- Cover and single-document lookups now use direct ID queries; `list()` only rewrites the SQLite catalog when disk reconciliation changed it.
+- Planned Hardening B close date: 2026-10-04. Implementation completed on 2026-09-13.
 
 ## PDF 测试覆盖提升（最新完成）
 

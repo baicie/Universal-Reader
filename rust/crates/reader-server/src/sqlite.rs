@@ -86,26 +86,26 @@ pub fn load_documents(conn: &Connection) -> Result<Vec<LibraryDocumentRecord>, L
         )
         .map_err(|_| LibraryError::Io)?;
     let rows = stmt
-        .query_map([], |row| {
-            Ok(LibraryDocumentRecord {
-                id: row.get(0)?,
-                file_name: row.get(1)?,
-                stored_name: row.get(2)?,
-                title: row.get(3)?,
-                author: row.get(4)?,
-                format: row.get(5)?,
-                document_type: row.get(6)?,
-                size: row.get::<_, i64>(7)? as usize,
-                cover_color: row.get::<_, i64>(8)? as u32,
-                progress: row.get(9)?,
-                last_opened_ms: row.get::<_, i64>(10)? as u64,
-                content_hash: row.get(11)?,
-                has_cover: row.get::<_, i64>(12)? != 0,
-            })
-        })
+        .query_map([], document_from_row)
         .map_err(|_| LibraryError::Io)?;
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(|_| LibraryError::Io)
+}
+
+pub fn load_document(
+    conn: &Connection,
+    id: &str,
+) -> Result<Option<LibraryDocumentRecord>, LibraryError> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, file_name, stored_name, title, author, format, document_type, size, cover_color, progress, last_opened_ms, content_hash, has_cover FROM documents WHERE id = ?1",
+        )
+        .map_err(|_| LibraryError::Io)?;
+    let mut rows = stmt.query([id]).map_err(|_| LibraryError::Io)?;
+    match rows.next().map_err(|_| LibraryError::Io)? {
+        Some(row) => Ok(Some(document_from_row(row).map_err(|_| LibraryError::Io)?)),
+        None => Ok(None),
+    }
 }
 
 pub fn replace_documents(
@@ -140,6 +140,36 @@ pub fn replace_documents(
     Ok(())
 }
 
+pub fn update_document(
+    conn: &Connection,
+    document: &LibraryDocumentRecord,
+) -> Result<(), LibraryError> {
+    let affected = conn
+        .execute(
+            "UPDATE documents SET file_name = ?2, stored_name = ?3, title = ?4, author = ?5, format = ?6, document_type = ?7, size = ?8, cover_color = ?9, progress = ?10, last_opened_ms = ?11, content_hash = ?12, has_cover = ?13 WHERE id = ?1",
+            rusqlite::params![
+                document.id,
+                document.file_name,
+                document.stored_name,
+                document.title,
+                document.author,
+                document.format,
+                document.document_type,
+                document.size as i64,
+                document.cover_color as i64,
+                document.progress,
+                document.last_opened_ms as i64,
+                document.content_hash,
+                document.has_cover as i64,
+            ],
+        )
+        .map_err(|_| LibraryError::Io)?;
+    if affected == 0 {
+        return Err(LibraryError::NotFound);
+    }
+    Ok(())
+}
+
 pub fn migrate_catalog_once(
     conn: &mut Connection,
     legacy: Option<&[LibraryDocumentRecord]>,
@@ -168,6 +198,24 @@ fn documents_empty(conn: &Connection) -> Result<bool, LibraryError> {
         .query_row("SELECT COUNT(*) FROM documents", [], |row| row.get(0))
         .map_err(|_| LibraryError::Io)?;
     Ok(count == 0)
+}
+
+fn document_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LibraryDocumentRecord> {
+    Ok(LibraryDocumentRecord {
+        id: row.get(0)?,
+        file_name: row.get(1)?,
+        stored_name: row.get(2)?,
+        title: row.get(3)?,
+        author: row.get(4)?,
+        format: row.get(5)?,
+        document_type: row.get(6)?,
+        size: row.get::<_, i64>(7)? as usize,
+        cover_color: row.get::<_, i64>(8)? as u32,
+        progress: row.get(9)?,
+        last_opened_ms: row.get::<_, i64>(10)? as u64,
+        content_hash: row.get(11)?,
+        has_cover: row.get::<_, i64>(12)? != 0,
+    })
 }
 
 pub fn load_conversation_json(
@@ -206,4 +254,55 @@ pub fn delete_conversation(conn: &Connection, document_id: &str) -> Result<(), L
     )
     .map_err(|_| LibraryError::Io)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::{Duration, Instant};
+
+    use super::*;
+
+    fn scale_document(index: usize) -> LibraryDocumentRecord {
+        LibraryDocumentRecord {
+            id: format!("book-{index:05}"),
+            file_name: format!("book-{index:05}.txt"),
+            stored_name: format!("book-{index:05}.txt"),
+            title: format!("Book {index:05}"),
+            author: format!("Author {}", index % 200),
+            format: "txt".to_string(),
+            document_type: "reflow".to_string(),
+            size: 128,
+            cover_color: 0xFF527882,
+            progress: if index.is_multiple_of(17) { 0.45 } else { 0.0 },
+            last_opened_ms: index as u64,
+            content_hash: format!("hash-{index}"),
+            has_cover: index.is_multiple_of(10),
+        }
+    }
+
+    #[test]
+    fn loads_ten_thousand_documents_within_baseline() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(SCHEMA).unwrap();
+        let documents: Vec<_> = (0..10_000).map(scale_document).collect();
+        replace_documents(&mut conn, &documents).unwrap();
+
+        let started = Instant::now();
+        let loaded = load_documents(&conn).unwrap();
+        let load_elapsed = started.elapsed();
+        assert_eq!(loaded.len(), 10_000);
+        assert!(
+            load_elapsed < Duration::from_secs(5),
+            "10k document load took {load_elapsed:?}"
+        );
+
+        let started = Instant::now();
+        let one = load_document(&conn, "book-09999").unwrap().unwrap();
+        let lookup_elapsed = started.elapsed();
+        assert_eq!(one.title, "Book 09999");
+        assert!(
+            lookup_elapsed < Duration::from_millis(500),
+            "10k indexed lookup took {lookup_elapsed:?}"
+        );
+    }
 }

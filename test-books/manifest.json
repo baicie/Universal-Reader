@@ -6,10 +6,22 @@
     "sha256": "bf1c5b118fa0eaf72660c5c04dc9f6a9c1ec2b00733bfe2a30cdc238afaf3444"
   },
   {
+    "path": "epub/edge-nested.epub",
+    "format": "epub",
+    "bytes": 1776,
+    "sha256": "2a82ab6e7eb5751cefa5389c8594748e6bd013b10bd663548a13a2bfe06d5a0a"
+  },
+  {
     "path": "pdf/minimal.pdf",
     "format": "pdf",
     "bytes": 588,
     "sha256": "44241e8df14e7999ebd594412a49a4c9ddccd69a8483c3771799055467a101ca"
+  },
+  {
+    "path": "pdf/edge-leading-space.pdf",
+    "format": "pdf",
+    "bytes": 592,
+    "sha256": "46150550d33971729462a7e0ff93f98e07a1dbb18d8f11312a0daa587007fc5a"
   },
   {
     "path": "mobi/minimal.mobi",
@@ -30,10 +42,22 @@
     "sha256": "21f0b0a3ecf20a9d695cbe0045ecf82636ad39b89448fc715677404874991524"
   },
   {
+    "path": "fb2/edge-nested.fb2",
+    "format": "fb2",
+    "bytes": 400,
+    "sha256": "61e04e4ecca82a751c8241a84c3c3ce82ee0f186b694e1a5cb29c2da2cefb547"
+  },
+  {
     "path": "txt/minimal.txt",
     "format": "txt",
     "bytes": 91,
     "sha256": "50b55f3957f63f49fe8a15f497977ec29c84277b990021fc7e53f177ef69b8ea"
+  },
+  {
+    "path": "txt/edge-cjk-bom.txt",
+    "format": "txt",
+    "bytes": 77,
+    "sha256": "b1ed9847aadbd180cf11b9885d230c9627d7660a6971e7fa1f7f7b5dbaa264ac"
   },
   {
     "path": "markdown/minimal.md",
@@ -42,10 +66,22 @@
     "sha256": "4875b4e375134f51af438d3b3412453205b768f8b5886fa80b9677850adddc95"
   },
   {
+    "path": "markdown/edge-no-heading.md",
+    "format": "markdown",
+    "bytes": 101,
+    "sha256": "9a53e8b327f7f05149fa21967e83170570b197ed451b8824adaedd7f190d3dbc"
+  },
+  {
     "path": "html/minimal.html",
     "format": "html",
     "bytes": 139,
     "sha256": "4dd7172239a9f00411660b4b8ce2c62f79d4f33b676c433ee754182f333c7941"
+  },
+  {
+    "path": "html/edge-script.html",
+    "format": "html",
+    "bytes": 198,
+    "sha256": "33bf45ed532ace02a9c954416d158c0521e1da9ef7fcac13e291734f894cf435"
   },
   {
     "path": "docx/minimal.docx",
@@ -54,10 +90,22 @@
     "sha256": "72d0fa417af955efc7229e92ac2064955f58eb573c25648aff60a0add3906fdf"
   },
   {
+    "path": "docx/edge-cjk.docx",
+    "format": "docx",
+    "bytes": 1931,
+    "sha256": "8b2cb41d78bcd3c65eadcb6a0ebe57298b86cda11500477e510541da66d0c112"
+  },
+  {
     "path": "odt/minimal.odt",
     "format": "odt",
     "bytes": 1219,
     "sha256": "935ef0bead11881f79dd1460b4d09eb3680415471508c4d475674fcc05c4d761"
+  },
+  {
+    "path": "odt/edge-cjk.odt",
+    "format": "odt",
+    "bytes": 1250,
+    "sha256": "773ba0550d748c00f6932b33b7c4e3f0ea7aa44854fcad005ce0a648ac8d83ed"
   },
   {
     "path": "rtf/minimal.rtf",
@@ -66,10 +114,22 @@
     "sha256": "416f52be3cbdef64dd96f401f62d0f93ce5848cfb7d4851990c96d01eb3dfced"
   },
   {
+    "path": "rtf/edge-unicode.rtf",
+    "format": "rtf",
+    "bytes": 354,
+    "sha256": "64eb14de013ad1e212d914f7f0eacd95567398cc8e578d1101346bbbb8e2b200"
+  },
+  {
     "path": "cbt/minimal.cbt",
     "format": "cbt",
     "bytes": 3072,
     "sha256": "65d6bb2ade6811d31076ca532a685093cf0b033c2516a59f72a5e28720ded7dd"
+  },
+  {
+    "path": "cbt/edge-nested.cbt",
+    "format": "cbt",
+    "bytes": 3072,
+    "sha256": "978199557a1136f33f5b9cbe729e2badc29196667ed5449b5816e3e1bde486a9"
   },
   {
     "path": "cb7/minimal.cb7",
@@ -82,6 +142,12 @@
     "format": "cbz",
     "bytes": 356,
     "sha256": "84aa19966bba7fc823d8de6f322de589d4ad0d21e2a0bc9ed3474a9296d76d54"
+  },
+  {
+    "path": "cbz/edge-cover.cbz",
+    "format": "cbz",
+    "bytes": 543,
+    "sha256": "876b5e3baeed6178b96b31058ca3b1b1625a852a58d818b589fcd126a99da5d5"
   },
   {
     "path": "cbr/minimal.cbr",

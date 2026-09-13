@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?><FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">
+<description>
+  <title-info>
+    <book-title>嵌套章节样本</book-title>
+  </title-info>
+</description>
+<body>
+  <section>
+    <title>Part I</title>
+    <p>Part one content</p>
+  </section>
+  <section>
+    <title>Part II</title>
+    <p>Part two content</p>
+  </section>
+</body>
+</FictionBook>

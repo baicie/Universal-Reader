@@ -33,14 +33,14 @@ Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK
 - 本机 Rust 服务支持文件夹扫描、监视和双向同步；同名但内容不同的文件保持不覆盖
 - Rust 服务支持 S3 兼容存储导入与双向同步，使用 AWS Signature V4、路径前缀隔离和 ListObjectsV2 分页
 - 阅读进度与笔记可通过文件夹、WebDAV 或 S3 的独立 Reader Metadata Sync 合并；进度取最近打开，笔记按稳定 ID 合并，删除记录不会下次同步又出现
-- Reader Runtime `1.0.0`、文档适配器与版本化 Locator JSON 契约；10k 书库规模回归和可见列表缓存
+- Reader Runtime `1.0.0`、版本化 Locator JSON、实际接入打开路径的 Adapter Registry；10k Flutter 书库与 Rust SQLite/封面规模回归
 - EPUB、PDF、MOBI、AZW3、FB2、TXT、Markdown、HTML、DOCX、ODT、RTF、DjVu、CHM、CBT、CB7、CBZ、CBR 内容优先格式检测，扩展名兜底
 - 本地文件导入
 - 阅读器目录、进度、主题和移动端交互
 - 界面默认中文，可在设置中切换 English 或跟随系统
 - TXT / Markdown / HTML / EPUB / PDF / DOCX / ODT / RTF / CBT / CB7 / CBZ / CBR / MOBI / AZW3 / FB2 可阅读原文件；TXT/MD 在 UTF-8 失败时按 GBK/GB18030 解码；DOCX 从 `word/document.xml`、ODT 从 `content.xml` 读取标题、段落、基础行内格式、外链和表格；RTF 支持基础字符格式、Unicode 转义和表格；TAR、7z、ZIP 和 RAR 漫画共用单页、双页、竖滑和从右到左布局；PDF 铺满阅读面，可在阅读设置里放大页面；EPUB 等重排书点右缘或按方向键翻页、进度落到当前页、底栏显示章内页码、章末进下一章；重排走 Foliate 桥，章 HTML 的图（含 `srcset`、SVG `<image>`、`<object data>`、`<embed src>` 与 `<video poster>`）、样式、`@import` 和嵌入字体交给本地 paginator，FB2 节内 binary 插图同样内联（style 抄到 class，alt、title 与 id 保留）、段落强调加粗删除线与上下标、代码与命名 style 保留（段上 style 抄到 class）、空行和小标题保留（副题 style 抄到 class、id 抄到 h2，节标题 style 抄到 class）、诗歌带换行（诗行 style 抄到 class，诗内题词、诗级副题（style 抄到 class，id 抄到 h4）、诗题（style 抄到 class）、作者（style 抄到 class）与日期（style 抄到 class）保留，空 date 用 value，诗节小标题保留（标题与副题 style 抄到 class，副题 id 抄到 h5））、题词与引文保留（副题 style 抄到 class，作者 style 抄到 class，空行、诗、表与题词内引文进 blockquote）、节内提要保留（副题 style 抄到 class，空行、引文、诗与表进 aside），书级 title-info 提要进目录第一章、节内表格保留（表题进 caption（style 抄到 class），正整数跨格与允许的对齐保留，格子 style 抄到 class，表与行 style 抄到 class）、节内 `#id` 链接可点（跨节注释按节 / 段落 / 空锚点 / 插图 / 副题 id 跳到该节）、外部链接（`http://`、`https://`、`mailto:` 等）点击后在系统浏览器中打开，章内 `<script>` 和 `onclick` 等事件属性去掉，真机翻页跟视口页，笔记 quote 标在章里，章内链接跳当前书、`#id` 滚到锚点、目录 nav 小节滚到 fragment、FB2 嵌套节挂在父节下、`notes` / `comments` body 挂在目录末尾（无 section 的注释块同样进组）、无 section 的正文 body 段落仍成章、body 第一节前的题词、插图、空行、副题（style 抄到 class）、诗、表、提要、标题（style 抄到 class）和段落留在章首、目录当前项跟章 href 与 fragment 对齐、嵌套 FB2 底栏用章数、搜索命中和点笔记滚到该句，正文跟阅读设置的字号、行距、字体和纸张
 - 可选阅读助手，支持 DeepSeek 与 Ollama；可按书提问、提议跳转、把问答存成笔记
-- `test-books/` 提供十种主格式的最小兼容语料与 SHA-256 清单
+- `test-books/` 提供 28 份兼容语料：每种主格式的最小样本、边界样本与 SHA-256 清单
 - CHM 在 Rust 服务可用时解包并转换为 EPUB 阅读；移动端直接解析仍待原生嵌入
 - DjVu 在 Rust 服务可用时按页渲染并转换为 CBZ 阅读；移动端直接解析仍待原生嵌入
 

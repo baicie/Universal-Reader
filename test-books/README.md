@@ -13,6 +13,10 @@ dart run tool/generate_test_books.dart
 ```
 
 `manifest.json` records each file's format, byte size, and SHA-256 digest.
+
+The corpus keeps one `minimal` sample per supported format and adds `edge`
+samples for nested TOCs, CJK metadata/text, BOM handling, heading-free
+Markdown, script-bearing HTML, nested comic paths, and cover-like comic pages.
 The CBR sample is derived from the MIT-licensed `koni_archive` synthetic comic
 fixture. All other files are generated from project-owned test fixture code.
 The CHM sample is generated with the MIT-licensed RustChm compiler and is

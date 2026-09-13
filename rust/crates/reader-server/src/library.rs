@@ -189,8 +189,9 @@ impl LibraryStore {
     pub async fn list(&self) -> Result<Vec<LibraryDocumentRecord>, LibraryError> {
         let _guard = self.lock.lock().await;
         let mut catalog = self.load_catalog().await?;
-        self.reconcile(&mut catalog).await?;
-        self.save_catalog(&catalog).await?;
+        if self.reconcile(&mut catalog).await? {
+            self.save_catalog(&catalog).await?;
+        }
         Ok(catalog.documents)
     }
 
@@ -198,11 +199,13 @@ impl LibraryStore {
         if !valid_id(id) {
             return Err(LibraryError::InvalidName);
         }
-        let documents = self.list().await?;
-        documents
-            .into_iter()
-            .find(|document| document.id == id)
-            .ok_or(LibraryError::NotFound)
+        let _guard = self.lock.lock().await;
+        let conn = sqlite::open(&self.root)?;
+        let document = sqlite::load_document(&conn, id)?.ok_or(LibraryError::NotFound)?;
+        if !self.files_dir().join(&document.stored_name).is_file() {
+            return Err(LibraryError::NotFound);
+        }
+        Ok(document)
     }
 
     pub async fn ingest(
@@ -359,14 +362,8 @@ impl LibraryStore {
             return Err(LibraryError::InvalidName);
         }
         let _guard = self.lock.lock().await;
-        let mut catalog = self.load_catalog().await?;
-        let Some(document) = catalog
-            .documents
-            .iter_mut()
-            .find(|document| document.id == id)
-        else {
-            return Err(LibraryError::NotFound);
-        };
+        let conn = sqlite::open(&self.root)?;
+        let mut document = sqlite::load_document(&conn, id)?.ok_or(LibraryError::NotFound)?;
         if let Some(progress) = progress {
             document.progress = progress.clamp(0.0, 1.0);
             document.last_opened_ms = unix_ms();
@@ -377,9 +374,8 @@ impl LibraryStore {
         if let Some(author) = author {
             document.author = author_for_write(&author);
         }
-        let updated = document.clone();
-        self.save_catalog(&catalog).await?;
-        Ok(updated)
+        sqlite::update_document(&conn, &document)?;
+        Ok(document)
     }
 
     pub async fn delete(&self, id: &str) -> Result<LibraryDocumentRecord, LibraryError> {
@@ -625,13 +621,11 @@ impl LibraryStore {
             return Err(LibraryError::InvalidName);
         }
         let _guard = self.lock.lock().await;
-        let mut catalog = self.load_catalog().await?;
-        let Some(document) = catalog.documents.iter_mut().find(|item| item.id == id) else {
-            return Err(LibraryError::NotFound);
-        };
+        let conn = sqlite::open(&self.root)?;
+        let mut document = sqlite::load_document(&conn, id)?.ok_or(LibraryError::NotFound)?;
         document.progress = progress.clamp(0.0, 1.0);
         document.last_opened_ms = last_opened_ms;
-        self.save_catalog(&catalog).await
+        sqlite::update_document(&conn, &document)
     }
 
     pub async fn load_shelves(&self) -> Result<Shelves, LibraryError> {
@@ -772,14 +766,16 @@ impl LibraryStore {
         }
     }
 
-    async fn reconcile(&self, catalog: &mut Catalog) -> Result<(), LibraryError> {
+    async fn reconcile(&self, catalog: &mut Catalog) -> Result<bool, LibraryError> {
         let files_dir = self.files_dir();
+        let before = catalog.documents.len();
         catalog
             .documents
             .retain(|document| files_dir.join(&document.stored_name).is_file());
+        let mut changed = catalog.documents.len() != before;
 
         let Ok(mut entries) = tokio::fs::read_dir(&files_dir).await else {
-            return Ok(());
+            return Ok(changed);
         };
         while let Ok(Some(entry)) = entries.next_entry().await {
             let name = entry.file_name();
@@ -819,8 +815,9 @@ impl LibraryStore {
                 content_hash: String::new(),
                 has_cover: false,
             });
+            changed = true;
         }
-        Ok(())
+        Ok(changed)
     }
 }
 
@@ -1274,6 +1271,50 @@ mod tests {
         let listed = store.list().await.unwrap();
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].title, "设计笔记");
+        let _ = tokio::fs::remove_dir_all(dir).await;
+    }
+
+    #[tokio::test]
+    async fn cover_lookup_stays_fast_with_ten_thousand_documents() {
+        let dir = unique_temp("cover-scale");
+        tokio::fs::create_dir_all(dir.join("files")).await.unwrap();
+        tokio::fs::create_dir_all(dir.join("covers")).await.unwrap();
+        let target = "book-09999";
+        tokio::fs::write(dir.join("files").join("book-09999.txt"), b"cover target")
+            .await
+            .unwrap();
+        tokio::fs::write(dir.join("covers").join(target), b"cover-bytes")
+            .await
+            .unwrap();
+        let mut conn = sqlite::open(&dir).unwrap();
+        let documents: Vec<_> = (0..10_000)
+            .map(|index| LibraryDocumentRecord {
+                id: format!("book-{index:05}"),
+                file_name: format!("book-{index:05}.txt"),
+                stored_name: format!("book-{index:05}.txt"),
+                title: format!("Book {index:05}"),
+                author: String::new(),
+                format: "txt".to_string(),
+                document_type: "reflow".to_string(),
+                size: 12,
+                cover_color: 0xFF527882,
+                progress: 0.0,
+                last_opened_ms: index as u64,
+                content_hash: format!("hash-{index}"),
+                has_cover: index == 9_999,
+            })
+            .collect();
+        sqlite::replace_documents(&mut conn, &documents).unwrap();
+
+        let store = LibraryStore::new(dir.clone());
+        let started = std::time::Instant::now();
+        let cover = store.read_cover(target).await.unwrap();
+        let elapsed = started.elapsed();
+        assert_eq!(cover, b"cover-bytes");
+        assert!(
+            elapsed < std::time::Duration::from_millis(500),
+            "cover lookup with 10k documents took {elapsed:?}"
+        );
         let _ = tokio::fs::remove_dir_all(dir).await;
     }
 

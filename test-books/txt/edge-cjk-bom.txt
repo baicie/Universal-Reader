@@ -1,0 +1,2 @@
+﻿Universal Reader 中文兼容样本。
+第二段用于验证 UTF-8 BOM。

@@ -97,6 +97,9 @@
 - Completed v0.4 Reader Metadata Sync. Reading progress and annotations now use a versioned `universal-reader-sync.json` sidecar over local folders, WebDAV, or S3-compatible storage. Progress follows the latest open time; annotations merge by stable ID; deletion tombstones prevent deleted notes from returning on the next merge.
 - Started v1.0 hardening by versioning the public Reader Runtime contract and adding locator schema v1 JSON without changing the existing compact annotation labels.
 - Added a 10,000-document scale regression and cached the controller's filtered/sorted library view so repeated widget reads do not rebuild the list.
+- Added a real `ReaderAdapterRegistry`; the sync and async reader factories now share registered format adapters, and `DocumentSource` can carry stable metadata.
+- Expanded the compatibility corpus to 28 samples with nested, CJK, BOM, no-heading, script, leading-space, nested-comic, and cover-page variants.
+- Added Rust 10k SQLite load/lookup and cover-latency regressions. Single-document and cover reads now use direct ID queries, and catalog reconciliation only rewrites SQLite when the filesystem changed.
 
 ## 0.0.1-dev.11 - 2026-08-29
 

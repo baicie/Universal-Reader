@@ -19,34 +19,81 @@ Future<void> main() async {
 
   final books = <String, List<int>>{
     'epub/minimal.epub': minimalEpubBytes(),
+    'epub/edge-nested.epub': nestedNcxEpubBytes(),
     'pdf/minimal.pdf': minimalPdfBytes(),
+    'pdf/edge-leading-space.pdf': pdfBytesWithLeadingWhitespace(
+      minimalPdfBytes(),
+    ),
     'mobi/minimal.mobi': _mobipocketBytes(azw3: false),
     'azw3/minimal.azw3': _mobipocketBytes(azw3: true),
     'fb2/minimal.fb2': minimalFb2Bytes(),
+    'fb2/edge-nested.fb2': fb2NestedSectionBytes(title: '嵌套章节样本'),
     'txt/minimal.txt': utf8.encode(
       'Universal Reader compatibility sample.\n'
       'This text exists to verify TXT import and decoding.\n',
     ),
+    'txt/edge-cjk-bom.txt': [
+      0xEF,
+      0xBB,
+      0xBF,
+      ...utf8.encode('Universal Reader 中文兼容样本。\n第二段用于验证 UTF-8 BOM。\n'),
+    ],
     'markdown/minimal.md': utf8.encode(
       '# Universal Reader\n\n'
       'This sample verifies Markdown import.\n',
+    ),
+    'markdown/edge-no-heading.md': utf8.encode(
+      'Universal Reader Markdown sample without headings.\n\n'
+      'The reader must still produce readable sections.\n',
     ),
     'html/minimal.html': utf8.encode(
       '<!doctype html><html><head><title>Universal Reader</title></head>'
       '<body><h1>Compatibility sample</h1><p>HTML import works.</p>'
       '</body></html>',
     ),
+    'html/edge-script.html': utf8.encode(
+      '<!doctype html><html><head><title>Safe HTML</title>'
+      '<style>body{color:red}</style></head><body>'
+      '<script>window.__bad = true;</script><h1>Safe</h1>'
+      '<p onclick="bad()">HTML edge sample.</p></body></html>',
+    ),
     'docx/minimal.docx': minimalDocxBytes(),
+    'docx/edge-cjk.docx': minimalDocxBytes(
+      title: '文档兼容样本',
+      author: '测试作者',
+      firstTitle: '第一章',
+      secondTitle: '第二章',
+    ),
     'odt/minimal.odt': minimalOdtBytes(),
+    'odt/edge-cjk.odt': minimalOdtBytes(
+      title: '开放文档样本',
+      author: '测试作者',
+      firstTitle: '第一章',
+      secondTitle: '第二章',
+    ),
     'rtf/minimal.rtf': minimalRtfBytes(),
+    'rtf/edge-unicode.rtf': minimalRtfBytes(
+      title: 'RTF Unicode',
+      firstTitle: 'Chapter One',
+      secondTitle: 'Chapter Two',
+    ),
     'cbt/minimal.cbt': tarNamedFiles({
       'page-01.png': tinyPngBytes(),
       'page-02.png': tinyPngBytes(),
+    }),
+    'cbt/edge-nested.cbt': tarNamedFiles({
+      'comic/chapter-01/page-01.png': tinyPngBytes(),
+      'comic/chapter-01/page-02.png': tinyPngBytes(),
     }),
     'cb7/minimal.cb7': syntheticCb7Bytes(),
     'cbz/minimal.cbz': zipNamedFiles({
       'page-01.png': tinyPngBytes(),
       'page-02.png': tinyPngBytes(),
+    }),
+    'cbz/edge-cover.cbz': zipNamedFiles({
+      'cover.png': tinyPngBytes(),
+      'pages/page-01.png': tinyPngBytes(),
+      'pages/page-02.png': tinyPngBytes(),
     }),
     'cbr/minimal.cbr': syntheticCbrBytes(),
   };

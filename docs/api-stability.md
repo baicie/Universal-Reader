@@ -29,6 +29,18 @@
 - `SearchResult`
 - `Locator` 及其四个公开子类
 
+## Adapter registry
+
+`ReaderAdapterRegistry` 是实际打开路径，不再保留一套未使用的接口：
+
+- 每个适配器声明自己支持的 `DocumentFormat`。
+- `openReaderDocument` 与 `openReaderDocumentAsync` 都通过标准注册表。
+- `DocumentSource.metadata` 是可选新增字段；传入时优先使用调用方元数据，未传入时由内容检测补全。
+- 重复注册同一格式会立即抛错。
+- 没有格式适配器时返回 `UnavailableReaderDocument`；适配器抛出 `FormatException` 时返回 `CorruptReaderDocument`。
+
+标准注册表覆盖直接解析格式：TXT、Markdown、HTML、DOCX、ODT、RTF、EPUB、PDF、FB2、MOBI、AZW3、CBZ、CBR、CBT、CB7。CHM/DjVu 仍由服务端转换，不注册客户端解析器。
+
 ## Locator JSON v1
 
 版本化 JSON 与旧的紧凑 `encodeLocator` 并存。旧格式继续用于已有笔记；新代码、插件和跨进程边界使用 JSON v1。

@@ -34,12 +34,19 @@ v1.0 要求 Library 在 10,000 本书量级仍能加载、搜索、筛选、排�
 ```powershell
 cd app
 flutter test test/library_scale_test.dart
+cd ..\rust
+cargo test -p universal-reader-server loads_ten_thousand_documents_within_baseline cover_lookup_stays_fast_with_ten_thousand_documents
 ```
+
+## Rust service baseline
+
+SQLite 查询测试插入 10,000 条文档，要求全量读取在 5 秒内、单 ID 查询在 500 ms 内。
+
+封面测试在 10,000 条目录记录中读取单本封面，要求 500 ms 内完成。实现不再为了单本封面重新协调并重写整库目录；文档按 ID 直读，目录仅在 `list()` 时协调，且只在磁盘与 SQLite 不一致时回写。
 
 ## Remaining measurement
 
-当前基线测的是 Flutter 内存书库的 query/view 路径。后续还要补：
+当前基线覆盖 Flutter 内存书库 query/view、Rust SQLite 列表和单本查询、封面查询。后续还要补：
 
-- Rust SQLite 10k 列表查询
 - 10k 封面懒加载和列表滚动帧率
 - 文件扫描 10k 的渐进导入
