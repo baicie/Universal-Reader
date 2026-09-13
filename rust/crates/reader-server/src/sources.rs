@@ -99,7 +99,8 @@ pub async fn write_folder_file(
         .open(root.join(file_name))
         .await
         .map_err(|_| LibraryError::Io)?;
-    file.write_all(bytes).await.map_err(|_| LibraryError::Io)
+    file.write_all(bytes).await.map_err(|_| LibraryError::Io)?;
+    file.flush().await.map_err(|_| LibraryError::Io)
 }
 
 pub async fn read_folder_metadata(root: &Path) -> Result<Option<Vec<u8>>, LibraryError> {
