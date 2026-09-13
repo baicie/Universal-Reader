@@ -352,3 +352,13 @@ List<int> zipNamedFiles(
   });
   return ZipEncoder().encode(archive);
 }
+
+List<int> tarNamedFiles(Map<String, List<int>> files) {
+  final archive = Archive();
+  files.forEach((name, bytes) {
+    final file = ArchiveFile(name, bytes.length, bytes);
+    file.lastModTime = DateTime.utc(2026, 1, 1).millisecondsSinceEpoch ~/ 1000;
+    archive.add(file);
+  });
+  return TarEncoder().encode(archive);
+}

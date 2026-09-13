@@ -16,7 +16,8 @@
 - Added a generated DOCX compatibility sample and parser/factory/identity coverage.
 - Added ODT on the same reflow contract with mimetype detection, metadata, inherited text styles, headings, lists, tables, and hyperlinks.
 - Added RTF control-word parsing, metadata, ANSI/GBK/UTF-8 escapes, Unicode text, inline formatting, and basic tables.
-- Remaining Office/DjVu scope: DjVu, CHM, CB7, and CBT.
+- Added CBT TAR comic detection, ordered image pages, cover extraction, and the shared comic layout.
+- Remaining v0.3 formats: CB7, CHM, and DjVu.
 
 ## PDF 测试覆盖提升（最新完成）
 

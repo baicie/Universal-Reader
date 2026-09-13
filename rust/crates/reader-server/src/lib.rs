@@ -56,6 +56,7 @@ pub fn detect_format(file_name: &str) -> Option<DetectedFormat> {
         "docx" => ("docx", "reflow"),
         "odt" => ("odt", "reflow"),
         "rtf" => ("rtf", "reflow"),
+        "cbt" => ("cbt", "comic"),
         "cbz" => ("cbz", "comic"),
         "cbr" => ("cbr", "comic"),
         _ => return None,
@@ -83,6 +84,12 @@ pub fn detect_format_bytes(file_name: &str, bytes: &[u8]) -> Option<DetectedForm
         return Some(DetectedFormat {
             format: "rtf",
             document_type: "reflow",
+        });
+    }
+    if looks_like_cbt(bytes) {
+        return Some(DetectedFormat {
+            format: "cbt",
+            document_type: "comic",
         });
     }
     if bytes.starts_with(b"PK\x03\x04")
@@ -198,6 +205,77 @@ fn looks_like_rtf(bytes: &[u8]) -> bool {
         .position(|byte| !byte.is_ascii_whitespace())
         .unwrap_or(bytes.len());
     bytes[offset..].starts_with(b"{\\rtf")
+}
+
+fn looks_like_cbt(bytes: &[u8]) -> bool {
+    let mut offset = 0;
+    while offset + 512 <= bytes.len() {
+        let header = &bytes[offset..offset + 512];
+        if header.iter().all(|byte| *byte == 0) {
+            break;
+        }
+        let Some(stored_checksum) = parse_tar_octal(&header[148..156]) else {
+            return false;
+        };
+        let checksum: usize = header
+            .iter()
+            .enumerate()
+            .map(|(index, byte)| {
+                if (148..156).contains(&index) {
+                    0x20
+                } else {
+                    usize::from(*byte)
+                }
+            })
+            .sum();
+        if checksum != stored_checksum {
+            return false;
+        }
+        let name_end = header[..100]
+            .iter()
+            .position(|byte| *byte == 0)
+            .unwrap_or(100);
+        let name = String::from_utf8_lossy(&header[..name_end]).to_ascii_lowercase();
+        if looks_like_image_name(&name) {
+            return true;
+        }
+        let Some(size) = parse_tar_octal(&header[124..136]) else {
+            return false;
+        };
+        let padded = size.div_ceil(512) * 512;
+        let Some(next) = offset
+            .checked_add(512)
+            .and_then(|value| value.checked_add(padded))
+        else {
+            return false;
+        };
+        if next <= offset || next > bytes.len() {
+            return false;
+        }
+        offset = next;
+    }
+    false
+}
+
+fn parse_tar_octal(bytes: &[u8]) -> Option<usize> {
+    let mut value = 0usize;
+    let mut has_digit = false;
+    for byte in bytes {
+        if *byte == 0 || *byte == b' ' {
+            if has_digit {
+                break;
+            }
+            continue;
+        }
+        if !(b'0'..=b'7').contains(byte) {
+            return None;
+        }
+        has_digit = true;
+        value = value
+            .checked_mul(8)?
+            .checked_add(usize::from(*byte - b'0'))?;
+    }
+    has_digit.then_some(value)
 }
 
 fn is_mobipocket(bytes: &[u8]) -> bool {
@@ -940,6 +1018,13 @@ mod tests {
                 document_type: "reflow",
             })
         );
+        assert_eq!(
+            detect_format("comic.cbt"),
+            Some(DetectedFormat {
+                format: "cbt",
+                document_type: "comic",
+            })
+        );
     }
 
     #[test]
@@ -1030,6 +1115,13 @@ mod tests {
                 document_type: "reflow",
             })
         );
+        assert_eq!(
+            detect_format_bytes("book.bin", &tar_with_image_name("page.png")),
+            Some(DetectedFormat {
+                format: "cbt",
+                document_type: "comic",
+            })
+        );
     }
 
     #[test]
@@ -1048,5 +1140,17 @@ mod tests {
                 document_type: "reflow",
             })
         );
+    }
+
+    fn tar_with_image_name(name: &str) -> Vec<u8> {
+        let mut bytes = vec![0; 1024];
+        bytes[..name.len()].copy_from_slice(name.as_bytes());
+        bytes[124..136].copy_from_slice(b"00000000001\0");
+        bytes[148..156].fill(b' ');
+        let checksum: usize = bytes[..512].iter().map(|byte| usize::from(*byte)).sum();
+        let checksum = format!("{checksum:06o}\0 ");
+        bytes[148..156].copy_from_slice(checksum.as_bytes());
+        bytes[512] = 1;
+        bytes
     }
 }

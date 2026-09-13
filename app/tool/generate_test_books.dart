@@ -38,6 +38,10 @@ Future<void> main() async {
     'docx/minimal.docx': minimalDocxBytes(),
     'odt/minimal.odt': minimalOdtBytes(),
     'rtf/minimal.rtf': minimalRtfBytes(),
+    'cbt/minimal.cbt': tarNamedFiles({
+      'page-01.png': tinyPngBytes(),
+      'page-02.png': tinyPngBytes(),
+    }),
     'cbz/minimal.cbz': zipNamedFiles({
       'page-01.png': tinyPngBytes(),
       'page-02.png': tinyPngBytes(),

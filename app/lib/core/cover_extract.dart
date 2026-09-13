@@ -19,6 +19,7 @@ List<int>? extractCover({required String fileName, required List<int> bytes}) {
       DocumentFormat.epub => _epubCover(bytes),
       DocumentFormat.fb2 => _fb2Cover(bytes),
       DocumentFormat.cbz => _zipFirstImage(bytes),
+      DocumentFormat.cbt => _tarFirstImage(bytes),
       DocumentFormat.cbr => null,
       _ => null,
     };
@@ -141,6 +142,19 @@ String? _fb2CoverpageHref(XmlDocument xml) {
 
 List<int>? _zipFirstImage(List<int> bytes) {
   final archive = ZipDecoder().decodeBytes(bytes);
+  final names =
+      archive
+          .where((file) => file.isFile && looksLikeImageName(file.name))
+          .map((file) => file.name)
+          .toList()
+        ..sort();
+  if (names.isEmpty) return null;
+  final file = archive.firstWhere((item) => item.name == names.first);
+  return List<int>.from(file.content as List<int>);
+}
+
+List<int>? _tarFirstImage(List<int> bytes) {
+  final archive = TarDecoder().decodeBytes(bytes, verify: true);
   final names =
       archive
           .where((file) => file.isFile && looksLikeImageName(file.name))

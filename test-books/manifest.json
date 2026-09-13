@@ -66,6 +66,12 @@
     "sha256": "416f52be3cbdef64dd96f401f62d0f93ce5848cfb7d4851990c96d01eb3dfced"
   },
   {
+    "path": "cbt/minimal.cbt",
+    "format": "cbt",
+    "bytes": 3072,
+    "sha256": "65d6bb2ade6811d31076ca532a685093cf0b033c2516a59f72a5e28720ded7dd"
+  },
+  {
     "path": "cbz/minimal.cbz",
     "format": "cbz",
     "bytes": 356,

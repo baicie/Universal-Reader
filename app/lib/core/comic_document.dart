@@ -25,7 +25,7 @@ class ComicReaderDocument implements ChapteredDocument {
     required DocumentMetadata metadata,
     required List<int> bytes,
   }) {
-    final pages = _zipPages(bytes);
+    final pages = _isTar(bytes) ? _tarPages(bytes) : _zipPages(bytes);
     return ComicReaderDocument._(metadata: metadata, pages: pages);
   }
 
@@ -47,6 +47,20 @@ class ComicReaderDocument implements ChapteredDocument {
     } catch (_) {
       throw const FormatException('corrupt comic');
     }
+    return _archivePages(archive);
+  }
+
+  static List<ComicPage> _tarPages(List<int> bytes) {
+    late final Archive archive;
+    try {
+      archive = TarDecoder().decodeBytes(bytes, verify: true);
+    } catch (_) {
+      throw const FormatException('corrupt comic');
+    }
+    return _archivePages(archive);
+  }
+
+  static List<ComicPage> _archivePages(Archive archive) {
     final pages = <ComicPage>[];
     for (final file in archive) {
       if (!file.isFile || !looksLikeImageName(file.name)) continue;
@@ -193,4 +207,41 @@ bool _isRar(List<int> bytes) {
     if (bytes[i] != signature[i]) return false;
   }
   return bytes[6] == 0x00 || bytes[6] == 0x01;
+}
+
+bool _isTar(List<int> bytes) {
+  if (bytes.length < 512) return false;
+  if (bytes[257] == 0x75 &&
+      bytes[258] == 0x73 &&
+      bytes[259] == 0x74 &&
+      bytes[260] == 0x61 &&
+      bytes[261] == 0x72) {
+    return true;
+  }
+  final stored = _tarOctal(bytes, 148, 156);
+  if (stored == null) return false;
+  var checksum = 0;
+  for (var i = 0; i < 512; i++) {
+    checksum += i >= 148 && i < 156 ? 0x20 : bytes[i];
+  }
+  return checksum == stored;
+}
+
+int? _tarOctal(List<int> bytes, int start, int end) {
+  final values = <int>[];
+  for (var i = start; i < end; i++) {
+    final byte = bytes[i];
+    if (byte == 0 || byte == 0x20) {
+      if (values.isNotEmpty) break;
+      continue;
+    }
+    if (byte < 0x30 || byte > 0x37) return null;
+    values.add(byte - 0x30);
+  }
+  if (values.isEmpty) return null;
+  var value = 0;
+  for (final digit in values) {
+    value = value * 8 + digit;
+  }
+  return value;
 }

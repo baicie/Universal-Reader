@@ -202,6 +202,18 @@ void main() {
       expect(document, isA<ComicReaderDocument>());
     });
 
+    test('parses a cbt archive of images', () {
+      final document = openReaderDocument(
+        metadata: _metadata(id: 'book.cbt', format: DocumentFormat.cbt),
+        bytes: tarNamedFiles({
+          'page-01.png': tinyPngBytes(),
+          'page-02.png': tinyPngBytes(),
+        }),
+      );
+      expect(document, isA<ComicReaderDocument>());
+      expect((document as ComicReaderDocument).pages, hasLength(2));
+    });
+
     test('parses a non-zip cbr archive of images', () async {
       final document = await openReaderDocumentAsync(
         metadata: _metadata(id: 'book.cbr', format: DocumentFormat.cbr),

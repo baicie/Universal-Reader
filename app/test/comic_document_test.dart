@@ -31,6 +31,20 @@ void main() {
     expect(document.currentPage.bytes, tinyPngBytes());
   });
 
+  test('opens a cbt as ordered image pages', () {
+    final bytes = tarNamedFiles({
+      'page-02.png': tinyPngBytes(),
+      'page-01.png': tinyPngBytes(),
+      'readme.txt': [1, 2, 3],
+    });
+    final document = ComicReaderDocument.parse(
+      metadata: metadata.copyWith(format: DocumentFormat.cbt),
+      bytes: bytes,
+    );
+    expect(document.chapterCount, 2);
+    expect(document.currentPage.name, 'page-01.png');
+  });
+
   test('opens a real RAR cbr as ordered image pages', () async {
     final document = await ComicReaderDocument.parseAsync(
       metadata: metadata.copyWith(format: DocumentFormat.cbr),

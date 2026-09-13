@@ -88,6 +88,7 @@
 - Added ODT on the shared office reflow pipeline. ODT is detected from the package `mimetype`, reads `meta.xml` title/author, splits Heading 1/2 into chapters, and renders paragraphs, inherited text styles, lists, tables, and external hyperlinks.
 - Extracted the common office chapter builder and reader contract shared by DOCX and ODT.
 - Added RTF on the shared office reflow pipeline. RTF is detected from `{\\rtf`, reads `\\info` metadata, decodes ANSI/GBK/UTF-8 escapes, follows nested style groups, and renders headings, paragraphs, basic inline formatting, Unicode text, and tables.
+- Added CBT comic support. CBT is detected from a validated TAR container with image entries, reuses the comic renderer, and supports ordered pages, nested paths, first-image covers, locators, progress, and search-by-page-name.
 
 ## 0.0.1-dev.11 - 2026-08-29
 

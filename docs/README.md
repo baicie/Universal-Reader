@@ -33,6 +33,9 @@
 - **[rtf-reader.md](rtf-reader.md)** - RTF 阅读器实现
   RTF 控制字扫描、Unicode 转义和基础表格支持
 
+- **[cbt-reader.md](cbt-reader.md)** - CBT 漫画阅读器
+  TAR 漫画容器、图片排序和共享漫画布局
+
 ## 功能模块
 
 ### 书库管理

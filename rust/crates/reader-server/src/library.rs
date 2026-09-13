@@ -677,6 +677,7 @@ pub fn content_type_for(format: &str) -> &'static str {
         "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "odt" => "application/vnd.oasis.opendocument.text",
         "rtf" => "application/rtf",
+        "cbt" => "application/x-tar",
         _ => "application/octet-stream",
     }
 }

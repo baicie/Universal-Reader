@@ -90,6 +90,15 @@ void main() {
       expect(extractCover(fileName: 'book.cbr', bytes: bytes), tinyPngBytes());
     });
 
+    test('cbt archive returns the first sorted image', () {
+      final bytes = tarNamedFiles({
+        'zzz.png': [1, 2, 3],
+        'aaa.jpg': tinyPngBytes(),
+        'notes.txt': 'not an image'.codeUnits,
+      });
+      expect(extractCover(fileName: 'book.cbt', bytes: bytes), tinyPngBytes());
+    });
+
     test('zip without any image returns null', () {
       final bytes = zipNamedFiles({'notes.txt': 'hi'.codeUnits});
       expect(extractCover(fileName: 'book.cbz', bytes: bytes), isNull);

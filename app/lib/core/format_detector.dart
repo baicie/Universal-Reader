@@ -33,6 +33,7 @@ class FormatDetector {
     if (name.endsWith('.docx')) return DocumentFormat.docx;
     if (name.endsWith('.odt')) return DocumentFormat.odt;
     if (name.endsWith('.rtf')) return DocumentFormat.rtf;
+    if (name.endsWith('.cbt')) return DocumentFormat.cbt;
     if (name.endsWith('.cbz')) return DocumentFormat.cbz;
     if (name.endsWith('.cbr')) return DocumentFormat.cbr;
     return DocumentFormat.unknown;
@@ -44,6 +45,7 @@ class FormatDetector {
     }
     if (_isRar(bytes)) return DocumentFormat.cbr;
     if (_looksLikeRtf(bytes)) return DocumentFormat.rtf;
+    if (_isTar(bytes)) return _detectTar(bytes);
     if (_startsWith(bytes, const [0x50, 0x4B])) return _detectZip(bytes);
 
     final header = _textHeader(bytes);
@@ -208,6 +210,57 @@ class FormatDetector {
       if (bytes[i] != signature[i]) return false;
     }
     return bytes[6] == 0x00 || bytes[6] == 0x01;
+  }
+
+  bool _isTar(List<int> bytes) {
+    if (bytes.length < 512) return false;
+    if (bytes[257] == 0x75 &&
+        bytes[258] == 0x73 &&
+        bytes[259] == 0x74 &&
+        bytes[260] == 0x61 &&
+        bytes[261] == 0x72) {
+      return true;
+    }
+    final stored = _tarOctal(bytes, 148, 156);
+    if (stored == null) return false;
+    var checksum = 0;
+    for (var i = 0; i < 512; i++) {
+      checksum += i >= 148 && i < 156 ? 0x20 : bytes[i];
+    }
+    return checksum == stored;
+  }
+
+  DocumentFormat? _detectTar(List<int> bytes) {
+    try {
+      final archive = TarDecoder().decodeBytes(bytes, verify: true);
+      if (archive.any(
+        (file) => file.isFile && _hasImageExtension(file.name.toLowerCase()),
+      )) {
+        return DocumentFormat.cbt;
+      }
+    } on Exception {
+      return null;
+    }
+    return null;
+  }
+
+  int? _tarOctal(List<int> bytes, int start, int end) {
+    final values = <int>[];
+    for (var i = start; i < end; i++) {
+      final byte = bytes[i];
+      if (byte == 0 || byte == 0x20) {
+        if (values.isNotEmpty) break;
+        continue;
+      }
+      if (byte < 0x30 || byte > 0x37) return null;
+      values.add(byte - 0x30);
+    }
+    if (values.isEmpty) return null;
+    var value = 0;
+    for (final digit in values) {
+      value = value * 8 + digit;
+    }
+    return value;
   }
 
   bool _looksLikeRtf(List<int> bytes) {

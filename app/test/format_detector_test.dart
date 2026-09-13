@@ -107,6 +107,14 @@ void main() {
     );
   });
 
+  test('detects cbt content when the extension is unrelated', () {
+    final bytes = tarNamedFiles({'page-01.png': tinyPngBytes()});
+    expect(
+      detector.detect(DocumentSource(name: 'book.bin', bytes: bytes)),
+      DocumentFormat.cbt,
+    );
+  });
+
   test('detects docx content when the extension is unrelated', () {
     expect(
       detector.detect(
