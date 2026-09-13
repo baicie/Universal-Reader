@@ -10,6 +10,7 @@ import '../test/support/image_fixture.dart';
 import '../test/support/odt_fixture.dart';
 import '../test/support/pdf_fixture.dart';
 import '../test/support/rar_fixture.dart';
+import '../test/support/rtf_fixture.dart';
 
 Future<void> main() async {
   final root = Directory('../test-books');
@@ -36,6 +37,7 @@ Future<void> main() async {
     ),
     'docx/minimal.docx': minimalDocxBytes(),
     'odt/minimal.odt': minimalOdtBytes(),
+    'rtf/minimal.rtf': minimalRtfBytes(),
     'cbz/minimal.cbz': zipNamedFiles({
       'page-01.png': tinyPngBytes(),
       'page-02.png': tinyPngBytes(),

@@ -30,6 +30,9 @@
 - **[odt-reader.md](odt-reader.md)** - ODT 阅读器实现
   OpenDocument Text 解析和共享 Office reflow 管线
 
+- **[rtf-reader.md](rtf-reader.md)** - RTF 阅读器实现
+  RTF 控制字扫描、Unicode 转义和基础表格支持
+
 ## 功能模块
 
 ### 书库管理

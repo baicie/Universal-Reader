@@ -15,7 +15,8 @@
 - Added a WordprocessingML reader with chapter headings, basic inline formatting, hyperlinks, lists, tables, core metadata, shared reflow locators, search, and TOC.
 - Added a generated DOCX compatibility sample and parser/factory/identity coverage.
 - Added ODT on the same reflow contract with mimetype detection, metadata, inherited text styles, headings, lists, tables, and hyperlinks.
-- Remaining Office/DjVu scope: RTF, DjVu, CHM, CB7, and CBT.
+- Added RTF control-word parsing, metadata, ANSI/GBK/UTF-8 escapes, Unicode text, inline formatting, and basic tables.
+- Remaining Office/DjVu scope: DjVu, CHM, CB7, and CBT.
 
 ## PDF 测试覆盖提升（最新完成）
 

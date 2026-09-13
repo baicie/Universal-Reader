@@ -7,6 +7,7 @@ import '../../core/models.dart';
 import '../../core/odt_document.dart';
 import '../../core/pdf_document.dart';
 import '../../core/reader_runtime.dart';
+import '../../core/rtf_document.dart';
 import '../../core/text_document.dart';
 
 Future<ReaderDocument> openReaderDocumentAsync({
@@ -55,6 +56,13 @@ ReaderDocument openReaderDocument({
     if (metadata.format == DocumentFormat.odt) {
       try {
         return OdtReaderDocument.parse(metadata: metadata, bytes: bytes);
+      } on FormatException {
+        return CorruptReaderDocument(metadata: metadata);
+      }
+    }
+    if (metadata.format == DocumentFormat.rtf) {
+      try {
+        return RtfReaderDocument.parse(metadata: metadata, bytes: bytes);
       } on FormatException {
         return CorruptReaderDocument(metadata: metadata);
       }

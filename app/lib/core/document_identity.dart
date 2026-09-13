@@ -3,6 +3,7 @@ import 'epub_document.dart';
 import 'fb2_document.dart';
 import 'models.dart';
 import 'odt_document.dart';
+import 'rtf_document.dart';
 
 class DocumentIdentity {
   const DocumentIdentity({required this.title, required this.author});
@@ -45,6 +46,12 @@ DocumentIdentity documentIdentity({
         );
       case DocumentFormat.odt:
         final parsed = parseOdt(bytes, fallbackTitle: fallback);
+        return DocumentIdentity(
+          title: parsed.title.trim().isEmpty ? fallback : parsed.title.trim(),
+          author: parsed.author.trim(),
+        );
+      case DocumentFormat.rtf:
+        final parsed = parseRtf(bytes, fallbackTitle: fallback);
         return DocumentIdentity(
           title: parsed.title.trim().isEmpty ? fallback : parsed.title.trim(),
           author: parsed.author.trim(),

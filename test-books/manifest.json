@@ -60,6 +60,12 @@
     "sha256": "935ef0bead11881f79dd1460b4d09eb3680415471508c4d475674fcc05c4d761"
   },
   {
+    "path": "rtf/minimal.rtf",
+    "format": "rtf",
+    "bytes": 365,
+    "sha256": "416f52be3cbdef64dd96f401f62d0f93ce5848cfb7d4851990c96d01eb3dfced"
+  },
+  {
     "path": "cbz/minimal.cbz",
     "format": "cbz",
     "bytes": 356,

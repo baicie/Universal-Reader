@@ -6,6 +6,7 @@ import 'support/docx_fixture.dart';
 import 'support/odt_fixture.dart';
 import 'support/epub_fixture.dart';
 import 'support/fb2_fixture.dart';
+import 'support/rtf_fixture.dart';
 
 void main() {
   group('titleFromFileName', () {
@@ -187,5 +188,16 @@ void main() {
 
     expect(identity.title, 'ODT Title');
     expect(identity.author, 'ODT Author');
+  });
+
+  test('reads RTF info properties', () {
+    final identity = documentIdentity(
+      fileName: 'fallback.rtf',
+      bytes: minimalRtfBytes(title: 'RTF Title', author: 'RTF Author'),
+      format: DocumentFormat.rtf,
+    );
+
+    expect(identity.title, 'RTF Title');
+    expect(identity.author, 'RTF Author');
   });
 }

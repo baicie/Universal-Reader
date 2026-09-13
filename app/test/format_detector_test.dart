@@ -9,6 +9,7 @@ import 'support/epub_fixture.dart';
 import 'support/image_fixture.dart';
 import 'support/odt_fixture.dart';
 import 'support/rar_fixture.dart';
+import 'support/rtf_fixture.dart';
 
 void main() {
   const detector = FormatDetector();
@@ -121,6 +122,15 @@ void main() {
         DocumentSource(name: 'book.bin', bytes: minimalOdtBytes()),
       ),
       DocumentFormat.odt,
+    );
+  });
+
+  test('detects rtf content with an unrelated extension', () {
+    expect(
+      detector.detect(
+        DocumentSource(name: 'book.bin', bytes: minimalRtfBytes()),
+      ),
+      DocumentFormat.rtf,
     );
   });
 

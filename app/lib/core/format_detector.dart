@@ -32,6 +32,7 @@ class FormatDetector {
     }
     if (name.endsWith('.docx')) return DocumentFormat.docx;
     if (name.endsWith('.odt')) return DocumentFormat.odt;
+    if (name.endsWith('.rtf')) return DocumentFormat.rtf;
     if (name.endsWith('.cbz')) return DocumentFormat.cbz;
     if (name.endsWith('.cbr')) return DocumentFormat.cbr;
     return DocumentFormat.unknown;
@@ -42,6 +43,7 @@ class FormatDetector {
       return DocumentFormat.pdf;
     }
     if (_isRar(bytes)) return DocumentFormat.cbr;
+    if (_looksLikeRtf(bytes)) return DocumentFormat.rtf;
     if (_startsWith(bytes, const [0x50, 0x4B])) return _detectZip(bytes);
 
     final header = _textHeader(bytes);
@@ -206,6 +208,29 @@ class FormatDetector {
       if (bytes[i] != signature[i]) return false;
     }
     return bytes[6] == 0x00 || bytes[6] == 0x01;
+  }
+
+  bool _looksLikeRtf(List<int> bytes) {
+    var offset = 0;
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xEF &&
+        bytes[1] == 0xBB &&
+        bytes[2] == 0xBF) {
+      offset = 3;
+    }
+    while (offset < bytes.length &&
+        (bytes[offset] == 0x20 ||
+            bytes[offset] == 0x09 ||
+            bytes[offset] == 0x0A ||
+            bytes[offset] == 0x0D)) {
+      offset++;
+    }
+    const header = [0x7B, 0x5C, 0x72, 0x74, 0x66];
+    if (bytes.length - offset < header.length) return false;
+    for (var i = 0; i < header.length; i++) {
+      if (bytes[offset + i] != header[i]) return false;
+    }
+    return true;
   }
 
   bool _startsWith(List<int> bytes, List<int> prefix) {

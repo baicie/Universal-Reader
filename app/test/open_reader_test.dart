@@ -9,6 +9,7 @@ import 'package:app/core/mobi_document.dart';
 import 'package:app/core/models.dart';
 import 'package:app/core/odt_document.dart';
 import 'package:app/core/pdf_document.dart';
+import 'package:app/core/rtf_document.dart';
 import 'package:app/core/text_document.dart';
 import 'package:app/features/reader/open_reader.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,6 +21,7 @@ import 'support/image_fixture.dart';
 import 'support/pdf_fixture.dart';
 import 'support/odt_fixture.dart';
 import 'support/rar_fixture.dart';
+import 'support/rtf_fixture.dart';
 
 DocumentMetadata _metadata({
   required String id,
@@ -140,6 +142,24 @@ void main() {
     test('returns a corrupt document when the odt cannot be unzipped', () {
       final document = openReaderDocument(
         metadata: _metadata(id: 'book.odt', format: DocumentFormat.odt),
+        bytes: const [1, 2, 3],
+      );
+      expect(document, isA<CorruptReaderDocument>());
+    });
+  });
+
+  group('openReaderDocument for rtf', () {
+    test('parses a valid rtf', () {
+      final document = openReaderDocument(
+        metadata: _metadata(id: 'book.rtf', format: DocumentFormat.rtf),
+        bytes: minimalRtfBytes(),
+      );
+      expect(document, isA<RtfReaderDocument>());
+    });
+
+    test('returns a corrupt document for malformed rtf', () {
+      final document = openReaderDocument(
+        metadata: _metadata(id: 'book.rtf', format: DocumentFormat.rtf),
         bytes: const [1, 2, 3],
       );
       expect(document, isA<CorruptReaderDocument>());

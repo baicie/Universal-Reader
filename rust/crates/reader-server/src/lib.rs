@@ -55,6 +55,7 @@ pub fn detect_format(file_name: &str) -> Option<DetectedFormat> {
         "html" | "htm" => ("html", "reflow"),
         "docx" => ("docx", "reflow"),
         "odt" => ("odt", "reflow"),
+        "rtf" => ("rtf", "reflow"),
         "cbz" => ("cbz", "comic"),
         "cbr" => ("cbr", "comic"),
         _ => return None,
@@ -76,6 +77,12 @@ pub fn detect_format_bytes(file_name: &str, bytes: &[u8]) -> Option<DetectedForm
         return Some(DetectedFormat {
             format: "cbr",
             document_type: "comic",
+        });
+    }
+    if looks_like_rtf(bytes) {
+        return Some(DetectedFormat {
+            format: "rtf",
+            document_type: "reflow",
         });
     }
     if bytes.starts_with(b"PK\x03\x04")
@@ -182,6 +189,15 @@ fn detect_zip(bytes: &[u8]) -> Option<DetectedFormat> {
 
 fn is_rar(bytes: &[u8]) -> bool {
     bytes.len() >= 7 && bytes.starts_with(b"Rar!\x1A\x07") && matches!(bytes[6], 0x00 | 0x01)
+}
+
+fn looks_like_rtf(bytes: &[u8]) -> bool {
+    let bytes = bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(bytes);
+    let offset = bytes
+        .iter()
+        .position(|byte| !byte.is_ascii_whitespace())
+        .unwrap_or(bytes.len());
+    bytes[offset..].starts_with(b"{\\rtf")
 }
 
 fn is_mobipocket(bytes: &[u8]) -> bool {
@@ -917,6 +933,13 @@ mod tests {
                 document_type: "reflow",
             })
         );
+        assert_eq!(
+            detect_format("report.rtf"),
+            Some(DetectedFormat {
+                format: "rtf",
+                document_type: "reflow",
+            })
+        );
     }
 
     #[test]
@@ -998,6 +1021,13 @@ mod tests {
             Some(DetectedFormat {
                 format: "cbr",
                 document_type: "comic",
+            })
+        );
+        assert_eq!(
+            detect_format_bytes("book.bin", b"{\\rtf1 test}"),
+            Some(DetectedFormat {
+                format: "rtf",
+                document_type: "reflow",
             })
         );
     }
