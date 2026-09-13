@@ -106,6 +106,7 @@
 - Extracted CHM/DjVu conversion into `reader-format-native`, shared by the server and the new `reader-mobile` C ABI library.
 - Added Android arm64-v8a, armeabi-v7a, and x86_64 builds plus an iOS device/simulator XCFramework build pipeline, with fixture tests, corrupt-input coverage, artifact uploads, size reports, and MIT / Apache-2.0 license review.
 - Linked the native core into Android APKs and the iOS Runner through conditional Dart FFI; mobile CHM/DjVu now convert in-process and open through the existing EPUB/CBZ readers.
+- Added Android emulator and iOS Simulator smoke tests that load the native bridge and convert the fixed CHM/DjVu corpus through Dart FFI.
 
 ## 0.0.1-dev.11 - 2026-08-29
 
