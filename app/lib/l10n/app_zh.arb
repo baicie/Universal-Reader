@@ -104,6 +104,13 @@
   "noSearchResults": "没有找到匹配的内容。",
   "scanFolder": "扫描文件夹",
   "scanFolderHint": "本机服务上的文件夹路径",
+  "scanProgress": "已扫描 {processed} / {total}",
+  "@scanProgress": {
+    "placeholders": {
+      "processed": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
   "webdavUrl": "WebDAV 地址",
   "webdavUser": "WebDAV 用户名",
   "webdavPassword": "WebDAV 密码",

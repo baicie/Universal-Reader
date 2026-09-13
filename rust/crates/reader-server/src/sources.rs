@@ -68,12 +68,30 @@ pub fn allowed_source_url(url: &str) -> bool {
 }
 
 pub fn scan_folder(path: &Path) -> Result<Vec<(String, Vec<u8>)>, LibraryError> {
+    let paths = scan_folder_paths(path)?;
+    let mut files = Vec::new();
+    for path in paths {
+        let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
+            continue;
+        };
+        let Ok(bytes) = std::fs::read(&path) else {
+            continue;
+        };
+        if bytes.len() > MAX_FILE_BYTES || detect_format_bytes(name, &bytes).is_none() {
+            continue;
+        }
+        files.push((name.to_string(), bytes));
+    }
+    Ok(files)
+}
+
+pub fn scan_folder_paths(path: &Path) -> Result<Vec<PathBuf>, LibraryError> {
     if !path.is_absolute() || path_has_escape(path) {
         return Err(LibraryError::InvalidName);
     }
-    let mut files = Vec::new();
-    walk(path, 0, &mut files)?;
-    Ok(files)
+    let mut paths = Vec::new();
+    walk_paths(path, 0, &mut paths)?;
+    Ok(paths)
 }
 
 pub async fn write_folder_file(
@@ -132,7 +150,7 @@ fn path_has_escape(path: &Path) -> bool {
         .any(|component| matches!(component, std::path::Component::ParentDir))
 }
 
-fn walk(path: &Path, depth: u8, out: &mut Vec<(String, Vec<u8>)>) -> Result<(), LibraryError> {
+fn walk_paths(path: &Path, depth: u8, out: &mut Vec<PathBuf>) -> Result<(), LibraryError> {
     if depth > MAX_DEPTH {
         return Ok(());
     }
@@ -140,7 +158,7 @@ fn walk(path: &Path, depth: u8, out: &mut Vec<(String, Vec<u8>)>) -> Result<(), 
     for entry in entries.flatten() {
         let next = entry.path();
         if next.is_dir() {
-            walk(&next, depth + 1, out)?;
+            walk_paths(&next, depth + 1, out)?;
             continue;
         }
         let Some(name) = next.file_name().and_then(|value| value.to_str()) else {
@@ -158,7 +176,7 @@ fn walk(path: &Path, depth: u8, out: &mut Vec<(String, Vec<u8>)>) -> Result<(), 
         if detect_format_bytes(name, &bytes).is_none() {
             continue;
         }
-        out.push((name.to_string(), bytes));
+        out.push(next);
     }
     Ok(())
 }

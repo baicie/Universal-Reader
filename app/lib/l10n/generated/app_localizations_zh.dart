@@ -244,6 +244,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scanFolderHint => '本机服务上的文件夹路径';
 
   @override
+  String scanProgress(int processed, int total) {
+    return '已扫描 $processed / $total';
+  }
+
+  @override
   String get webdavUrl => 'WebDAV 地址';
 
   @override

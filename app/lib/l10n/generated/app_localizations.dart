@@ -542,6 +542,12 @@ abstract class AppLocalizations {
   /// **'本机服务上的文件夹路径'**
   String get scanFolderHint;
 
+  /// No description provided for @scanProgress.
+  ///
+  /// In zh, this message translates to:
+  /// **'已扫描 {processed} / {total}'**
+  String scanProgress(int processed, int total);
+
   /// No description provided for @webdavUrl.
   ///
   /// In zh, this message translates to:

@@ -24,6 +24,8 @@ class _LibrarySourcesCardState extends ConsumerState<LibrarySourcesCard> {
   final s3AccessKey = TextEditingController();
   final s3SecretKey = TextEditingController();
   bool busy = false;
+  int scanProcessed = 0;
+  int scanTotal = 0;
   String? error;
 
   @override
@@ -83,9 +85,20 @@ class _LibrarySourcesCardState extends ConsumerState<LibrarySourcesCard> {
               onPressed: busy
                   ? null
                   : () => _run(() async {
-                      final result = await scanLibraryFolder(
+                      setState(() {
+                        scanProcessed = 0;
+                        scanTotal = 0;
+                      });
+                      final result = await scanLibraryFolderProgressive(
                         ref.read(libraryRepositoryProvider),
                         folder.text.trim(),
+                        onProgress: (processed, total) {
+                          if (!mounted) return;
+                          setState(() {
+                            scanProcessed = processed;
+                            scanTotal = total;
+                          });
+                        },
                       );
                       await applySourceImport(
                         ref.read(libraryProvider),
@@ -94,6 +107,17 @@ class _LibrarySourcesCardState extends ConsumerState<LibrarySourcesCard> {
                     }),
               child: Text(l10n.scanFolder),
             ),
+            if (busy && scanTotal > 0) ...[
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: (scanProcessed / scanTotal).clamp(0, 1).toDouble(),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                l10n.scanProgress(scanProcessed, scanTotal),
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
             const SizedBox(height: 8),
             OutlinedButton(
               onPressed: busy

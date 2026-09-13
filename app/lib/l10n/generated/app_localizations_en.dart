@@ -248,6 +248,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scanFolderHint => 'Folder path on the local server';
 
   @override
+  String scanProgress(int processed, int total) {
+    return 'Scanning $processed / $total';
+  }
+
+  @override
   String get webdavUrl => 'WebDAV URL';
 
   @override

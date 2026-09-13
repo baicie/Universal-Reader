@@ -14,6 +14,9 @@
 - **[performance-baseline.md](performance-baseline.md)** - 10k 书库性能基线
   大规模书库查询、筛选和排序的回归范围
 
+- **[mobile-decoders.md](mobile-decoders.md)** - 移动端 CHM / DjVu 解码审计
+  共享 Rust 静态库路线、平台构建约束和发布门禁
+
 - **[cfi-logic.md](cfi-logic.md)** - CFI 计算逻辑说明  
   EPUB CFI（Canonical Fragment Identifier）生成、存储、恢复流程以及设计决策
 

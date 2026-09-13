@@ -51,6 +51,20 @@
 - Cover and single-document lookups now use direct ID queries; `list()` only rewrites the SQLite catalog when disk reconciliation changed it.
 - Planned Hardening B close date: 2026-10-04. Implementation completed on 2026-09-13.
 
+## v1.0 Hardening C complete: covers, progressive scan, mobile decoder audit
+
+- Added a bounded cover LRU and a widget regression proving a 10k grid only requests visible covers.
+- Added resumable folder scan sessions with 1–500 item batches, server session cleanup, Flutter progress UI, and HTTP integration coverage.
+- Added `docs/mobile-decoders.md`; the audit recommends a shared Rust static library with a minimal C ABI and rejects `flutter_rust_bridge`.
+- Planned Hardening C close date: 2026-10-18. Implementation completed on 2026-09-13.
+
+## v1.0 Hardening D planned
+
+- Package the shared Rust CHM/DjVu converters as Android and iOS binaries.
+- Add device/ABI matrix builds and corrupt-input tests.
+- Measure per-ABI app size and complete third-party license review.
+- Planned Hardening D close date: 2026-11-01.
+
 ## PDF 测试覆盖提升（最新完成）
 
 将 PDF 文档测试覆盖率从基线提升至 100%（1 个提交）。

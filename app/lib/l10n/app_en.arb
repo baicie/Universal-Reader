@@ -89,6 +89,13 @@
   "noSearchResults": "No matching text in this book.",
   "scanFolder": "Scan folder",
   "scanFolderHint": "Folder path on the local server",
+  "scanProgress": "Scanning {processed} / {total}",
+  "@scanProgress": {
+    "placeholders": {
+      "processed": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
   "webdavUrl": "WebDAV URL",
   "webdavUser": "WebDAV username",
   "webdavPassword": "WebDAV password",

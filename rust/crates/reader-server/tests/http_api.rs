@@ -782,6 +782,100 @@ async fn scan_imports_supported_files_and_skips_unknown_or_duplicate_names() {
 }
 
 #[tokio::test]
+async fn progressive_scan_imports_in_batches_and_finishes() {
+    let storage_dir = unique_temp_dir("progressive-scan-library");
+    let folder = unique_temp_dir("progressive-scan-source");
+    fs::create_dir_all(&folder).unwrap();
+    for index in 0..3 {
+        fs::write(
+            folder.join(format!("book-{index}.txt")),
+            format!("batch body {index}"),
+        )
+        .unwrap();
+    }
+    let folder = fs::canonicalize(&folder).unwrap();
+    let app = app_with_storage_dir(storage_dir.clone());
+
+    let started = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/library/scan/start")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "path": folder }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(started.status(), StatusCode::OK);
+    let started_body = to_bytes(started.into_body(), usize::MAX).await.unwrap();
+    let started_json: serde_json::Value = serde_json::from_slice(&started_body).unwrap();
+    assert_eq!(started_json["total"], 3);
+    let session_id = started_json["session_id"].as_str().unwrap();
+
+    let first = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/library/scan/next")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "session_id": session_id, "limit": 2 }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(first.status(), StatusCode::OK);
+    let first_body = to_bytes(first.into_body(), usize::MAX).await.unwrap();
+    let first_json: serde_json::Value = serde_json::from_slice(&first_body).unwrap();
+    assert_eq!(first_json["processed"], 2);
+    assert_eq!(first_json["imported"], 2);
+    assert_eq!(first_json["done"], false);
+
+    let second = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/library/scan/next")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "session_id": session_id, "limit": 2 }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(second.status(), StatusCode::OK);
+    let second_body = to_bytes(second.into_body(), usize::MAX).await.unwrap();
+    let second_json: serde_json::Value = serde_json::from_slice(&second_body).unwrap();
+    assert_eq!(second_json["processed"], 1);
+    assert_eq!(second_json["imported"], 1);
+    assert_eq!(second_json["done"], true);
+
+    let listed = app
+        .oneshot(
+            Request::builder()
+                .uri("/v1/library/documents")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let listed_body = to_bytes(listed.into_body(), usize::MAX).await.unwrap();
+    let listed_json: serde_json::Value = serde_json::from_slice(&listed_body).unwrap();
+    assert_eq!(listed_json["documents"].as_array().unwrap().len(), 3);
+
+    fs::remove_dir_all(storage_dir).unwrap();
+    fs::remove_dir_all(folder).unwrap();
+}
+
+#[tokio::test]
 async fn folder_sync_imports_and_pushes_without_overwriting_conflicts() {
     let storage_dir = unique_temp_dir("folder-sync-library");
     let folder = unique_temp_dir("folder-sync-source");

@@ -130,23 +130,30 @@ void main() {
     expect(find.text('/data/books'), findsOneWidget);
   });
 
-  testWidgets(
-    'tapping Scan folder triggers a network call to /v1/library/scan',
-    (tester) async {
-      final spying = _SpyingClient(
-        Uri.parse('http://fake/v1/library/scan'),
-        http.Response('{"imported":1,"skipped":0}', 200),
-      );
-      final repo = _FakeHttpRepositoryWithClient(spying);
-      await tester.pumpWidget(_wrap(LibrarySourcesCard(), repository: repo));
-      await tester.pumpAndSettle();
-      final scanButton = find.widgetWithText(OutlinedButton, 'Scan folder');
-      await tester.ensureVisible(scanButton);
-      await tester.tap(scanButton);
-      await tester.pumpAndSettle();
-      expect(spying.requestedPaths, contains('/v1/library/scan'));
-    },
-  );
+  testWidgets('tapping Scan folder uses the progressive scan endpoints', (
+    tester,
+  ) async {
+    final spying = _SpyingClient(
+      Uri.parse('http://fake/v1/library/scan/start'),
+      http.Response('{"session_id":"scan-1","total":1}', 200),
+      responses: {
+        '/v1/library/scan/next': http.Response(
+          '{"session_id":"scan-1","total":1,"processed":1,'
+          '"imported":1,"skipped":0,"done":true}',
+          200,
+        ),
+      },
+    );
+    final repo = _FakeHttpRepositoryWithClient(spying);
+    await tester.pumpWidget(_wrap(LibrarySourcesCard(), repository: repo));
+    await tester.pumpAndSettle();
+    final scanButton = find.widgetWithText(OutlinedButton, 'Scan folder');
+    await tester.ensureVisible(scanButton);
+    await tester.tap(scanButton);
+    await tester.pumpAndSettle();
+    expect(spying.requestedPaths, contains('/v1/library/scan/start'));
+    expect(spying.requestedPaths, contains('/v1/library/scan/next'));
+  });
 
   testWidgets('displays the error message when scan fails', (tester) async {
     final repo = _FakeHttpRepositoryWithClient(
@@ -441,19 +448,25 @@ class _FakeHttpRepositoryWithClient implements HttpLibraryRepository {
 }
 
 class _SpyingClient extends http.BaseClient {
-  _SpyingClient(this.matchPath, this.response);
+  _SpyingClient(
+    this.matchPath,
+    this.response, {
+    Map<String, http.Response>? responses,
+  }) : _responses = responses ?? const {};
 
   final Uri matchPath;
   final http.Response response;
+  final Map<String, http.Response> _responses;
   final List<String> requestedPaths = [];
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     requestedPaths.add(request.url.path);
+    final selected = _responses[request.url.path] ?? response;
     return http.StreamedResponse(
-      Stream.value(response.bodyBytes),
-      response.statusCode,
-      headers: response.headers,
+      Stream.value(selected.bodyBytes),
+      selected.statusCode,
+      headers: selected.headers,
     );
   }
 }

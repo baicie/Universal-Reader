@@ -50,6 +50,60 @@ Future<SourceImportResult> scanLibraryFolder(
   return _parseSourceResult(response.body);
 }
 
+Future<SourceImportResult> scanLibraryFolderProgressive(
+  LibraryRepository repository,
+  String path, {
+  int batchSize = 100,
+  void Function(int processed, int total)? onProgress,
+}) async {
+  if (repository is! HttpLibraryRepository) {
+    throw const FormatException('folder scan needs the local server');
+  }
+  final start = await repository.httpClient.post(
+    repository.uri('/v1/library/scan/start'),
+    headers: const {'Content-Type': 'application/json'},
+    body: jsonEncode({'path': path}),
+  );
+  if (start.statusCode != 200) {
+    throw FormatException('扫描失败 (${start.statusCode})');
+  }
+  final startJson = jsonDecode(start.body);
+  if (startJson is! Map || startJson['session_id'] is! String) {
+    throw const FormatException('corrupt scan session');
+  }
+  final sessionId = startJson['session_id'] as String;
+  final total = (startJson['total'] as num?)?.toInt() ?? 0;
+  if (total <= 0) {
+    onProgress?.call(0, 0);
+    return const SourceImportResult(imported: 0, skipped: 0);
+  }
+
+  var imported = 0;
+  var skipped = 0;
+  var processed = 0;
+  while (true) {
+    final response = await repository.httpClient.post(
+      repository.uri('/v1/library/scan/next'),
+      headers: const {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'session_id': sessionId,
+        'limit': batchSize.clamp(1, 500),
+      }),
+    );
+    if (response.statusCode != 200) {
+      throw FormatException('扫描失败 (${response.statusCode})');
+    }
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map) throw const FormatException('corrupt scan batch');
+    imported += (decoded['imported'] as num?)?.toInt() ?? 0;
+    skipped += (decoded['skipped'] as num?)?.toInt() ?? 0;
+    processed += (decoded['processed'] as num?)?.toInt() ?? 0;
+    onProgress?.call(processed, total);
+    if (decoded['done'] == true) break;
+  }
+  return SourceImportResult(imported: imported, skipped: skipped);
+}
+
 Future<SourceImportResult> importLibraryWebDav(
   LibraryRepository repository, {
   required String baseUrl,

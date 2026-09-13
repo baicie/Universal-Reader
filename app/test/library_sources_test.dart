@@ -45,6 +45,50 @@ void main() {
     expect(result.skipped, 1);
   });
 
+  test('progressive scan starts and consumes server batches', () async {
+    final requested = <String>[];
+    final progress = <(int, int)>[];
+    final client = MockClient((request) async {
+      requested.add(request.url.path);
+      if (request.url.path == '/v1/library/scan/start') {
+        expect(request.body, contains('"path":"D:/books"'));
+        return http.Response('{"session_id":"scan-1","total":3}', 200);
+      }
+      expect(request.url.path, '/v1/library/scan/next');
+      expect(request.body, contains('"session_id":"scan-1"'));
+      if (requested.where((path) => path.endsWith('/next')).length == 1) {
+        return http.Response(
+          '{"session_id":"scan-1","total":3,"processed":2,'
+          '"imported":2,"skipped":0,"done":false}',
+          200,
+        );
+      }
+      return http.Response(
+        '{"session_id":"scan-1","total":3,"processed":1,'
+        '"imported":1,"skipped":0,"done":true}',
+        200,
+      );
+    });
+
+    final result = await scanLibraryFolderProgressive(
+      HttpLibraryRepository(
+        baseUrl: 'http://127.0.0.1:8787',
+        httpClient: client,
+      ),
+      'D:/books',
+      batchSize: 2,
+      onProgress: (processed, total) => progress.add((processed, total)),
+    );
+
+    expect(requested, [
+      '/v1/library/scan/start',
+      '/v1/library/scan/next',
+      '/v1/library/scan/next',
+    ]);
+    expect(progress, [(2, 3), (3, 3)]);
+    expect(result.imported, 3);
+  });
+
   test(
     'webdav import does not let the client pick an arbitrary host when empty',
     () async {

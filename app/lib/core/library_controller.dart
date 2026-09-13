@@ -7,6 +7,7 @@ import '../features/library/annotation_store.dart';
 import '../features/library/library_search.dart';
 import '../features/library/shelf_store.dart' as shelf;
 import 'library_repository.dart';
+import 'lru_byte_cache.dart';
 import 'models.dart';
 
 /// Minimal description of a file returned by a picker. The production picker
@@ -23,11 +24,14 @@ class PersistedLibraryController extends ChangeNotifier {
     required this.repository,
     shelf.ShelfRepository? shelfRepository,
     this.annotationRepository,
-  }) : shelfRepository = shelfRepository ?? shelf.InMemoryShelfRepository();
+    LruByteCache? coverCache,
+  }) : shelfRepository = shelfRepository ?? shelf.InMemoryShelfRepository(),
+       coverCache = coverCache ?? LruByteCache();
 
   final LibraryRepository repository;
   final shelf.ShelfRepository shelfRepository;
   final AnnotationRepository? annotationRepository;
+  final LruByteCache coverCache;
   List<LibraryDocument> _documents = [];
   List<LibraryDocument>? _visibleDocuments;
   shelf.LibraryShelves _shelves = const shelf.LibraryShelves();
@@ -174,6 +178,7 @@ class PersistedLibraryController extends ChangeNotifier {
       // 读失败时按空库处理，不灌种子书。
       _documents = [];
     }
+    coverCache.clear();
     await _loadShelves();
     loading = false;
     _notifyChanged();
@@ -263,6 +268,7 @@ class PersistedLibraryController extends ChangeNotifier {
       return;
     }
     _documents.removeWhere((item) => item.metadata.id == id);
+    coverCache.remove(id);
     _shelves = shelf.pruneShelves(_shelves, {
       for (final document in _documents) document.metadata.id,
     });
@@ -344,8 +350,12 @@ class PersistedLibraryController extends ChangeNotifier {
   }
 
   Future<List<int>?> readCover(String id) async {
+    final cached = coverCache.get(id);
+    if (cached != null) return cached;
     try {
-      return await repository.readCover(id);
+      final bytes = await repository.readCover(id);
+      if (bytes != null && bytes.isNotEmpty) coverCache.put(id, bytes);
+      return bytes;
     } catch (error) {
       debugPrint('library_controller.readCover($id) failed: $error');
       return null;
@@ -388,6 +398,7 @@ class PersistedLibraryController extends ChangeNotifier {
         _documents.removeWhere(
           (item) => item.metadata.id == document.metadata.id,
         );
+        coverCache.remove(document.metadata.id);
         _documents.insert(0, document);
         count++;
       } on FormatException {

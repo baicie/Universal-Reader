@@ -56,6 +56,8 @@ $UNIVERSAL_READER_STORAGE_DIR/     # 默认 data/library
 | `GET` | `/v1/library/shelves` | 收藏与收藏夹；未知 document id 会被剪掉 |
 | `PUT` | `/v1/library/shelves` | 覆盖收藏与收藏夹，保存前按书库 prune |
 | `POST` | `/v1/library/scan` | 扫描本机文件夹并导入 |
+| `POST` | `/v1/library/scan/start` | 创建分批扫描会话，返回 `session_id` 和 `total` |
+| `POST` | `/v1/library/scan/next` | 处理下一批路径，返回进度和 `done` |
 | `POST` | `/v1/library/webdav/import` | 从已配置 WebDAV 导入 |
 | `POST` | `/v1/library/webdav/sync` | 双向同步：拉缺失的书，推本地有、远端没有的书 |
 | `POST` | `/v1/library/watch` | 监视本机文件夹，新文件只追加 |

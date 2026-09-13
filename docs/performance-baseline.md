@@ -48,5 +48,21 @@ SQLite 查询测试插入 10,000 条文档，要求全量读取在 5 秒内、�
 
 当前基线覆盖 Flutter 内存书库 query/view、Rust SQLite 列表和单本查询、封面查询。后续还要补：
 
-- 10k 封面懒加载和列表滚动帧率
-- 文件扫描 10k 的渐进导入
+- 真机列表滚动帧率和图片解码占用
+- 10k 文件扫描会话的端到端吞吐
+
+## Cover cache and lazy loading
+
+- `LibraryCover` 仍由懒布局按可见项构建。
+- `PersistedLibraryController` 使用有界 LRU：默认最多 128 张、总 16 MiB、单张 4 MiB，超限淘汰最久未使用项。
+- 同一本书重复构建只读取一次仓储。
+
+## Progressive folder scan
+
+服务端扫描拆为会话：
+
+1. `POST /v1/library/scan/start` 返回 `session_id` 和 `total`。
+2. `POST /v1/library/scan/next` 每次处理 1–500 个路径并返回累计状态。
+3. 会话完成后自动移除；服务端最多保留 8 个未完成扫描会话。
+
+Flutter Sources 卡片使用分批接口显示扫描进度，不再等整个目录一次性处理完后才反馈。

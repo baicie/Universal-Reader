@@ -1,9 +1,12 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     env,
     io::{Cursor, Read},
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
 };
 
 use axum::{
@@ -42,6 +45,9 @@ use library::{
 pub const SERVICE_NAME: &str = "universal-reader-server";
 pub const SERVICE_VERSION: &str = env!("CARGO_PKG_VERSION");
 const MAX_UPLOAD_BYTES: usize = 64 * 1024 * 1024;
+const MAX_SCAN_SESSIONS: usize = 8;
+const MAX_SCAN_BATCH: usize = 500;
+static SCAN_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DetectedFormat {
@@ -375,6 +381,12 @@ struct AppState {
     ai: AiConfig,
     sources: SourcesConfig,
     watches: Arc<Mutex<Vec<sources::FolderWatch>>>,
+    scans: Arc<Mutex<HashMap<String, ScanSession>>>,
+}
+
+struct ScanSession {
+    paths: Vec<PathBuf>,
+    next: usize,
 }
 
 pub fn app() -> Router {
@@ -466,6 +478,8 @@ fn api_router(store: LibraryStore, ai: AiConfig, sources: SourcesConfig) -> Rout
         .route("/v1/library/shelves", get(get_shelves).put(put_shelves))
         .route("/v1/library/files", post(upload_file))
         .route("/v1/library/scan", post(scan_folder))
+        .route("/v1/library/scan/start", post(start_folder_scan))
+        .route("/v1/library/scan/next", post(next_folder_scan))
         .route("/v1/library/folder/sync", post(sync_folder))
         .route(
             "/v1/library/metadata/folder/sync",
@@ -487,6 +501,7 @@ fn api_router(store: LibraryStore, ai: AiConfig, sources: SourcesConfig) -> Rout
             ai,
             sources,
             watches: Arc::new(Mutex::new(Vec::new())),
+            scans: Arc::new(Mutex::new(HashMap::new())),
         })
 }
 
@@ -730,6 +745,111 @@ async fn scan_folder(
             .into_response(),
         Err(error) => library_error(error).into_response(),
     }
+}
+
+async fn start_folder_scan(
+    State(state): State<AppState>,
+    Json(body): Json<ScanRequest>,
+) -> impl IntoResponse {
+    let Some(path) = sources::scan_root_ok(&body.path) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(ApiError {
+                error: "path is required",
+            }),
+        )
+            .into_response();
+    };
+    let paths = match tokio::task::spawn_blocking(move || sources::scan_folder_paths(&path)).await {
+        Ok(Ok(paths)) => paths,
+        Ok(Err(error)) => return library_error(error).into_response(),
+        Err(_) => return library_error(LibraryError::Io).into_response(),
+    };
+    let total = paths.len();
+    let session_id = format!(
+        "{}-{}",
+        std::process::id(),
+        SCAN_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+    );
+    let mut sessions = state.scans.lock().await;
+    if sessions.len() >= MAX_SCAN_SESSIONS
+        && let Some(oldest) = sessions.keys().next().cloned()
+    {
+        sessions.remove(&oldest);
+    }
+    sessions.insert(session_id.clone(), ScanSession { paths, next: 0 });
+    (
+        StatusCode::OK,
+        Json(ScanStartResponse { session_id, total }),
+    )
+        .into_response()
+}
+
+async fn next_folder_scan(
+    State(state): State<AppState>,
+    Json(body): Json<ScanNextRequest>,
+) -> impl IntoResponse {
+    let limit = body.limit.unwrap_or(100).clamp(1, MAX_SCAN_BATCH);
+    let batch = {
+        let mut sessions = state.scans.lock().await;
+        let Some(session) = sessions.get_mut(&body.session_id) else {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(ApiError {
+                    error: "scan session not found",
+                }),
+            )
+                .into_response();
+        };
+        let start = session.next;
+        let end = (start + limit).min(session.paths.len());
+        let paths = session.paths[start..end].to_vec();
+        let total = session.paths.len();
+        session.next = end;
+        if end >= total {
+            sessions.remove(&body.session_id);
+        }
+        (paths, total)
+    };
+    let (paths, total) = batch;
+    let processed = paths.len();
+    let mut files = Vec::new();
+    let mut unreadable = 0usize;
+    for path in paths {
+        let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
+            unreadable += 1;
+            continue;
+        };
+        let Ok(bytes) = tokio::fs::read(&path).await else {
+            unreadable += 1;
+            continue;
+        };
+        if bytes.len() > MAX_UPLOAD_BYTES || detect_format_bytes(name, &bytes).is_none() {
+            unreadable += 1;
+            continue;
+        }
+        files.push((name.to_string(), bytes));
+    }
+    let (imported, skipped) = match ingest_counts(&state.store, files).await {
+        Ok(counts) => counts,
+        Err(error) => return library_error(error).into_response(),
+    };
+    let done = processed == 0 || total == 0 || {
+        let sessions = state.scans.lock().await;
+        !sessions.contains_key(&body.session_id)
+    };
+    (
+        StatusCode::OK,
+        Json(ScanBatchResponse {
+            session_id: body.session_id,
+            total,
+            processed,
+            imported,
+            skipped: skipped + unreadable,
+            done,
+        }),
+    )
+        .into_response()
 }
 
 async fn sync_folder(
@@ -1220,6 +1340,12 @@ struct ScanRequest {
 }
 
 #[derive(Deserialize)]
+struct ScanNextRequest {
+    session_id: String,
+    limit: Option<usize>,
+}
+
+#[derive(Deserialize)]
 struct WebDavRequest {
     base_url: Option<String>,
     username: Option<String>,
@@ -1242,6 +1368,22 @@ struct SourceImportResponse {
     skipped: usize,
     #[serde(default)]
     pushed: usize,
+}
+
+#[derive(serde::Serialize)]
+struct ScanStartResponse {
+    session_id: String,
+    total: usize,
+}
+
+#[derive(serde::Serialize)]
+struct ScanBatchResponse {
+    session_id: String,
+    total: usize,
+    processed: usize,
+    imported: usize,
+    skipped: usize,
+    done: bool,
 }
 
 #[derive(serde::Serialize)]

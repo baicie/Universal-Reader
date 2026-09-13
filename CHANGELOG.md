@@ -100,6 +100,9 @@
 - Added a real `ReaderAdapterRegistry`; the sync and async reader factories now share registered format adapters, and `DocumentSource` can carry stable metadata.
 - Expanded the compatibility corpus to 28 samples with nested, CJK, BOM, no-heading, script, leading-space, nested-comic, and cover-page variants.
 - Added Rust 10k SQLite load/lookup and cover-latency regressions. Single-document and cover reads now use direct ID queries, and catalog reconciliation only rewrites SQLite when the filesystem changed.
+- Added a bounded cover LRU and a 10k lazy-grid regression so offscreen covers are neither loaded nor retained indefinitely.
+- Added restartable folder scan sessions with 1–500 item batches and progress reporting in the Sources card.
+- Completed the mobile CHM/DjVu decoder audit; the recommended implementation is a shared Rust static library with a minimal C ABI, packaged in Hardening D.
 
 ## 0.0.1-dev.11 - 2026-08-29
 

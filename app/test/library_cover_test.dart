@@ -1,4 +1,5 @@
 import 'package:app/core/library_repository.dart';
+import 'package:app/core/library_controller.dart';
 import 'package:app/core/models.dart';
 import 'package:app/core/providers.dart';
 import 'package:app/features/library/library_cover.dart';
@@ -16,6 +17,7 @@ class _StubLibraryRepository implements LibraryRepository {
 
   final List<LibraryDocument> documents;
   final Map<String, List<int>> _covers;
+  int readCoverCalls = 0;
 
   @override
   bool get usesRemoteStore => false;
@@ -36,6 +38,7 @@ class _StubLibraryRepository implements LibraryRepository {
 
   @override
   Future<List<int>?> readCover(String id) async {
+    readCoverCalls++;
     final bytes = _covers[id];
     return bytes == null ? null : List<int>.from(bytes);
   }
@@ -223,4 +226,57 @@ void main() {
       expect(image.fit, BoxFit.cover);
     },
   );
+
+  test('cover reads are cached by document id', () async {
+    final repository = _StubLibraryRepository(
+      documents: const [],
+      covers: {_docId: tinyPngBytes()},
+    );
+    final controller = PersistedLibraryController(repository: repository);
+    final first = await controller.readCover(_docId);
+    final second = await controller.readCover(_docId);
+
+    expect(first, isNotNull);
+    expect(second, first);
+    expect(repository.readCoverCalls, 1);
+  });
+
+  testWidgets('a 10k grid only requests visible covers', (tester) async {
+    final documents = List.generate(
+      10000,
+      (index) => LibraryDocument(
+        metadata: DocumentMetadata(
+          id: 'book-$index',
+          title: 'Book $index',
+          author: '',
+          format: DocumentFormat.epub,
+          type: DocumentType.reflow,
+        ),
+        readingState: ReadingState(progress: 0, lastOpened: DateTime(2026)),
+      ),
+    );
+    final repository = _StubLibraryRepository(documents: documents);
+    await tester.binding.setSurfaceSize(const Size(800, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await _pump(
+      tester,
+      repository: repository,
+      child: GridView.builder(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4,
+          childAspectRatio: 0.75,
+        ),
+        itemCount: documents.length,
+        itemBuilder: (context, index) => LibraryCover(
+          metadata: documents[index].metadata,
+          fallback: const SizedBox.shrink(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(repository.readCoverCalls, greaterThan(0));
+    expect(repository.readCoverCalls, lessThan(200));
+  });
 }

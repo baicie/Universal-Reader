@@ -33,6 +33,7 @@ Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK
 - 本机 Rust 服务支持文件夹扫描、监视和双向同步；同名但内容不同的文件保持不覆盖
 - Rust 服务支持 S3 兼容存储导入与双向同步，使用 AWS Signature V4、路径前缀隔离和 ListObjectsV2 分页
 - 阅读进度与笔记可通过文件夹、WebDAV 或 S3 的独立 Reader Metadata Sync 合并；进度取最近打开，笔记按稳定 ID 合并，删除记录不会下次同步又出现
+- 文件夹扫描使用可恢复分批会话并显示进度；封面使用有界 LRU，10k 书架只加载可见项
 - Reader Runtime `1.0.0`、版本化 Locator JSON、实际接入打开路径的 Adapter Registry；10k Flutter 书库与 Rust SQLite/封面规模回归
 - EPUB、PDF、MOBI、AZW3、FB2、TXT、Markdown、HTML、DOCX、ODT、RTF、DjVu、CHM、CBT、CB7、CBZ、CBR 内容优先格式检测，扩展名兜底
 - 本地文件导入
@@ -43,6 +44,7 @@ Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK
 - `test-books/` 提供 28 份兼容语料：每种主格式的最小样本、边界样本与 SHA-256 清单
 - CHM 在 Rust 服务可用时解包并转换为 EPUB 阅读；移动端直接解析仍待原生嵌入
 - DjVu 在 Rust 服务可用时按页渲染并转换为 CBZ 阅读；移动端直接解析仍待原生嵌入
+- 移动端 CHM/DjVu 已完成共享 Rust 静态库路线审计，具体 ABI 打包排入 Hardening D
 
 ## 阅读助手（DeepSeek）
 
