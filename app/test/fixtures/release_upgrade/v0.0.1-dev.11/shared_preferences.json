@@ -1,0 +1,50 @@
+{
+  "library": [
+    {
+      "metadata": {
+        "id": "legacy.epub",
+        "title": "Legacy Book",
+        "author": "Old Author",
+        "format": "epub",
+        "type": "reflow",
+        "coverColor": 4283479936,
+        "contentHash": "legacy-content-hash",
+        "hasCover": false
+      },
+      "readingState": {
+        "progress": 0.42,
+        "lastOpened": "2026-08-29T00:00:00.000Z"
+      }
+    }
+  ],
+  "shelves": {
+    "favorites": ["legacy.epub"],
+    "collections": [
+      {
+        "id": "c-legacy",
+        "name": "Legacy Shelf",
+        "color": 4283479936,
+        "document_ids": ["legacy.epub"]
+      }
+    ]
+  },
+  "annotations": [
+    {
+      "id": "note-legacy",
+      "note": "Read before upgrading",
+      "quote": "legacy quote",
+      "locator_label": "chapter-1",
+      "source": "user",
+      "created_at_ms": 1787961600000
+    }
+  ],
+  "conversations": [
+    {
+      "kind": "ask",
+      "question": "What is this?",
+      "reply": "Legacy answer",
+      "locator_label": "chapter-1",
+      "created_at_ms": 1787961600000
+    }
+  ]
+}

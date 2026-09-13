@@ -1,0 +1,71 @@
+name: Release rehearsal
+
+on:
+  workflow_dispatch:
+    inputs:
+      previous_tag:
+        description: Released tag to rehearse from
+        required: true
+        default: v0.0.1-dev.11
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  PREVIOUS_RELEASE_TAG: ${{ inputs.previous_tag }}
+
+jobs:
+  persistence:
+    name: Released persistence rehearsal
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.0'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Download previous release package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p previous-release
+          gh release download "$PREVIOUS_RELEASE_TAG" \
+            --pattern "universal-reader-${PREVIOUS_RELEASE_TAG}-windows-x86_64.zip" \
+            --dir previous-release
+          test -s "$(find previous-release -name '*.zip' -print -quit)"
+          unzip -t previous-release/*.zip
+          unzip -Z1 previous-release/*.zip | grep -qx 'app.exe'
+
+      - name: Run released upgrade and rollback rehearsal
+        run: flutter test test/release_upgrade_rehearsal_test.dart
+
+      - name: Write release rehearsal summary
+        run: |
+          {
+            echo "# Release rehearsal"
+            echo
+            echo "- Previous tag: $PREVIOUS_RELEASE_TAG"
+            echo "- Package: Windows x86_64 ZIP"
+            echo "- Result: PASS"
+            echo "- Scope: shared-preferences upgrade, rollback read, SQLite v0 migration"
+          } > ../release-rehearsal.md
+
+      - name: Upload rehearsal summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-rehearsal
+          path: release-rehearsal.md
+          if-no-files-found: error

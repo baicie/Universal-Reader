@@ -1,0 +1,12 @@
+{
+  "statements": [
+    "PRAGMA user_version = 0",
+    "CREATE TABLE documents (id TEXT PRIMARY KEY, title TEXT NOT NULL, author TEXT NOT NULL, format TEXT NOT NULL, type TEXT NOT NULL, cover_color INTEGER NOT NULL, progress REAL NOT NULL, last_opened TEXT NOT NULL, file_name TEXT NOT NULL, content_hash TEXT NOT NULL, file BLOB, cover BLOB)",
+    "CREATE TABLE annotations (document_id TEXT NOT NULL, id TEXT NOT NULL, note TEXT NOT NULL, quote TEXT NOT NULL, locator_label TEXT NOT NULL, source TEXT NOT NULL, created_at_ms INTEGER NOT NULL, PRIMARY KEY (document_id, id))",
+    "CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+    "CREATE TABLE conversations (document_id TEXT PRIMARY KEY, turns_json TEXT NOT NULL)",
+    "INSERT INTO documents (id, title, author, format, type, cover_color, progress, last_opened, file_name, content_hash, file, cover) VALUES ('sqlite-legacy.epub', 'SQLite Legacy', 'Old Author', 'epub', 'reflow', 4283479936, 0.75, '2026-08-29T00:00:00.000Z', 'sqlite-legacy.epub', 'sqlite-legacy-hash', NULL, NULL)",
+    "INSERT INTO annotations (document_id, id, note, quote, locator_label, source, created_at_ms) VALUES ('sqlite-legacy.epub', 'sqlite-note', 'SQLite note', 'sqlite quote', 'chapter-2', 'user', 1787961600000)",
+    "INSERT INTO conversations (document_id, turns_json) VALUES ('sqlite-legacy.epub', '[{\"kind\":\"ask\",\"question\":\"SQLite question\",\"reply\":\"SQLite answer\",\"locator_label\":\"chapter-2\",\"created_at_ms\":1787961600000}]')"
+  ]
+}

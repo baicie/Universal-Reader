@@ -105,6 +105,14 @@
 - Added dual-write, legacy-only fallback, migration-chain, rollback fixture, and schema-version regression tests.
 - Planned Hardening H close date: 2026-11-01. Implementation completed on 2026-09-14.
 
+## v1.0 Hardening I complete: release upgrade rehearsal
+
+- Added SHA-256 checked persistence goldens sourced from released tag `v0.0.1-dev.11`.
+- Added end-to-end rehearsal coverage for released SharedPreferences data, versioned upgrade, dual-write, rollback reads, and released SQLite v0 migration.
+- Added a manual `Release rehearsal` workflow that downloads the previous Windows release package, verifies its archive and executable, and runs the fixture identity check.
+- Interactive package installation and first-launch automation remain manual platform validation.
+- Planned Hardening I close date: 2026-11-15. Implementation completed on 2026-09-14.
+
 ## PDF 测试覆盖提升（最新完成）
 
 将 PDF 文档测试覆盖率从基线提升至 100%（1 个提交）。

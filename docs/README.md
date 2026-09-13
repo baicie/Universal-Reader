@@ -14,6 +14,9 @@
 - **[persistence-compatibility.md](persistence-compatibility.md)** - 本地持久化兼容
   SharedPreferences envelope、双写回滚和 SQLite schema 迁移规则
 
+- **[release-rehearsal.md](release-rehearsal.md)** - 发布升级演练
+  上一版发布金样、升级/回滚读取和发布包身份校验
+
 - **[performance-baseline.md](performance-baseline.md)** - 10k 书库性能基线
   大规模书库查询、筛选和排序的回归范围
 

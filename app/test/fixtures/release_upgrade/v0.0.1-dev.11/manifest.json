@@ -1,0 +1,10 @@
+{
+  "source_tag": "v0.0.1-dev.11",
+  "source_commit": "74ef6b7104ee0ad0019311b78c96e95876a4a44a",
+  "source_version": "0.0.1-dev.11+12",
+  "captured_at": "2026-09-14",
+  "files": {
+    "shared_preferences.json": "66f51435fa7d2436755a22b55e5b14683be9f2aece7dd230b29d63f85f510fa2",
+    "sqlite_v0.json": "a864ce4523dafd4a0107afa1e4e966c9793aea17fd20a1e39e4eeb5cc543fb29"
+  }
+}
