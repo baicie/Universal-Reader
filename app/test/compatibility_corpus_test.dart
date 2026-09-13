@@ -43,8 +43,12 @@ void main() {
         bytes: bytes,
       );
       expect(document, isNot(isA<CorruptReaderDocument>()));
-      expect(document, isNot(isA<UnavailableReaderDocument>()));
-      expect((document as ChapteredDocument).chapterCount, greaterThan(0));
+      if (expected == DocumentFormat.chm) {
+        expect(document, isA<UnavailableReaderDocument>());
+      } else {
+        expect(document, isNot(isA<UnavailableReaderDocument>()));
+        expect((document as ChapteredDocument).chapterCount, greaterThan(0));
+      }
     });
   }
 }

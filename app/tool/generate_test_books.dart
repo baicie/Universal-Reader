@@ -50,6 +50,10 @@ Future<void> main() async {
     }),
     'cbr/minimal.cbr': syntheticCbrBytes(),
   };
+  final chm = File('${root.path}/chm/minimal.chm');
+  if (await chm.exists()) {
+    books['chm/minimal.chm'] = await chm.readAsBytes();
+  }
 
   final manifest = <Map<String, Object>>[];
   for (final entry in books.entries) {

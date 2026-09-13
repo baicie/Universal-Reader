@@ -152,6 +152,44 @@ async fn upload_endpoint_uses_content_when_the_extension_is_unrelated() {
 }
 
 #[tokio::test]
+async fn upload_endpoint_converts_chm_to_epub() {
+    let storage_dir = unique_temp_dir("upload-chm");
+    let bytes = include_bytes!("../../../../test-books/chm/minimal.chm");
+    let body = multipart_body("manual.chm", bytes);
+    let response = app_with_storage_dir(storage_dir.clone())
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/library/files")
+                .header(
+                    "content-type",
+                    "multipart/form-data; boundary=test-boundary",
+                )
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let response_body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let response_text = std::str::from_utf8(&response_body).unwrap();
+    assert!(response_text.contains("\"format\":\"epub\""));
+    assert!(response_text.contains("\"document_type\":\"reflow\""));
+
+    let stored_files: Vec<_> = fs::read_dir(storage_dir.join("files")).unwrap().collect();
+    assert_eq!(stored_files.len(), 1);
+    let stored = fs::read(stored_files[0].as_ref().unwrap().path()).unwrap();
+    assert!(stored.starts_with(b"PK\x03\x04"));
+    assert!(
+        stored
+            .windows(20)
+            .any(|window| window == b"application/epub+zip")
+    );
+    fs::remove_dir_all(storage_dir).unwrap();
+}
+
+#[tokio::test]
 async fn serves_flutter_web_index_and_spa_fallback() {
     let web_dir = unique_temp_dir("web-assets");
     let storage_dir = unique_temp_dir("web-storage");

@@ -21,6 +21,7 @@ use tower_http::{
 };
 
 mod ai;
+mod chm;
 mod extract;
 mod library;
 mod sources;
@@ -56,6 +57,7 @@ pub fn detect_format(file_name: &str) -> Option<DetectedFormat> {
         "docx" => ("docx", "reflow"),
         "odt" => ("odt", "reflow"),
         "rtf" => ("rtf", "reflow"),
+        "chm" => ("chm", "reflow"),
         "cbt" => ("cbt", "comic"),
         "cb7" => ("cb7", "comic"),
         "cbz" => ("cbz", "comic"),
@@ -79,6 +81,12 @@ pub fn detect_format_bytes(file_name: &str, bytes: &[u8]) -> Option<DetectedForm
         return Some(DetectedFormat {
             format: "cbr",
             document_type: "comic",
+        });
+    }
+    if is_chm(bytes) {
+        return Some(DetectedFormat {
+            format: "chm",
+            document_type: "reflow",
         });
     }
     if is_7z(bytes) {
@@ -203,6 +211,10 @@ fn detect_zip(bytes: &[u8]) -> Option<DetectedFormat> {
 
 fn is_rar(bytes: &[u8]) -> bool {
     bytes.len() >= 7 && bytes.starts_with(b"Rar!\x1A\x07") && matches!(bytes[6], 0x00 | 0x01)
+}
+
+fn is_chm(bytes: &[u8]) -> bool {
+    bytes.starts_with(b"ITSF")
 }
 
 fn is_7z(bytes: &[u8]) -> bool {
@@ -1043,6 +1055,13 @@ mod tests {
                 document_type: "comic",
             })
         );
+        assert_eq!(
+            detect_format("manual.chm"),
+            Some(DetectedFormat {
+                format: "chm",
+                document_type: "reflow",
+            })
+        );
     }
 
     #[test]
@@ -1145,6 +1164,13 @@ mod tests {
             Some(DetectedFormat {
                 format: "cb7",
                 document_type: "comic",
+            })
+        );
+        assert_eq!(
+            detect_format_bytes("book.bin", b"ITSF"),
+            Some(DetectedFormat {
+                format: "chm",
+                document_type: "reflow",
             })
         );
     }

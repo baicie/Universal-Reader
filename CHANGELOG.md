@@ -90,6 +90,7 @@
 - Added RTF on the shared office reflow pipeline. RTF is detected from `{\\rtf`, reads `\\info` metadata, decodes ANSI/GBK/UTF-8 escapes, follows nested style groups, and renders headings, paragraphs, basic inline formatting, Unicode text, and tables.
 - Added CBT comic support. CBT is detected from a validated TAR container with image entries, reuses the comic renderer, and supports ordered pages, nested paths, first-image covers, locators, progress, and search-by-page-name.
 - Added CB7 comic support. CB7 is detected from the 7z signature and decoded through the pure-Dart 7z reader with LZMA/LZMA2, solid-block, filter-chain, and CRC support.
+- Added service-backed CHM reading. The Rust service detects the ITSF signature, extracts normal CHM entries with the pure-Rust libchm decoder, assembles the HTML pages and assets into an EPUB package, and lets the existing Flutter EPUB reader open the result.
 
 ## 0.0.1-dev.11 - 2026-08-29
 

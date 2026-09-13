@@ -33,6 +33,7 @@ class FormatDetector {
     if (name.endsWith('.docx')) return DocumentFormat.docx;
     if (name.endsWith('.odt')) return DocumentFormat.odt;
     if (name.endsWith('.rtf')) return DocumentFormat.rtf;
+    if (name.endsWith('.chm')) return DocumentFormat.chm;
     if (name.endsWith('.cbt')) return DocumentFormat.cbt;
     if (name.endsWith('.cb7')) return DocumentFormat.cb7;
     if (name.endsWith('.cbz')) return DocumentFormat.cbz;
@@ -47,6 +48,7 @@ class FormatDetector {
     if (_isRar(bytes)) return DocumentFormat.cbr;
     if (_is7z(bytes)) return DocumentFormat.cb7;
     if (_looksLikeRtf(bytes)) return DocumentFormat.rtf;
+    if (_isChm(bytes)) return DocumentFormat.chm;
     if (_isTar(bytes)) return _detectTar(bytes);
     if (_startsWith(bytes, const [0x50, 0x4B])) return _detectZip(bytes);
 
@@ -221,6 +223,14 @@ class FormatDetector {
       if (bytes[i] != signature[i]) return false;
     }
     return true;
+  }
+
+  bool _isChm(List<int> bytes) {
+    if (bytes.length < 4) return false;
+    return bytes[0] == 0x49 &&
+        bytes[1] == 0x54 &&
+        bytes[2] == 0x53 &&
+        bytes[3] == 0x46;
   }
 
   bool _isTar(List<int> bytes) {

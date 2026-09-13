@@ -18,7 +18,8 @@
 - Added RTF control-word parsing, metadata, ANSI/GBK/UTF-8 escapes, Unicode text, inline formatting, and basic tables.
 - Added CBT TAR comic detection, ordered image pages, cover extraction, and the shared comic layout.
 - Added CB7 7z detection and LZMA/LZMA2 comic decoding with solid-block and CRC support.
-- Remaining v0.3 formats: CHM and DjVu.
+- Added service-backed CHM-to-EPUB conversion through the Rust service.
+- Remaining v0.3 format: DjVu. Mobile CHM in-process decoding remains in the v1.0 platform hardening scope.
 
 ## PDF 测试覆盖提升（最新完成）
 

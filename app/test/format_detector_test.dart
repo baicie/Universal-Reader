@@ -152,6 +152,15 @@ void main() {
     );
   });
 
+  test('detects chm content with an unrelated extension', () {
+    expect(
+      detector.detect(
+        DocumentSource(name: 'book.bin', bytes: [0x49, 0x54, 0x53, 0x46]),
+      ),
+      DocumentFormat.chm,
+    );
+  });
+
   test('detects pdf content before trusting the extension', () {
     expect(
       detector.detect(

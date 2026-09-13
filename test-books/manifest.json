@@ -88,5 +88,11 @@
     "format": "cbr",
     "bytes": 1060,
     "sha256": "2b42fe4d61877ba2ce1951482da01f2e7185a10907251302c90407a4e41c32ef"
+  },
+  {
+    "path": "chm/minimal.chm",
+    "format": "chm",
+    "bytes": 4991,
+    "sha256": "bce781f8860caee2500781656bef068e1dc8a0992c1f2b66d5cbba030492feec"
   }
 ]

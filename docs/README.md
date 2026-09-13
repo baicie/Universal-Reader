@@ -39,6 +39,9 @@
 - **[cb7-reader.md](cb7-reader.md)** - CB7 漫画阅读器
   7z 漫画容器、LZMA/LZMA2 解码和共享漫画布局
 
+- **[chm-reader.md](chm-reader.md)** - CHM 阅读器
+  Rust 服务解包、EPUB 转换和当前平台限制
+
 ## 功能模块
 
 ### 书库管理

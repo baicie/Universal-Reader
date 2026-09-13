@@ -226,18 +226,35 @@ impl LibraryStore {
 
         let now_ms = unix_ms();
         let sequence = FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-        let extension = file_name.rsplit_once('.').map_or("bin", |(_, value)| value);
         let id = format!("{now_ms}-{sequence}");
-        let stored_name = format!("{id}.{extension}");
+        let mut stored_extension = file_name.rsplit_once('.').map_or_else(
+            || "bin".to_string(),
+            |(_, value)| value.to_ascii_lowercase(),
+        );
+        let mut stored_content = content.to_vec();
+        let mut stored_format = detected.format;
+        let mut stored_document_type = detected.document_type;
+        let mut content_name = file_name.clone();
+        if detected.format == "chm" {
+            stored_content = crate::chm::convert_to_epub(&file_name, content)
+                .ok_or(LibraryError::Unsupported)?;
+            stored_extension = "epub".to_string();
+            stored_format = "epub";
+            stored_document_type = "reflow";
+        }
+        let stored_name = format!("{id}.{stored_extension}");
+        if detected.format == "chm" {
+            content_name = stored_name.clone();
+        }
         let stored_path = self.files_dir().join(&stored_name);
-        tokio::fs::write(&stored_path, content)
+        tokio::fs::write(&stored_path, &stored_content)
             .await
             .map_err(|_| LibraryError::Io)?;
-        let cover = extract::extract_cover(&file_name, content);
+        let cover = extract::extract_cover(&content_name, &stored_content);
         if let Some(bytes) = &cover {
             self.write_cover_locked(&id, bytes).await?;
         }
-        let identity = extract::document_identity(&file_name, content);
+        let identity = extract::document_identity(&content_name, &stored_content);
 
         let record = LibraryDocumentRecord {
             id,
@@ -245,8 +262,8 @@ impl LibraryStore {
             file_name,
             stored_name,
             author: identity.author,
-            format: detected.format.to_string(),
-            document_type: detected.document_type.to_string(),
+            format: stored_format.to_string(),
+            document_type: stored_document_type.to_string(),
             size: content.len(),
             cover_color: cover_color_for(&stored_path),
             progress: 0.0,
@@ -258,7 +275,7 @@ impl LibraryStore {
         let mut catalog = self.load_catalog().await?;
         catalog.documents.insert(0, record.clone());
         self.save_catalog(&catalog).await?;
-        self.reindex_locked(&record.id, &record.file_name, content)?;
+        self.reindex_locked(&record.id, &content_name, &stored_content)?;
         Ok(record)
     }
 
@@ -677,6 +694,7 @@ pub fn content_type_for(format: &str) -> &'static str {
         "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "odt" => "application/vnd.oasis.opendocument.text",
         "rtf" => "application/rtf",
+        "chm" => "application/vnd.ms-htmlhelp",
         "cbt" => "application/x-tar",
         "cb7" => "application/x-7z-compressed",
         _ => "application/octet-stream",
