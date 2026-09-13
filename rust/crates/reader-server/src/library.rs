@@ -89,6 +89,13 @@ pub struct AnnotationRecord {
     pub created_at_ms: u64,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AnnotationTombstone {
+    pub id: String,
+    #[serde(default, alias = "deletedAtMs")]
+    pub deleted_at_ms: u64,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ConversationTurn {
     pub kind: String,
@@ -203,6 +210,9 @@ impl LibraryStore {
         file_name: String,
         content: &[u8],
     ) -> Result<LibraryDocumentRecord, LibraryError> {
+        if file_name == sources::METADATA_SYNC_FILE {
+            return Err(LibraryError::Unsupported);
+        }
         if file_name.is_empty() || file_name.len() > 255 || file_name.contains(['/', '\\']) {
             return Err(LibraryError::InvalidName);
         }
@@ -394,6 +404,10 @@ impl LibraryStore {
         if let Ok(conn) = sqlite::open(&self.root) {
             let _ = conn.execute("DELETE FROM document_fts WHERE document_id = ?1", [id]);
             let _ = conn.execute("DELETE FROM annotations WHERE document_id = ?1", [id]);
+            let _ = conn.execute(
+                "DELETE FROM annotation_tombstones WHERE document_id = ?1",
+                [id],
+            );
             let _ = sqlite::delete_conversation(&conn, id);
             let known: HashSet<String> = catalog.documents.iter().map(|d| d.id.clone()).collect();
             if let Ok(Some(raw)) = sqlite::get_setting(&conn, "shelves")
@@ -450,7 +464,7 @@ impl LibraryStore {
         let conn = sqlite::open(&self.root)?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, note, quote, locator_label, source, created_at_ms FROM annotations WHERE document_id = ?1 ORDER BY created_at_ms",
+                "SELECT id, note, quote, locator_label, source, created_at_ms FROM annotations WHERE document_id = ?1 ORDER BY created_at_ms, id",
             )
             .map_err(|_| LibraryError::Io)?;
         let rows = stmt
@@ -486,9 +500,29 @@ impl LibraryStore {
         let _ = self.get(id).await?;
         let _guard = self.lock.lock().await;
         let conn = sqlite::open(&self.root)?;
+        let existing = load_annotation_ids(&conn, id)?;
+        let next: HashSet<&str> = annotations
+            .notes
+            .iter()
+            .map(|note| note.id.as_str())
+            .collect();
+        let deleted_at_ms = unix_ms();
+        for existing_id in existing.iter().filter(|item| !next.contains(item.as_str())) {
+            conn.execute(
+                "INSERT INTO annotation_tombstones (document_id, id, deleted_at_ms) VALUES (?1, ?2, ?3) \
+                 ON CONFLICT(document_id, id) DO UPDATE SET deleted_at_ms = MAX(deleted_at_ms, excluded.deleted_at_ms)",
+                rusqlite::params![id, existing_id, deleted_at_ms as i64],
+            )
+            .map_err(|_| LibraryError::Io)?;
+        }
         conn.execute("DELETE FROM annotations WHERE document_id = ?1", [id])
             .map_err(|_| LibraryError::Io)?;
         for note in &annotations.notes {
+            conn.execute(
+                "DELETE FROM annotation_tombstones WHERE document_id = ?1 AND id = ?2",
+                rusqlite::params![id, note.id],
+            )
+            .map_err(|_| LibraryError::Io)?;
             conn.execute(
                 "INSERT INTO annotations (document_id, id, note, quote, locator_label, source, created_at_ms) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 rusqlite::params![
@@ -504,6 +538,100 @@ impl LibraryStore {
             .map_err(|_| LibraryError::Io)?;
         }
         Ok(annotations)
+    }
+
+    pub async fn load_annotation_tombstones(
+        &self,
+        id: &str,
+    ) -> Result<Vec<AnnotationTombstone>, LibraryError> {
+        if !valid_id(id) {
+            return Err(LibraryError::InvalidName);
+        }
+        let _ = self.get(id).await?;
+        let _guard = self.lock.lock().await;
+        let conn = sqlite::open(&self.root)?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, deleted_at_ms FROM annotation_tombstones WHERE document_id = ?1 ORDER BY deleted_at_ms, id",
+            )
+            .map_err(|_| LibraryError::Io)?;
+        let rows = stmt
+            .query_map([id], |row| {
+                Ok(AnnotationTombstone {
+                    id: row.get(0)?,
+                    deleted_at_ms: row.get(1)?,
+                })
+            })
+            .map_err(|_| LibraryError::Io)?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|_| LibraryError::Io)
+    }
+
+    pub async fn replace_synced_annotations(
+        &self,
+        id: &str,
+        mut annotations: Annotations,
+        tombstones: Vec<AnnotationTombstone>,
+    ) -> Result<(), LibraryError> {
+        if !valid_id(id) {
+            return Err(LibraryError::InvalidName);
+        }
+        if annotations.notes.len() > 100 {
+            annotations.notes.drain(0..annotations.notes.len() - 100);
+        }
+        let _ = self.get(id).await?;
+        let _guard = self.lock.lock().await;
+        let mut conn = sqlite::open(&self.root)?;
+        let tx = conn.transaction().map_err(|_| LibraryError::Io)?;
+        tx.execute("DELETE FROM annotations WHERE document_id = ?1", [id])
+            .map_err(|_| LibraryError::Io)?;
+        tx.execute(
+            "DELETE FROM annotation_tombstones WHERE document_id = ?1",
+            [id],
+        )
+        .map_err(|_| LibraryError::Io)?;
+        for note in &annotations.notes {
+            tx.execute(
+                "INSERT INTO annotations (document_id, id, note, quote, locator_label, source, created_at_ms) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                rusqlite::params![
+                    id,
+                    note.id,
+                    note.note,
+                    note.quote,
+                    note.locator_label,
+                    note.source,
+                    note.created_at_ms as i64
+                ],
+            )
+            .map_err(|_| LibraryError::Io)?;
+        }
+        for tombstone in tombstones {
+            tx.execute(
+                "INSERT INTO annotation_tombstones (document_id, id, deleted_at_ms) VALUES (?1, ?2, ?3)",
+                rusqlite::params![id, tombstone.id, tombstone.deleted_at_ms as i64],
+            )
+            .map_err(|_| LibraryError::Io)?;
+        }
+        tx.commit().map_err(|_| LibraryError::Io)
+    }
+
+    pub async fn apply_synced_reading_state(
+        &self,
+        id: &str,
+        progress: f64,
+        last_opened_ms: u64,
+    ) -> Result<(), LibraryError> {
+        if !valid_id(id) {
+            return Err(LibraryError::InvalidName);
+        }
+        let _guard = self.lock.lock().await;
+        let mut catalog = self.load_catalog().await?;
+        let Some(document) = catalog.documents.iter_mut().find(|item| item.id == id) else {
+            return Err(LibraryError::NotFound);
+        };
+        document.progress = progress.clamp(0.0, 1.0);
+        document.last_opened_ms = last_opened_ms;
+        self.save_catalog(&catalog).await
     }
 
     pub async fn load_shelves(&self) -> Result<Shelves, LibraryError> {
@@ -841,6 +969,20 @@ pub fn content_hash(bytes: &[u8]) -> String {
         .collect()
 }
 
+fn load_annotation_ids(
+    conn: &rusqlite::Connection,
+    document_id: &str,
+) -> Result<HashSet<String>, LibraryError> {
+    let mut stmt = conn
+        .prepare("SELECT id FROM annotations WHERE document_id = ?1")
+        .map_err(|_| LibraryError::Io)?;
+    let rows = stmt
+        .query_map([document_id], |row| row.get::<_, String>(0))
+        .map_err(|_| LibraryError::Io)?;
+    rows.collect::<Result<HashSet<_>, _>>()
+        .map_err(|_| LibraryError::Io)
+}
+
 fn unix_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -861,6 +1003,16 @@ mod tests {
     #[test]
     fn titles_drop_the_extension() {
         assert_eq!(title_from_file_name("Design.epub"), "Design");
+    }
+
+    #[tokio::test]
+    async fn ingest_rejects_the_reserved_metadata_sidecar_name() {
+        let store = LibraryStore::new(unique_temp("reserved-metadata"));
+        let error = store
+            .ingest(sources::METADATA_SYNC_FILE.to_string(), b"{}")
+            .await
+            .unwrap_err();
+        assert!(matches!(error, LibraryError::Unsupported));
     }
 
     #[tokio::test]

@@ -9,12 +9,12 @@
 - 保存后再次打开该书能读到这条笔记。
 - 笔记不是对话的别名：删笔记不影响问答记录，反之亦然。
 - 损坏的笔记文件/行是错误，不是空列表。
-- 无账号、不同步。
+- 无账号；多设备间通过独立的 Reader Metadata Sync 合并，不随书籍文件互相覆盖。
 
 ## Assumptions
 
 1. 笔记的 quote 画进当前章节正文（高亮），不是墨迹层。测试 fallback 画在文本上；真机 Foliate host 按 quote 字符串标在章 HTML 里。
-2. 服务端进 SQLite `annotations` 表；本机无服务时优先进 Flutter SQLite，否则 SharedPreferences，前缀 `universal_reader.annotations.v1.`。
+2. 服务端进 SQLite `annotations` 表；删除写入 `annotation_tombstones`，供 Reader Metadata Sync 合并；本机无服务时优先进 Flutter SQLite，否则 SharedPreferences，前缀 `universal_reader.annotations.v1.`。
 3. `source` 为 `user`、`assistant` 或 `bookmark`。用户划线是 `user`；书签是 `bookmark`，走独立 API，存同一张表。
 4. 空选区不写笔记。
 5. 删笔记不影响问答记录。找不到的 locator 不跳转。点笔记时用该条 quote 滚到原文；空 quote 只跳 locator。找不到该句停在章首。
@@ -31,5 +31,5 @@ cargo test --workspace
 ## Boundaries
 
 - Always: 按 `documentId` 隔离。
-- Ask first: 导出、跨设备同步笔记、`overlayer.js`。
+- Ask first: `overlayer.js`。
 - Never: Agent 自己写笔记。

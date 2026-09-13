@@ -14,7 +14,9 @@ use crate::{
 };
 
 const MAX_FILE_BYTES: usize = 64 * 1024 * 1024;
+const MAX_METADATA_BYTES: usize = 16 * 1024 * 1024;
 const MAX_DEPTH: u8 = 3;
+pub const METADATA_SYNC_FILE: &str = "universal-reader-sync.json";
 
 #[derive(Clone)]
 pub struct SourcesConfig {
@@ -100,6 +102,30 @@ pub async fn write_folder_file(
     file.write_all(bytes).await.map_err(|_| LibraryError::Io)
 }
 
+pub async fn read_folder_metadata(root: &Path) -> Result<Option<Vec<u8>>, LibraryError> {
+    if !root.is_absolute() || path_has_escape(root) {
+        return Err(LibraryError::InvalidName);
+    }
+    match tokio::fs::read(root.join(METADATA_SYNC_FILE)).await {
+        Ok(bytes) if bytes.len() <= MAX_METADATA_BYTES => Ok(Some(bytes)),
+        Ok(_) => Err(LibraryError::Io),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(_) => Err(LibraryError::Io),
+    }
+}
+
+pub async fn write_folder_metadata(root: &Path, bytes: &[u8]) -> Result<(), LibraryError> {
+    if !root.is_absolute() || path_has_escape(root) || bytes.len() > MAX_METADATA_BYTES {
+        return Err(LibraryError::InvalidName);
+    }
+    tokio::fs::create_dir_all(root)
+        .await
+        .map_err(|_| LibraryError::Io)?;
+    tokio::fs::write(root.join(METADATA_SYNC_FILE), bytes)
+        .await
+        .map_err(|_| LibraryError::Io)
+}
+
 fn path_has_escape(path: &Path) -> bool {
     path.components()
         .any(|component| matches!(component, std::path::Component::ParentDir))
@@ -119,6 +145,9 @@ fn walk(path: &Path, depth: u8, out: &mut Vec<(String, Vec<u8>)>) -> Result<(), 
         let Some(name) = next.file_name().and_then(|value| value.to_str()) else {
             continue;
         };
+        if name == METADATA_SYNC_FILE {
+            continue;
+        }
         let Ok(bytes) = std::fs::read(&next) else {
             continue;
         };
@@ -182,6 +211,9 @@ pub async fn list_webdav_files(
             .find(|part| !part.is_empty())
             .unwrap_or(&href)
             .to_string();
+        if name == METADATA_SYNC_FILE {
+            continue;
+        }
         let url = resolve_webdav_href(base_url, &href);
         let Ok(file) = config
             .http
@@ -300,7 +332,7 @@ pub async fn list_webdav_names(
                 .find(|part| !part.is_empty())
                 .map(str::to_string)
         })
-        .filter(|name| detect_format(name).is_some())
+        .filter(|name| name != METADATA_SYNC_FILE && detect_format(name).is_some())
         .collect())
 }
 
@@ -341,6 +373,74 @@ pub async fn put_webdav_file(
         return Err(LibraryError::Io);
     }
     Ok(())
+}
+
+pub async fn read_webdav_metadata(
+    config: &SourcesConfig,
+    base_url: &str,
+    username: &str,
+    password: &str,
+) -> Result<Option<Vec<u8>>, LibraryError> {
+    if !allowed_source_url(base_url) {
+        return Err(LibraryError::InvalidName);
+    }
+    let url = resolve_webdav_href(base_url, METADATA_SYNC_FILE);
+    if !allowed_source_url(&url) {
+        return Err(LibraryError::InvalidName);
+    }
+    let user = if username.is_empty() {
+        config.webdav_user.as_str()
+    } else {
+        username
+    };
+    let pass = if password.is_empty() {
+        config.webdav_password.as_str()
+    } else {
+        password
+    };
+    let response = config
+        .http
+        .get(url)
+        .basic_auth(user, Some(pass))
+        .send()
+        .await
+        .map_err(|_| LibraryError::Io)?;
+    if response.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(None);
+    }
+    if !response.status().is_success()
+        || response
+            .content_length()
+            .is_some_and(|length| length > MAX_METADATA_BYTES as u64)
+    {
+        return Err(LibraryError::Io);
+    }
+    let bytes = response.bytes().await.map_err(|_| LibraryError::Io)?;
+    if bytes.len() > MAX_METADATA_BYTES {
+        return Err(LibraryError::Io);
+    }
+    Ok(Some(bytes.to_vec()))
+}
+
+pub async fn write_webdav_metadata(
+    config: &SourcesConfig,
+    base_url: &str,
+    username: &str,
+    password: &str,
+    bytes: &[u8],
+) -> Result<(), LibraryError> {
+    if bytes.len() > MAX_METADATA_BYTES {
+        return Err(LibraryError::InvalidName);
+    }
+    put_webdav_file(
+        config,
+        base_url,
+        username,
+        password,
+        METADATA_SYNC_FILE,
+        bytes,
+    )
+    .await
 }
 
 pub struct FolderWatch {
@@ -423,6 +523,7 @@ mod tests {
         ));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("notes.txt"), b"from folder").unwrap();
+        std::fs::write(dir.join(METADATA_SYNC_FILE), b"{}").unwrap();
         std::fs::write(dir.join("skip.bin"), [0, 1, 2, 3]).unwrap();
         let files = scan_folder(&dir).expect("scan folder");
         assert_eq!(files.len(), 1);

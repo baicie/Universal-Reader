@@ -122,6 +122,19 @@ class _LibrarySourcesCardState extends ConsumerState<LibrarySourcesCard> {
                     }),
               child: Text(l10n.syncFolder),
             ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: busy
+                  ? null
+                  : () => _run(() async {
+                      await syncLibraryMetadataFolder(
+                        ref.read(libraryRepositoryProvider),
+                        folder.text.trim(),
+                      );
+                      await ref.read(libraryProvider).load();
+                    }),
+              child: Text(l10n.syncFolderReadingState),
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: webdavUrl,
@@ -171,6 +184,21 @@ class _LibrarySourcesCardState extends ConsumerState<LibrarySourcesCard> {
                       );
                     }),
               child: Text(l10n.syncWebdav),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: busy
+                  ? null
+                  : () => _run(() async {
+                      await syncLibraryMetadataWebDav(
+                        ref.read(libraryRepositoryProvider),
+                        baseUrl: webdavUrl.text,
+                        username: webdavUser.text,
+                        password: webdavPassword.text,
+                      );
+                      await ref.read(libraryProvider).load();
+                    }),
+              child: Text(l10n.syncWebdavReadingState),
             ),
             const SizedBox(height: 12),
             ExpansionTile(
@@ -244,6 +272,24 @@ class _LibrarySourcesCardState extends ConsumerState<LibrarySourcesCard> {
                           );
                         }),
                   child: Text(l10n.syncS3),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: busy
+                      ? null
+                      : () => _run(() async {
+                          await syncLibraryMetadataS3(
+                            ref.read(libraryRepositoryProvider),
+                            endpoint: s3Endpoint.text,
+                            region: s3Region.text,
+                            bucket: s3Bucket.text,
+                            prefix: s3Prefix.text,
+                            accessKey: s3AccessKey.text,
+                            secretKey: s3SecretKey.text,
+                          );
+                          await ref.read(libraryProvider).load();
+                        }),
+                  child: Text(l10n.syncS3ReadingState),
                 ),
               ],
             ),

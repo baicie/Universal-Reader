@@ -259,10 +259,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get syncWebdav => '双向同步 WebDAV';
 
   @override
+  String get syncWebdavReadingState => '同步 WebDAV 阅读状态';
+
+  @override
   String get watchFolder => '监视文件夹';
 
   @override
   String get syncFolder => '文件夹双向同步';
+
+  @override
+  String get syncFolderReadingState => '同步文件夹阅读状态';
 
   @override
   String get s3CompatibleStorage => 'S3 兼容存储';
@@ -290,6 +296,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get syncS3 => '双向同步 S3';
+
+  @override
+  String get syncS3ReadingState => '同步 S3 阅读状态';
 
   @override
   String get librarySources => '书库来源';

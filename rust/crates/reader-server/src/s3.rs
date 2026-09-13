@@ -4,6 +4,7 @@ use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
 
 use crate::library::LibraryError;
+use crate::sources::METADATA_SYNC_FILE;
 
 const MAX_OBJECT_BYTES: usize = 64 * 1024 * 1024;
 const MAX_LIST_PAGES: usize = 10_000;
@@ -68,6 +69,9 @@ pub async fn list_files(config: &S3Config) -> Result<Vec<(String, Vec<u8>)>, Lib
         let Some(name) = key.rsplit('/').next().filter(|name| !name.is_empty()) else {
             continue;
         };
+        if name == METADATA_SYNC_FILE {
+            continue;
+        }
         if let Ok(bytes) = get_object(config, &key).await {
             files.push((name.to_string(), bytes));
         }
@@ -80,7 +84,7 @@ pub async fn list_names(config: &S3Config) -> Result<Vec<String>, LibraryError> 
         .await?
         .into_iter()
         .filter_map(|key| key.rsplit('/').next().map(str::to_string))
-        .filter(|name| !name.is_empty())
+        .filter(|name| !name.is_empty() && name != METADATA_SYNC_FILE)
         .collect())
 }
 
@@ -91,6 +95,36 @@ pub async fn put_file(
 ) -> Result<(), LibraryError> {
     let key = format!("{}{}", config.prefix, file_name);
     put_object(config, &key, bytes).await
+}
+
+pub async fn get_file(config: &S3Config, file_name: &str) -> Result<Option<Vec<u8>>, LibraryError> {
+    if file_name.is_empty()
+        || file_name.contains(['/', '\\'])
+        || file_name == "."
+        || file_name == ".."
+    {
+        return Err(LibraryError::InvalidName);
+    }
+    let key = format!("{}{}", config.prefix, file_name);
+    let response = signed_request(config, Method::GET, Some(&key), &[], &[])?
+        .send()
+        .await
+        .map_err(|_| LibraryError::Io)?;
+    if response.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(None);
+    }
+    if !response.status().is_success()
+        || response
+            .content_length()
+            .is_some_and(|length| length > MAX_OBJECT_BYTES as u64)
+    {
+        return Err(LibraryError::Io);
+    }
+    let bytes = response.bytes().await.map_err(|_| LibraryError::Io)?;
+    if bytes.len() > MAX_OBJECT_BYTES {
+        return Err(LibraryError::Io);
+    }
+    Ok(Some(bytes.to_vec()))
 }
 
 async fn list_keys(config: &S3Config) -> Result<Vec<String>, LibraryError> {

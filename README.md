@@ -32,6 +32,7 @@ Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK
 - Library 搜索、格式筛选、排序、网格/列表视图和阅读进度；可改书架书名和作者；FB2 封面跟 title-info coverpage
 - 本机 Rust 服务支持文件夹扫描、监视和双向同步；同名但内容不同的文件保持不覆盖
 - Rust 服务支持 S3 兼容存储导入与双向同步，使用 AWS Signature V4、路径前缀隔离和 ListObjectsV2 分页
+- 阅读进度与笔记可通过文件夹、WebDAV 或 S3 的独立 Reader Metadata Sync 合并；进度取最近打开，笔记按稳定 ID 合并，删除记录不会下次同步又出现
 - Reader Runtime、文档适配器与定位器契约
 - EPUB、PDF、MOBI、AZW3、FB2、TXT、Markdown、HTML、DOCX、ODT、RTF、DjVu、CHM、CBT、CB7、CBZ、CBR 内容优先格式检测，扩展名兜底
 - 本地文件导入
@@ -68,7 +69,7 @@ Rust 只转发请求并保存问答，不复制 Flutter 侧的 prompt / groundin
 
 ## Rust 后端服务
 
-`rust/crates/reader-server` 是随应用发布的本地 Rust HTTP 服务基座。它默认只监听 `127.0.0.1:8787`，不暴露公网接口，当前提供健康检查、文档格式检测、本机书库网盘（含 FTS、扫描、监视、双向 WebDAV、哈希去重和封面），以及可选的 Flutter Web 静态资源托管。Flutter 在服务可达时通过 HTTP 读写该书库；服务不可达时桌面端用本机 SQLite 保存书和文件。
+`rust/crates/reader-server` 是随应用发布的本地 Rust HTTP 服务基座。它默认只监听 `127.0.0.1:8787`，不暴露公网接口，当前提供健康检查、文档格式检测、本机书库网盘（含 FTS、扫描、监视、双向 WebDAV/S3、Reader Metadata Sync、哈希去重和封面），以及可选的 Flutter Web 静态资源托管。Flutter 在服务可达时通过 HTTP 读写该书库；服务不可达时桌面端用本机 SQLite 保存书和文件。
 
 ```powershell
 cd rust

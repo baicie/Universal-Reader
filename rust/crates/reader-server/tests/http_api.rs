@@ -839,6 +839,63 @@ async fn folder_sync_imports_and_pushes_without_overwriting_conflicts() {
 }
 
 #[tokio::test]
+async fn metadata_folder_sync_merges_progress_annotations_and_deletions() {
+    let storage_a = unique_temp_dir("metadata-sync-a");
+    let storage_b = unique_temp_dir("metadata-sync-b");
+    let folder = unique_temp_dir("metadata-sync-folder");
+    fs::create_dir_all(&folder).unwrap();
+    let folder = fs::canonicalize(&folder).unwrap();
+    let app_a = app_with_storage_dir(storage_a.clone());
+    let app_b = app_with_storage_dir(storage_b.clone());
+    let bytes = b"shared sync book";
+
+    let id_a = upload_document(&app_a, "shared.txt", bytes).await;
+    put_annotation(&app_a, &id_a, "a", 10).await;
+    patch_progress(&app_a, &id_a, 0.35).await;
+    let first = sync_metadata_folder(&app_a, &folder).await;
+    assert_eq!(first["remote_found"], false);
+    assert!(folder.join("universal-reader-sync.json").is_file());
+
+    let id_b = upload_document(&app_b, "shared.txt", bytes).await;
+    put_annotation(&app_b, &id_b, "b", 20).await;
+    tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    patch_progress(&app_b, &id_b, 0.65).await;
+
+    let from_b = sync_metadata_folder(&app_b, &folder).await;
+    assert_eq!(from_b["remote_found"], true);
+    assert_eq!(from_b["annotations_updated"], 1);
+    let notes_b = load_annotations(&app_b, &id_b).await;
+    assert_eq!(
+        notes_b
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|note| note["id"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        vec!["a", "b"]
+    );
+    assert_eq!(load_progress(&app_b, &id_b).await, 0.65);
+
+    let from_a = sync_metadata_folder(&app_a, &folder).await;
+    assert_eq!(from_a["remote_found"], true);
+    assert_eq!(from_a["annotations_updated"], 1);
+    assert_eq!(load_progress(&app_a, &id_a).await, 0.65);
+    let notes_a = load_annotations(&app_a, &id_a).await;
+    assert_eq!(notes_a.as_array().unwrap().len(), 2);
+
+    put_annotation_ids(&app_a, &id_a, &[("b", 20)]).await;
+    sync_metadata_folder(&app_a, &folder).await;
+    sync_metadata_folder(&app_b, &folder).await;
+    let after_delete = load_annotations(&app_b, &id_b).await;
+    assert_eq!(after_delete.as_array().unwrap().len(), 1);
+    assert_eq!(after_delete[0]["id"], "b");
+
+    fs::remove_dir_all(storage_a).unwrap();
+    fs::remove_dir_all(storage_b).unwrap();
+    fs::remove_dir_all(folder).unwrap();
+}
+
+#[tokio::test]
 async fn webdav_import_rejects_an_unconfigured_or_non_http_url() {
     let storage_dir = unique_temp_dir("webdav-reject");
     let response = app_with_storage_dir(storage_dir.clone())
@@ -983,6 +1040,134 @@ fn multipart_body(file_name: &str, content: &[u8]) -> Vec<u8> {
     .chain(content.iter().copied())
     .chain(b"\r\n--test-boundary--\r\n".iter().copied())
     .collect()
+}
+
+async fn upload_document(app: &Router, file_name: &str, bytes: &[u8]) -> String {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/library/files")
+                .header(
+                    "content-type",
+                    "multipart/form-data; boundary=test-boundary",
+                )
+                .body(Body::from(multipart_body(file_name, bytes)))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    json["id"].as_str().unwrap().to_string()
+}
+
+async fn put_annotation(app: &Router, id: &str, note_id: &str, created_at_ms: u64) {
+    put_annotation_ids(app, id, &[(note_id, created_at_ms)]).await;
+}
+
+async fn put_annotation_ids(app: &Router, id: &str, notes: &[(&str, u64)]) {
+    let notes: Vec<serde_json::Value> = notes
+        .iter()
+        .map(|(note_id, created_at_ms)| {
+            serde_json::json!({
+                "id": note_id,
+                "note": format!("note-{note_id}"),
+                "quote": String::new(),
+                "locator_label": String::new(),
+                "source": "user",
+                "created_at_ms": created_at_ms
+            })
+        })
+        .collect();
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/v1/library/documents/{id}/annotations"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "notes": notes }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+async fn patch_progress(app: &Router, id: &str, progress: f64) {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/v1/library/documents/{id}"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "progress": progress }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+async fn load_progress(app: &Router, id: &str) -> f64 {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/v1/library/documents/{id}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    json["progress"].as_f64().unwrap()
+}
+
+async fn load_annotations(app: &Router, id: &str) -> serde_json::Value {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/v1/library/documents/{id}/annotations"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    serde_json::from_slice::<serde_json::Value>(&body).unwrap()["notes"].clone()
+}
+
+async fn sync_metadata_folder(app: &Router, folder: &std::path::Path) -> serde_json::Value {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/library/metadata/folder/sync")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "path": folder }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    serde_json::from_slice(&body).unwrap()
 }
 
 fn unique_temp_dir(label: &str) -> std::path::PathBuf {

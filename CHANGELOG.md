@@ -94,6 +94,7 @@
 - Added service-backed DjVu reading. The Rust service detects the DjVu signature, renders pages with the pure-Rust djvu-rs decoder, converts them to a CBZ archive, and lets the existing Flutter comic reader open the result.
 - Started v0.4 local source sync: the Rust service now imports missing folder files and pushes missing library files back without overwriting same-name conflicts, with a matching Sources card action.
 - Added S3-compatible storage import and two-way sync with AWS Signature V4, paginated ListObjectsV2, object download/upload, and prefix isolation.
+- Completed v0.4 Reader Metadata Sync. Reading progress and annotations now use a versioned `universal-reader-sync.json` sidecar over local folders, WebDAV, or S3-compatible storage. Progress follows the latest open time; annotations merge by stable ID; deletion tombstones prevent deleted notes from returning on the next merge.
 
 ## 0.0.1-dev.11 - 2026-08-29
 

@@ -97,6 +97,88 @@ void main() {
     expect(result.imported, 0);
   });
 
+  test(
+    'folder metadata sync posts the folder and parses merge counts',
+    () async {
+      final client = MockClient((request) async {
+        expect(request.url.path, '/v1/library/metadata/folder/sync');
+        expect(request.body, contains('"path":"D:/books"'));
+        return http.Response(
+          '{"remote_found":true,"documents":3,"progress_updated":2,'
+          '"annotations_updated":1,"unmatched_remote":4}',
+          200,
+        );
+      });
+
+      final result = await syncLibraryMetadataFolder(
+        HttpLibraryRepository(
+          baseUrl: 'http://127.0.0.1:8787',
+          httpClient: client,
+        ),
+        'D:/books',
+      );
+
+      expect(result.remoteFound, isTrue);
+      expect(result.documents, 3);
+      expect(result.progressUpdated, 2);
+      expect(result.annotationsUpdated, 1);
+      expect(result.unmatchedRemote, 4);
+    },
+  );
+
+  test('webdav metadata sync keeps an unset URL server-side', () async {
+    final client = MockClient((request) async {
+      expect(request.url.path, '/v1/library/metadata/webdav/sync');
+      expect(request.body, isNot(contains('base_url')));
+      return http.Response(
+        '{"remote_found":false,"documents":1,"progress_updated":0,'
+        '"annotations_updated":0,"unmatched_remote":0}',
+        200,
+      );
+    });
+
+    final result = await syncLibraryMetadataWebDav(
+      HttpLibraryRepository(
+        baseUrl: 'http://127.0.0.1:8787',
+        httpClient: client,
+      ),
+      baseUrl: ' ',
+    );
+
+    expect(result.remoteFound, isFalse);
+    expect(result.documents, 1);
+  });
+
+  test('S3 metadata sync posts credentials only to the local server', () async {
+    final client = MockClient((request) async {
+      expect(request.url.path, '/v1/library/metadata/s3/sync');
+      expect(request.body, contains('"bucket":"books"'));
+      expect(request.body, contains('"access_key":"key"'));
+      expect(request.body, isNot(contains('s3.example.test')));
+      return http.Response(
+        '{"remote_found":true,"documents":1,"progress_updated":1,'
+        '"annotations_updated":1,"unmatched_remote":0}',
+        200,
+      );
+    });
+
+    final result = await syncLibraryMetadataS3(
+      HttpLibraryRepository(
+        baseUrl: 'http://127.0.0.1:8787',
+        httpClient: client,
+      ),
+      endpoint: ' ',
+      region: 'us-east-1',
+      bucket: 'books',
+      prefix: 'library',
+      accessKey: 'key',
+      secretKey: 'secret',
+    );
+
+    expect(result.remoteFound, isTrue);
+    expect(result.annotationsUpdated, 1);
+  });
+
   test('scan throws when the server returns a non-200 status', () async {
     final client = MockClient((request) async {
       return http.Response('server error', 500);

@@ -22,13 +22,16 @@
 - Added service-backed DjVu-to-CBZ conversion through the Rust service.
 - Mobile CHM/DjVu in-process decoding remains in the v1.0 platform hardening scope.
 
-## v0.4 started: local folder sync
+## v0.4 complete: source and Reader Metadata sync
 
 - Added folder import plus push-back for files missing on either side.
 - Same-name files with different content are never overwritten.
 - WebDAV push now uses the stored portable extension for converted CHM/DjVu books.
 - Added S3-compatible import and two-way sync with SigV4, pagination, and prefix isolation.
-- Remaining v0.4 scope: annotation sync and reading-progress sync.
+- Added separate Reader Metadata Sync over local folders, WebDAV, and S3-compatible storage.
+- Reading progress follows the latest `last_opened_ms`; annotations merge by stable ID; deletion tombstones prevent deleted notes from returning.
+- Remote metadata for a book that is not local yet is preserved and attached after that book is imported.
+- Planned v0.4 close date: 2026-10-07. Implementation completed before the target.
 
 ## PDF 测试覆盖提升（最新完成）
 

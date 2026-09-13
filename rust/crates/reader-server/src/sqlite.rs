@@ -32,6 +32,12 @@ CREATE TABLE IF NOT EXISTS annotations (
   created_at_ms INTEGER NOT NULL,
   PRIMARY KEY (document_id, id)
 );
+CREATE TABLE IF NOT EXISTS annotation_tombstones (
+  document_id TEXT NOT NULL,
+  id TEXT NOT NULL,
+  deleted_at_ms INTEGER NOT NULL,
+  PRIMARY KEY (document_id, id)
+);
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL

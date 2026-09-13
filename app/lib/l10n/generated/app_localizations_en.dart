@@ -263,10 +263,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get syncWebdav => 'Sync WebDAV both ways';
 
   @override
+  String get syncWebdavReadingState => 'Sync reading data with WebDAV';
+
+  @override
   String get watchFolder => 'Watch folder';
 
   @override
   String get syncFolder => 'Sync folder both ways';
+
+  @override
+  String get syncFolderReadingState => 'Sync reading data with folder';
 
   @override
   String get s3CompatibleStorage => 'S3-compatible storage';
@@ -294,6 +300,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get syncS3 => 'Sync S3 both ways';
+
+  @override
+  String get syncS3ReadingState => 'Sync reading data with S3';
 
   @override
   String get librarySources => 'Library sources';

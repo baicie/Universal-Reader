@@ -109,8 +109,10 @@ void main() {
     expect(find.text('Scan folder'), findsAtLeastNWidgets(1));
     expect(find.text('Watch folder'), findsOneWidget);
     expect(find.text('Sync folder both ways'), findsOneWidget);
+    expect(find.text('Sync reading data with folder'), findsOneWidget);
     expect(find.text('Import from WebDAV'), findsOneWidget);
     expect(find.text('Sync WebDAV both ways'), findsOneWidget);
+    expect(find.text('Sync reading data with WebDAV'), findsOneWidget);
     expect(find.text('S3-compatible storage'), findsOneWidget);
     expect(find.byType(TextField), findsNWidgets(4));
   });
@@ -227,6 +229,34 @@ void main() {
     expect(spying.requestedPaths, contains('/v1/library/folder/sync'));
   });
 
+  testWidgets(
+    'tapping folder reading sync calls /v1/library/metadata/folder/sync',
+    (tester) async {
+      final spying = _SpyingClient(
+        Uri.parse('http://fake/v1/library/metadata/folder/sync'),
+        http.Response(
+          '{"remote_found":true,"documents":1,"progress_updated":1,'
+          '"annotations_updated":0,"unmatched_remote":0}',
+          200,
+        ),
+      );
+      final repo = _FakeHttpRepositoryWithClient(spying);
+      await tester.pumpWidget(_wrap(LibrarySourcesCard(), repository: repo));
+      await tester.pumpAndSettle();
+      final syncButton = find.widgetWithText(
+        OutlinedButton,
+        'Sync reading data with folder',
+      );
+      await tester.ensureVisible(syncButton);
+      await tester.tap(syncButton);
+      await tester.pumpAndSettle();
+      expect(
+        spying.requestedPaths,
+        contains('/v1/library/metadata/folder/sync'),
+      );
+    },
+  );
+
   testWidgets('S3 section expands and syncs through /v1/library/s3/sync', (
     tester,
   ) async {
@@ -250,6 +280,35 @@ void main() {
     await tester.tap(syncButton);
     await tester.pumpAndSettle();
     expect(spying.requestedPaths, contains('/v1/library/s3/sync'));
+  });
+
+  testWidgets('S3 reading sync calls /v1/library/metadata/s3/sync', (
+    tester,
+  ) async {
+    final spying = _SpyingClient(
+      Uri.parse('http://fake/v1/library/metadata/s3/sync'),
+      http.Response(
+        '{"remote_found":true,"documents":1,"progress_updated":1,'
+        '"annotations_updated":1,"unmatched_remote":0}',
+        200,
+      ),
+    );
+    final repo = _FakeHttpRepositoryWithClient(spying);
+    await tester.pumpWidget(_wrap(LibrarySourcesCard(), repository: repo));
+    await tester.pumpAndSettle();
+    final expansion = find.text('S3-compatible storage');
+    await tester.ensureVisible(expansion);
+    await tester.tap(expansion);
+    await tester.pumpAndSettle();
+
+    final syncButton = find.widgetWithText(
+      OutlinedButton,
+      'Sync reading data with S3',
+    );
+    await tester.ensureVisible(syncButton);
+    await tester.tap(syncButton);
+    await tester.pumpAndSettle();
+    expect(spying.requestedPaths, contains('/v1/library/metadata/s3/sync'));
   });
 
   testWidgets('tapping WebDAV import triggers /v1/library/webdav/import', (

@@ -26,6 +26,7 @@ mod chm;
 mod djvu;
 mod extract;
 mod library;
+mod metadata_sync;
 mod s3;
 mod sources;
 mod sqlite;
@@ -466,10 +467,19 @@ fn api_router(store: LibraryStore, ai: AiConfig, sources: SourcesConfig) -> Rout
         .route("/v1/library/files", post(upload_file))
         .route("/v1/library/scan", post(scan_folder))
         .route("/v1/library/folder/sync", post(sync_folder))
+        .route(
+            "/v1/library/metadata/folder/sync",
+            post(sync_metadata_folder),
+        )
         .route("/v1/library/webdav/import", post(import_webdav))
         .route("/v1/library/webdav/sync", post(sync_webdav))
+        .route(
+            "/v1/library/metadata/webdav/sync",
+            post(sync_metadata_webdav),
+        )
         .route("/v1/library/s3/import", post(import_s3))
         .route("/v1/library/s3/sync", post(sync_s3))
+        .route("/v1/library/metadata/s3/sync", post(sync_metadata_s3))
         .route("/v1/library/watch", post(watch_folder))
         .layer(CorsLayer::permissive())
         .with_state(AppState {
@@ -778,6 +788,25 @@ async fn sync_folder(
         .into_response()
 }
 
+async fn sync_metadata_folder(
+    State(state): State<AppState>,
+    Json(body): Json<ScanRequest>,
+) -> impl IntoResponse {
+    let Some(path) = sources::scan_root_ok(&body.path) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(ApiError {
+                error: "path is required",
+            }),
+        )
+            .into_response();
+    };
+    match metadata_sync::sync_folder(&state.store, &path).await {
+        Ok(result) => (StatusCode::OK, Json(result)).into_response(),
+        Err(error) => library_error(error).into_response(),
+    }
+}
+
 async fn import_webdav(
     State(state): State<AppState>,
     Json(body): Json<WebDavRequest>,
@@ -872,6 +901,33 @@ async fn sync_webdav(
         .into_response()
 }
 
+async fn sync_metadata_webdav(
+    State(state): State<AppState>,
+    Json(body): Json<WebDavRequest>,
+) -> impl IntoResponse {
+    let Some(base_url) = state.sources.resolve_url(body.base_url.as_deref()) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(ApiError {
+                error: "webdav url is not configured",
+            }),
+        )
+            .into_response();
+    };
+    match metadata_sync::sync_webdav(
+        &state.store,
+        &state.sources,
+        &base_url,
+        body.username.as_deref().unwrap_or(""),
+        body.password.as_deref().unwrap_or(""),
+    )
+    .await
+    {
+        Ok(result) => (StatusCode::OK, Json(result)).into_response(),
+        Err(error) => library_error(error).into_response(),
+    }
+}
+
 async fn import_s3(
     State(state): State<AppState>,
     Json(body): Json<S3Request>,
@@ -941,6 +997,25 @@ async fn sync_s3(State(state): State<AppState>, Json(body): Json<S3Request>) -> 
         }),
     )
         .into_response()
+}
+
+async fn sync_metadata_s3(
+    State(state): State<AppState>,
+    Json(body): Json<S3Request>,
+) -> impl IntoResponse {
+    let Some(config) = s3_config(&state.sources, &body) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(ApiError {
+                error: "s3 is not configured",
+            }),
+        )
+            .into_response();
+    };
+    match metadata_sync::sync_s3(&state.store, &config).await {
+        Ok(result) => (StatusCode::OK, Json(result)).into_response(),
+        Err(error) => library_error(error).into_response(),
+    }
 }
 
 fn s3_config(sources: &SourcesConfig, body: &S3Request) -> Option<s3::S3Config> {

@@ -572,6 +572,12 @@ abstract class AppLocalizations {
   /// **'双向同步 WebDAV'**
   String get syncWebdav;
 
+  /// No description provided for @syncWebdavReadingState.
+  ///
+  /// In zh, this message translates to:
+  /// **'同步 WebDAV 阅读状态'**
+  String get syncWebdavReadingState;
+
   /// No description provided for @watchFolder.
   ///
   /// In zh, this message translates to:
@@ -583,6 +589,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'文件夹双向同步'**
   String get syncFolder;
+
+  /// No description provided for @syncFolderReadingState.
+  ///
+  /// In zh, this message translates to:
+  /// **'同步文件夹阅读状态'**
+  String get syncFolderReadingState;
 
   /// No description provided for @s3CompatibleStorage.
   ///
@@ -637,6 +649,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'双向同步 S3'**
   String get syncS3;
+
+  /// No description provided for @syncS3ReadingState.
+  ///
+  /// In zh, this message translates to:
+  /// **'同步 S3 阅读状态'**
+  String get syncS3ReadingState;
 
   /// No description provided for @librarySources.
   ///

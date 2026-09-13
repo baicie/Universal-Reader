@@ -16,7 +16,7 @@ Rust 服务把书库做成**简单对象存储**（网盘），Flutter 只负责
 1. 这是个人部署的 local-first 服务，第一版不加账号、不加配额、不加分享链接。
 2. 文件在 `files/`；书目和进度在 SQLite `documents`。无 Rust 时 Flutter 自己持有 SQLite。
 3. EPUB / FB2 标题和作者来自文件元数据；没有元数据时用文件名、作者留空。FB2 封面只跟 `title-info` 的 coverpage 图片 href；对不上或没有 coverpage 就用颜色块，不拿章内插图顶上。EPUB 有封面时显示封面，没有就用颜色块。
-4. 哈希去重、封面、监视、双向 WebDAV 见 `docs/library-sync.md`。
+4. 哈希去重、封面、监视、双向 WebDAV/S3 和 Reader Metadata Sync 见 `docs/library-sync.md`。
 
 ## 存储布局
 
@@ -25,7 +25,7 @@ $UNIVERSAL_READER_STORAGE_DIR/     # 默认 data/library
   files/{id}.{ext}                 # 二进制，服务生成稳定 id
   covers/{id}                      # 可选封面
   catalog.json                     # 旧书目；仅在 SQLite 尚未迁移时导入一次
-  library.sqlite                   # documents 书目 + FTS + annotations + settings
+  library.sqlite                   # documents 书目 + FTS + annotations + tombstones + settings
   conversations/{id}.json          # 旧问答；仅在 SQLite 尚无该书记录时导入一次
 ```
 
@@ -50,6 +50,9 @@ $UNIVERSAL_READER_STORAGE_DIR/     # 默认 data/library
 | `GET` | `/v1/library/documents/{id}/search` | 该书 FTS 命中（`q`，带 locator） |
 | `GET` | `/v1/library/documents/{id}/annotations` | 该书笔记 |
 | `PUT` | `/v1/library/documents/{id}/annotations` | 覆盖该书笔记 |
+| `POST` | `/v1/library/metadata/folder/sync` | 同步文件夹中的阅读进度与笔记 |
+| `POST` | `/v1/library/metadata/webdav/sync` | 同步 WebDAV 中的阅读进度与笔记 |
+| `POST` | `/v1/library/metadata/s3/sync` | 同步 S3 兼容存储中的阅读进度与笔记 |
 | `GET` | `/v1/library/shelves` | 收藏与收藏夹；未知 document id 会被剪掉 |
 | `PUT` | `/v1/library/shelves` | 覆盖收藏与收藏夹，保存前按书库 prune |
 | `POST` | `/v1/library/scan` | 扫描本机文件夹并导入 |
