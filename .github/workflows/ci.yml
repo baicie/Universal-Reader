@@ -263,7 +263,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: universal-reader-native-ios
-          path: rust/target/ios
+          path: rust/target/ios/UniversalReaderNative.xcframework
 
       - name: Verify iOS XCFramework
         working-directory: rust
