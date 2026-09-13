@@ -122,6 +122,6 @@ Dart 在查找转换符号前会调用 `ur_native_api_version()`。当前支持�
 
 `app/integration_test/native_format_converter_smoke_test.dart` 会在真实 Android / iOS 运行环境中加载原生库，使用固定 SHA-256 的 `test-books` 样本完成 CHM -> EPUB 和 DjVu -> CBZ 转换，并断言结果可被现有阅读器打开。
 
-CI 的 `Android native smoke` 使用 x86_64 Android 模拟器，`iOS native smoke` 使用 macOS Runner 上的 iOS Simulator。两者都消费原生构建 job 上传的同一份产物，覆盖动态库加载、C ABI 调用和 Dart 阅读器接线。
+独立的 `Native smoke` workflow 每天运行一次，也可手动触发：`Android native smoke` 使用 x86_64 Android 模拟器，`iOS native smoke` 使用 macOS Runner 上的 iOS Simulator。两者覆盖动态库加载、C ABI 调用和 Dart 阅读器接线。主 CI 继续验证原生构建、APK/XCFramework 打包和符号链接，不承担模拟器启动波动。
 
 真机运行和签名包安装使用 `app/tool/physical_smoke.dart` 及手动 `Physical device smoke` workflow，步骤见 `docs/physical-device-smoke.md`。

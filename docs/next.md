@@ -76,6 +76,7 @@
 - Added native-conversion fallback tests; Web and unsupported native loads remain safely unavailable.
 - CI now verifies the downloaded native artifacts, the Android APKs' `.so` entries, and the exported iOS symbols.
 - Added Android emulator and iOS Simulator smoke tests that load the native library and convert the fixed CHM/DjVu corpus.
+- Moved simulator smoke tests to the dedicated nightly/manual `Native smoke` workflow so hosted-runner startup variance does not block every CI run.
 - Added a physical-device smoke harness and self-hosted workflow for connected-device conversion plus optional signed release installation / launch.
 - Physical-device execution still requires attached hardware and platform signing credentials.
 
