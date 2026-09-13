@@ -54,6 +54,7 @@ dependencies:
   pdfrx: ^2.2.16
   charset: ^2.0.1
   url_launcher: ^6.3.1
+  ffi: ^2.1.4
 
 dev_dependencies:
   flutter_test:

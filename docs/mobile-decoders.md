@@ -112,4 +112,6 @@ bash tool/build-mobile-ios.sh
 
 Hardening D 已完成共享核心、C ABI、Android ABI 产物、iOS XCFramework、fixture/损坏输入测试、产物大小报告和许可证审查。
 
-尚未接入 Flutter 运行时绑定：当前 App 仍优先使用本机服务；把 XCFramework / `.so` 链接进 iOS Runner、Android APK 并通过 Dart FFI 调用排在 `Hardening E`。
+Android `.so` 会通过 Gradle `jniLibs` 进入 APK；iOS 由 XCFramework 的 device / simulator 静态库 `-force_load` 进 Runner，并导出 C ABI 符号供 `DynamicLibrary.process()` 查找。Dart 侧使用条件 FFI：移动端加载原生库，Web 和库缺失时安全回退为 `UnavailableReaderDocument`。CI 会检查三套 Android APK 内的 `.so` 和 iOS Runner 内的核心符号。
+
+App 打开 CHM/DjVu 时会先尝试原生转换，再复用现有 `EpubReaderDocument` / `ComicReaderDocument`；同步 `openReaderDocument` 路径仍不会转换。

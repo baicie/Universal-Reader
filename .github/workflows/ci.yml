@@ -166,6 +166,7 @@ jobs:
   flutter-android:
     name: Android build
     runs-on: ubuntu-latest
+    needs: native-android
     defaults:
       run:
         working-directory: app
@@ -189,8 +190,27 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Download Android native libraries
+        uses: actions/download-artifact@v4
+        with:
+          name: universal-reader-native-android
+          path: rust/target/android/jniLibs
+
+      - name: Verify Android native libraries
+        working-directory: rust
+        run: |
+          test -f target/android/jniLibs/arm64-v8a/libuniversal_reader_native.so
+          test -f target/android/jniLibs/armeabi-v7a/libuniversal_reader_native.so
+          test -f target/android/jniLibs/x86_64/libuniversal_reader_native.so
+
       - name: Build Android APKs
         run: flutter build apk --release --split-per-abi
+
+      - name: Verify Android APK packaging
+        run: |
+          unzip -l build/app/outputs/flutter-apk/app-arm64-v8a-release.apk | grep -q 'lib/arm64-v8a/libuniversal_reader_native.so'
+          unzip -l build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk | grep -q 'lib/armeabi-v7a/libuniversal_reader_native.so'
+          unzip -l build/app/outputs/flutter-apk/app-x86_64-release.apk | grep -q 'lib/x86_64/libuniversal_reader_native.so'
 
   flutter-windows:
     name: Windows build
@@ -221,6 +241,7 @@ jobs:
   flutter-ios:
     name: iOS build
     runs-on: macos-14
+    needs: native-ios
     defaults:
       run:
         working-directory: app
@@ -238,5 +259,20 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Download iOS XCFramework
+        uses: actions/download-artifact@v4
+        with:
+          name: universal-reader-native-ios
+          path: rust/target/ios
+
+      - name: Verify iOS XCFramework
+        working-directory: rust
+        run: |
+          test -f target/ios/UniversalReaderNative.xcframework/ios-arm64/libuniversal_reader_native.a
+          test -f target/ios/UniversalReaderNative.xcframework/ios-arm64_x86_64-simulator/libuniversal_reader_native.a
+
       - name: Build iOS without signing
         run: flutter build ios --release --no-codesign
+
+      - name: Verify iOS native symbols
+        run: nm -gU build/ios/iphoneos/Runner.app/Runner | grep -q '_ur_chm_to_epub'

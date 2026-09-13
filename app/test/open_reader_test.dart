@@ -7,6 +7,7 @@ import 'package:app/core/epub_document.dart';
 import 'package:app/core/fb2_document.dart';
 import 'package:app/core/mobi_document.dart';
 import 'package:app/core/models.dart';
+import 'package:app/core/native_format_converter.dart';
 import 'package:app/core/odt_document.dart';
 import 'package:app/core/pdf_document.dart';
 import 'package:app/core/rtf_document.dart';
@@ -49,7 +50,27 @@ List<int> _comicBytes() {
   return ZipEncoder().encode(archive);
 }
 
+class _FakeNativeConverter implements NativeFormatConverter {
+  _FakeNativeConverter({this.chmResult, this.djvuResult});
+
+  final List<int>? chmResult;
+  final List<int>? djvuResult;
+
+  @override
+  Future<List<int>?> chmToEpub({
+    required String fileName,
+    required List<int> bytes,
+  }) async => chmResult;
+
+  @override
+  Future<List<int>?> djvuToCbz({required List<int> bytes}) async => djvuResult;
+}
+
 void main() {
+  tearDown(() {
+    nativeFormatConverterFactory = createNativeFormatConverter;
+  });
+
   group('openReaderDocument with empty bytes', () {
     test('returns UnavailableReaderDocument', () {
       final document = openReaderDocument(
@@ -305,6 +326,52 @@ void main() {
     test('returns UnavailableReaderDocument for an unsupported extension', () {
       final document = openReaderDocument(
         metadata: _metadata(id: 'book.xyz', format: DocumentFormat.unknown),
+        bytes: const [1, 2, 3],
+      );
+      expect(document, isA<UnavailableReaderDocument>());
+    });
+  });
+
+  group('openReaderDocument native mobile conversion', () {
+    test('converts CHM to EPUB before opening', () async {
+      nativeFormatConverterFactory = () =>
+          _FakeNativeConverter(chmResult: minimalEpubBytes());
+
+      final document = await openReaderDocumentAsync(
+        metadata: _metadata(id: 'book.chm', format: DocumentFormat.chm),
+        bytes: const [1, 2, 3],
+      );
+
+      expect(document, isA<EpubReaderDocument>());
+      expect(document.metadata.format, DocumentFormat.epub);
+    });
+
+    test('converts DjVu to CBZ before opening', () async {
+      nativeFormatConverterFactory = () =>
+          _FakeNativeConverter(djvuResult: _comicBytes());
+
+      final document = await openReaderDocumentAsync(
+        metadata: _metadata(id: 'book.djvu', format: DocumentFormat.djvu),
+        bytes: const [1, 2, 3],
+      );
+
+      expect(document, isA<ComicReaderDocument>());
+      expect(document.metadata.format, DocumentFormat.cbz);
+    });
+
+    test('stays unavailable when the native converter is absent', () async {
+      nativeFormatConverterFactory = () => null;
+      final document = await openReaderDocumentAsync(
+        metadata: _metadata(id: 'book.chm', format: DocumentFormat.chm),
+        bytes: const [1, 2, 3],
+      );
+      expect(document, isA<UnavailableReaderDocument>());
+    });
+
+    test('stays unavailable when native conversion returns no bytes', () async {
+      nativeFormatConverterFactory = () => _FakeNativeConverter();
+      final document = await openReaderDocumentAsync(
+        metadata: _metadata(id: 'book.djvu', format: DocumentFormat.djvu),
         bytes: const [1, 2, 3],
       );
       expect(document, isA<UnavailableReaderDocument>());

@@ -67,13 +67,16 @@
 - Added C ABI fixture tests, corrupt-input tests, artifact upload, ABI size reporting, and license review.
 - Planned Hardening D close date: 2026-11-01. Core implementation completed on 2026-09-13.
 
-## v1.0 Hardening E planned
+## v1.0 Hardening E complete: mobile runtime bridge
 
-- Link the XCFramework into the iOS Runner target and copy Android `.so` files into the Flutter app package.
-- Add a conditional Dart FFI bridge with `dart:io`-only loading and web-safe fallback.
-- Route mobile CHM/DjVu opening through the native converter when the local service is unavailable.
-- Add signed device and simulator smoke tests.
-- Planned Hardening E close date: 2026-11-15.
+- Android Gradle now packages `libuniversal_reader_native.so` from the native ABI artifact.
+- iOS Runner force-loads the device or universal simulator static library from `UniversalReaderNative.xcframework`.
+- Added a conditional Dart FFI bridge: Web uses a safe stub; Android/iOS load the native library.
+- CHM/DjVu opening now converts in-process on Android/iOS and reuses the existing EPUB/CBZ readers.
+- Added native-conversion fallback tests; Web and unsupported native loads remain safely unavailable.
+- CI now verifies the downloaded native artifacts, the Android APKs' `.so` entries, and the exported iOS symbols.
+- Signed device / simulator runtime smoke tests remain as follow-up validation.
+- Planned Hardening E close date: 2026-11-15. Implementation completed on 2026-09-13.
 
 ## PDF 测试覆盖提升（最新完成）
 
