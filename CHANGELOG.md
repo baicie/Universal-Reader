@@ -78,6 +78,8 @@
 
 ## Unreleased
 
+- `tool/extract_changelog_section.dart` prints one version's CHANGELOG section for release notes. `Unreleased` is refused unless `--include-unreleased` is passed, and an unknown version exits non-zero instead of printing an empty body.
+
 ## 0.0.1-dev.11 - 2026-08-29
 
 - Favorites and collections persist per library: starring a book, creating a collection, and opening a collection only show those books. Seed titles are not used as fake favorites.
