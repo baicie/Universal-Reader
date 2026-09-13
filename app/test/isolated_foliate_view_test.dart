@@ -54,8 +54,7 @@ class _TogglingChapterDocument implements HtmlChapteredDocument {
       EpubLocator(href: _href, progression: 0.5);
 
   @override
-  Future<String?> extractText(DocumentRange range) async =>
-      currentChapterText;
+  Future<String?> extractText(DocumentRange range) async => currentChapterText;
 
   @override
   Future<void> goTo(Locator locator) async {}
@@ -364,36 +363,33 @@ void main() {
     },
   );
 
-  testWidgets(
-    'switching currentChapterHref with a fresh surface triggers both '
-    'branches without crashing',
-    (tester) async {
-      Widget build(String href, ReadingSurface surface) => host(
-        IsolatedFoliateView(
-          document: _TogglingChapterDocument(href),
-          fallback: boundedFallback,
-          surface: surface,
-        ),
-      );
+  testWidgets('switching currentChapterHref with a fresh surface triggers both '
+      'branches without crashing', (tester) async {
+    Widget build(String href, ReadingSurface surface) => host(
+      IsolatedFoliateView(
+        document: _TogglingChapterDocument(href),
+        fallback: boundedFallback,
+        surface: surface,
+      ),
+    );
 
-      await tester.pumpWidget(build('chapter-1.xhtml', ReadingSurface.light));
-      await tester.pumpWidget(
-        build(
-          'chapter-2.xhtml',
-          ReadingSurface.resolve(
-            fontSize: 20,
-            lineHeight: 1.5,
-            fontFamily: ReaderFontFamily.sans,
-            paper: ReaderPaper.dark,
-            brightness: Brightness.light,
-          ),
+    await tester.pumpWidget(build('chapter-1.xhtml', ReadingSurface.light));
+    await tester.pumpWidget(
+      build(
+        'chapter-2.xhtml',
+        ReadingSurface.resolve(
+          fontSize: 20,
+          lineHeight: 1.5,
+          fontFamily: ReaderFontFamily.sans,
+          paper: ReaderPaper.dark,
+          brightness: Brightness.light,
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('foliate-surface')), findsOneWidget);
-    },
-  );
+    expect(find.byKey(const Key('foliate-surface')), findsOneWidget);
+  });
 
   testWidgets(
     'same currentChapterHref across pumps does not crash when other props '
