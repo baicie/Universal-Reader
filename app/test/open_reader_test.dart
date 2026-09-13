@@ -15,6 +15,7 @@ import 'support/epub_fixture.dart';
 import 'support/fb2_fixture.dart';
 import 'support/image_fixture.dart';
 import 'support/pdf_fixture.dart';
+import 'support/rar_fixture.dart';
 
 DocumentMetadata _metadata({
   required String id,
@@ -139,6 +140,15 @@ void main() {
         bytes: _comicBytes(),
       );
       expect(document, isA<ComicReaderDocument>());
+    });
+
+    test('parses a non-zip cbr archive of images', () async {
+      final document = await openReaderDocumentAsync(
+        metadata: _metadata(id: 'book.cbr', format: DocumentFormat.cbr),
+        bytes: syntheticCbrBytes(),
+      );
+      expect(document, isA<ComicReaderDocument>());
+      expect((document as ComicReaderDocument).pages, hasLength(3));
     });
 
     test('returns a corrupt document when the archive is invalid', () {

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'support/epub_fixture.dart';
 import 'support/image_fixture.dart';
+import 'support/rar_fixture.dart';
 
 void main() {
   const metadata = DocumentMetadata(
@@ -30,9 +31,21 @@ void main() {
     expect(document.currentPage.bytes, tinyPngBytes());
   });
 
-  test('cbr that is not a zip is corrupt', () {
-    expect(
-      () => ComicReaderDocument.parse(
+  test('opens a real RAR cbr as ordered image pages', () async {
+    final document = await ComicReaderDocument.parseAsync(
+      metadata: metadata.copyWith(format: DocumentFormat.cbr),
+      bytes: syntheticCbrBytes(),
+    );
+
+    expect(document.chapterCount, 3);
+    expect(document.pages[0].name, 'page001.png');
+    expect(document.pages[1].name, 'page002.png');
+    expect(document.pages[2].name, 'page003.png');
+  });
+
+  test('invalid cbr bytes are corrupt', () async {
+    await expectLater(
+      ComicReaderDocument.parseAsync(
         metadata: metadata.copyWith(format: DocumentFormat.cbr),
         bytes: [0, 1, 2, 3, 4],
       ),

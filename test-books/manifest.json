@@ -1,0 +1,62 @@
+[
+  {
+    "path": "epub/minimal.epub",
+    "format": "epub",
+    "bytes": 1592,
+    "sha256": "f2b09462469da69b9eedb3d0f08cf676cd8057c002e83acc697b3a743e89b709"
+  },
+  {
+    "path": "pdf/minimal.pdf",
+    "format": "pdf",
+    "bytes": 588,
+    "sha256": "44241e8df14e7999ebd594412a49a4c9ddccd69a8483c3771799055467a101ca"
+  },
+  {
+    "path": "mobi/minimal.mobi",
+    "format": "mobi",
+    "bytes": 143,
+    "sha256": "13ced2e64a9cb32a461311a4242a4e8a79114242ebbd249835cb7d02b7903a42"
+  },
+  {
+    "path": "azw3/minimal.azw3",
+    "format": "azw3",
+    "bytes": 143,
+    "sha256": "5f6d7788a0c4ac90c29f85e49e688ba053f103e0c3bcf550eebe7f12f5396a58"
+  },
+  {
+    "path": "fb2/minimal.fb2",
+    "format": "fb2",
+    "bytes": 508,
+    "sha256": "21f0b0a3ecf20a9d695cbe0045ecf82636ad39b89448fc715677404874991524"
+  },
+  {
+    "path": "txt/minimal.txt",
+    "format": "txt",
+    "bytes": 91,
+    "sha256": "50b55f3957f63f49fe8a15f497977ec29c84277b990021fc7e53f177ef69b8ea"
+  },
+  {
+    "path": "markdown/minimal.md",
+    "format": "markdown",
+    "bytes": 58,
+    "sha256": "4875b4e375134f51af438d3b3412453205b768f8b5886fa80b9677850adddc95"
+  },
+  {
+    "path": "html/minimal.html",
+    "format": "html",
+    "bytes": 139,
+    "sha256": "4dd7172239a9f00411660b4b8ce2c62f79d4f33b676c433ee754182f333c7941"
+  },
+  {
+    "path": "cbz/minimal.cbz",
+    "format": "cbz",
+    "bytes": 356,
+    "sha256": "b745fba1aaec3ca36e1a9ba115e62508e89704b1b796d3edeeebbc7975fcc001"
+  },
+  {
+    "path": "cbr/minimal.cbr",
+    "format": "cbr",
+    "bytes": 1060,
+    "sha256": "2b42fe4d61877ba2ce1951482da01f2e7185a10907251302c90407a4e41c32ef"
+  }
+]

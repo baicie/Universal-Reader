@@ -79,6 +79,11 @@
 ## Unreleased
 
 - `tool/extract_changelog_section.dart` prints one version's CHANGELOG section for release notes. `Unreleased` is refused unless `--include-unreleased` is passed, and an unknown version exits non-zero instead of printing an empty body.
+- Format detection now inspects document content first in both Flutter and the Rust service. EPUB, PDF, MobiPocket, FB2, HTML, Markdown, plain text, CBZ, and RAR/CBR container evidence override an unrelated extension; known extensions remain the fallback for malformed files.
+- Non-ZIP CBR books now decode through a pure-Dart RAR4/RAR5 reader. Real RAR CBR files open as ordered image pages instead of being reported corrupt.
+- Added the generated `test-books/` compatibility corpus with one minimal sample for EPUB, PDF, MOBI, AZW3, FB2, TXT, Markdown, HTML, CBZ, and CBR. A compatibility test verifies each sample's digest, detected format, and reader opening path.
+- Added the iOS Runner project with bundle id `io.universalreader.app`, localhost transport access, and Universal Reader display metadata.
+- Aligned Flutter and Rust package versions with the `0.0.1-dev.13` changelog line.
 
 ## 0.0.1-dev.11 - 2026-08-29
 

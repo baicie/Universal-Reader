@@ -2,6 +2,13 @@
 
 > NCX 嵌套已支持。外部链接保留已完成。**应用内打开外链已完成**。**CSS @import media query 保留已完成**。**渲染架构文档已完成**。**代码健康优化已完成（空 catch 文档化、重复代码提取）**。**测试增强已完成（边界测试覆盖）**。**性能优化已完成（避免昂贵的 HTML 比较）**。**文档完善已完成（host.html 详细注释、CFI 计算逻辑说明、文档索引）**。**MOBI 文档测试覆盖率提升至 100%**。**Comic 文档测试覆盖率提升至 100%**。**PDF 文档测试覆盖率提升至 100%**。**Text / Markdown / HTML 文档测试覆盖率提升至 100%**。**全库搜索（metadata + 笔记）已完成**。下一刀：继续优化或功能开发。
 
+## v0.1 hard gaps closed
+
+- Added the iOS Runner project with bundle id `io.universalreader.app`, localhost transport access, and a macOS CI job that builds without signing.
+- Added `test-books/` with one minimal sample for all ten main formats, a SHA-256 manifest, a regeneration tool, and a ten-case compatibility test.
+- Added content-first format detection in Flutter and the Rust service: PDF/RAR magic, ZIP EPUB/CBZ structure, MobiPocket headers, FB2/HTML/Markdown/text heuristics, with the original extension fallback.
+- Added pure-Dart RAR4/RAR5 decoding for non-ZIP CBR comics, including real synthetic CBR coverage.
+
 ## PDF 测试覆盖提升（最新完成）
 
 将 PDF 文档测试覆盖率从基线提升至 100%（1 个提交）。

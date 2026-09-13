@@ -8,7 +8,7 @@ use notify::Watcher;
 use reqwest::header::{CONTENT_TYPE, HeaderValue};
 
 use crate::{
-    detect_format,
+    detect_format, detect_format_bytes,
     library::{LibraryError, LibraryStore},
 };
 
@@ -80,13 +80,13 @@ fn walk(path: &Path, depth: u8, out: &mut Vec<(String, Vec<u8>)>) -> Result<(), 
         let Some(name) = next.file_name().and_then(|value| value.to_str()) else {
             continue;
         };
-        if detect_format(name).is_none() {
-            continue;
-        }
         let Ok(bytes) = std::fs::read(&next) else {
             continue;
         };
         if bytes.len() > MAX_FILE_BYTES {
+            continue;
+        }
+        if detect_format_bytes(name, &bytes).is_none() {
             continue;
         }
         out.push((name.to_string(), bytes));
@@ -143,9 +143,6 @@ pub async fn list_webdav_files(
             .find(|part| !part.is_empty())
             .unwrap_or(&href)
             .to_string();
-        if detect_format(&name).is_none() {
-            continue;
-        }
         let url = resolve_webdav_href(base_url, &href);
         let Ok(file) = config
             .http
@@ -163,6 +160,9 @@ pub async fn list_webdav_files(
             continue;
         };
         if bytes.len() > MAX_FILE_BYTES {
+            continue;
+        }
+        if detect_format_bytes(&name, &bytes).is_none() {
             continue;
         }
         files.push((name, bytes.to_vec()));
@@ -384,7 +384,7 @@ mod tests {
         ));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("notes.txt"), b"from folder").unwrap();
-        std::fs::write(dir.join("skip.bin"), b"nope").unwrap();
+        std::fs::write(dir.join("skip.bin"), [0, 1, 2, 3]).unwrap();
         let files = scan_folder(&dir).expect("scan folder");
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].0, "notes.txt");

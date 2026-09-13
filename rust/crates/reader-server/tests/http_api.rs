@@ -104,7 +104,7 @@ async fn upload_endpoint_stores_supported_document() {
 #[tokio::test]
 async fn upload_endpoint_rejects_unsupported_document_without_creating_file() {
     let storage_dir = unique_temp_dir("upload-rejected");
-    let body = multipart_body("archive.zip", b"not supported");
+    let body = multipart_body("archive.zip", &[0, 1, 2, 3]);
     let response = app_with_storage_dir(storage_dir.clone())
         .oneshot(
             Request::builder()
@@ -122,6 +122,33 @@ async fn upload_endpoint_rejects_unsupported_document_without_creating_file() {
 
     assert_eq!(response.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
     assert!(!storage_dir.exists());
+}
+
+#[tokio::test]
+async fn upload_endpoint_uses_content_when_the_extension_is_unrelated() {
+    let storage_dir = unique_temp_dir("upload-content-detected");
+    let body = multipart_body("book.bin", b"%PDF-1.7\n%%EOF");
+    let response = app_with_storage_dir(storage_dir.clone())
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/library/files")
+                .header(
+                    "content-type",
+                    "multipart/form-data; boundary=test-boundary",
+                )
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let response_body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let response_text = std::str::from_utf8(&response_body).unwrap();
+    assert!(response_text.contains("\"format\":\"pdf\""));
+    assert!(response_text.contains("\"document_type\":\"fixed_page\""));
+    fs::remove_dir_all(storage_dir).unwrap();
 }
 
 #[tokio::test]
@@ -632,7 +659,7 @@ async fn scan_imports_supported_files_and_skips_unknown_or_duplicate_names() {
     let folder = unique_temp_dir("scan-src");
     fs::create_dir_all(&folder).unwrap();
     fs::write(folder.join("notes.txt"), b"from folder").unwrap();
-    fs::write(folder.join("skip.bin"), b"nope").unwrap();
+    fs::write(folder.join("skip.bin"), [0, 1, 2, 3]).unwrap();
     let folder = fs::canonicalize(&folder).unwrap();
     let app = app_with_storage_dir(storage_dir.clone());
     let first = app

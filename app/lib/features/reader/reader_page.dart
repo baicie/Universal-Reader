@@ -102,7 +102,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       );
     }
     if (!mounted) return;
-    final reader = openReaderDocument(
+    final reader = await openReaderDocumentAsync(
       metadata: document.metadata,
       bytes: bytes,
     );

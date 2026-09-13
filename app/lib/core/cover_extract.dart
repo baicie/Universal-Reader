@@ -18,7 +18,8 @@ List<int>? extractCover({required String fileName, required List<int> bytes}) {
     return switch (format) {
       DocumentFormat.epub => _epubCover(bytes),
       DocumentFormat.fb2 => _fb2Cover(bytes),
-      DocumentFormat.cbz || DocumentFormat.cbr => _zipFirstImage(bytes),
+      DocumentFormat.cbz => _zipFirstImage(bytes),
+      DocumentFormat.cbr => null,
       _ => null,
     };
   } on Exception catch (error) {

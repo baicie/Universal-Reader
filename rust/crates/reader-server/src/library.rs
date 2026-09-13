@@ -11,7 +11,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
-use crate::{detect_format, extract, sources, sqlite};
+use crate::{detect_format_bytes, extract, sources, sqlite};
 
 static FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
@@ -165,13 +165,13 @@ impl LibraryStore {
         let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
             return Ok(None);
         };
-        if detect_format(name).is_none() {
-            return Ok(None);
-        }
         let bytes = match tokio::fs::read(path).await {
             Ok(bytes) if bytes.len() <= 64 * 1024 * 1024 => bytes,
             _ => return Ok(None),
         };
+        if detect_format_bytes(name, &bytes).is_none() {
+            return Ok(None);
+        }
         self.ingest_if_new(name.to_string(), &bytes).await
     }
 
@@ -206,7 +206,7 @@ impl LibraryStore {
         if file_name.is_empty() || file_name.len() > 255 || file_name.contains(['/', '\\']) {
             return Err(LibraryError::InvalidName);
         }
-        let Some(detected) = detect_format(&file_name) else {
+        let Some(detected) = detect_format_bytes(&file_name, content) else {
             return Err(LibraryError::Unsupported);
         };
 
@@ -629,19 +629,24 @@ impl LibraryStore {
             let Some(name) = name.to_str() else {
                 continue;
             };
-            let Some((id, ext)) = name.rsplit_once('.') else {
+            let Some((id, _)) = name.rsplit_once('.') else {
                 continue;
             };
-            if !valid_id(id) || detect_format(name).is_none() {
+            if !valid_id(id) {
                 continue;
             }
             if catalog.documents.iter().any(|document| document.id == id) {
                 continue;
             }
+            let Ok(bytes) = tokio::fs::read(entry.path()).await else {
+                continue;
+            };
+            let Some(detected) = detect_format_bytes(name, &bytes) else {
+                continue;
+            };
             let Ok(meta) = entry.metadata().await else {
                 continue;
             };
-            let detected = detect_format(name).expect("format checked above");
             catalog.documents.push(LibraryDocumentRecord {
                 id: id.to_string(),
                 file_name: name.to_string(),
@@ -657,7 +662,6 @@ impl LibraryStore {
                 content_hash: String::new(),
                 has_cover: false,
             });
-            let _ = ext;
         }
         Ok(())
     }

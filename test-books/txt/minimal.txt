@@ -1,0 +1,2 @@
+Universal Reader compatibility sample.
+This text exists to verify TXT import and decoding.

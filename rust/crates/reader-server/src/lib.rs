@@ -1,5 +1,6 @@
 use std::{
     env,
+    io::{Cursor, Read},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -60,6 +61,162 @@ pub fn detect_format(file_name: &str) -> Option<DetectedFormat> {
         format,
         document_type,
     })
+}
+
+pub fn detect_format_bytes(file_name: &str, bytes: &[u8]) -> Option<DetectedFormat> {
+    if bytes.starts_with(b"%PDF-") {
+        return Some(DetectedFormat {
+            format: "pdf",
+            document_type: "fixed_page",
+        });
+    }
+    if is_rar(bytes) {
+        return Some(DetectedFormat {
+            format: "cbr",
+            document_type: "comic",
+        });
+    }
+    if bytes.starts_with(b"PK\x03\x04")
+        && let Some(detected) = detect_zip(bytes)
+    {
+        return Some(detected);
+    }
+
+    let sample = &bytes[..bytes.len().min(16 * 1024)];
+    let text = String::from_utf8_lossy(sample);
+    let trimmed = text.trim_start_matches('\u{feff}').trim_start();
+    let lower = trimmed.to_ascii_lowercase();
+    if looks_like_fb2(&lower) {
+        return Some(DetectedFormat {
+            format: "fb2",
+            document_type: "reflow",
+        });
+    }
+    if looks_like_html(&lower) {
+        return Some(DetectedFormat {
+            format: "html",
+            document_type: "reflow",
+        });
+    }
+    if looks_like_markdown(trimmed) {
+        return Some(DetectedFormat {
+            format: "markdown",
+            document_type: "reflow",
+        });
+    }
+    if is_mobipocket(sample) {
+        let azw3 = file_name.to_ascii_lowercase().ends_with(".azw3")
+            || lower.contains("azw3")
+            || lower.contains("kf8");
+        return Some(DetectedFormat {
+            format: if azw3 { "azw3" } else { "mobi" },
+            document_type: "reflow",
+        });
+    }
+    if looks_like_text(sample) {
+        if let Some(detected) = detect_format(file_name)
+            && matches!(detected.format, "txt" | "markdown" | "html" | "fb2")
+        {
+            return Some(detected);
+        }
+        if detect_format(file_name).is_none() {
+            return Some(DetectedFormat {
+                format: "txt",
+                document_type: "reflow",
+            });
+        }
+    }
+    detect_format(file_name)
+}
+
+fn detect_zip(bytes: &[u8]) -> Option<DetectedFormat> {
+    let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).ok()?;
+    let mut has_image = false;
+    let mut has_opf = false;
+    for index in 0..archive.len() {
+        let file = archive.by_index(index).ok()?;
+        if !file.is_file() {
+            continue;
+        }
+        let name = file.name().replace('\\', "/").to_ascii_lowercase();
+        has_image |= looks_like_image_name(&name);
+        has_opf |= name.ends_with(".opf");
+        if name == "mimetype" {
+            let mut content = String::new();
+            let _ = file.take(64).read_to_string(&mut content);
+            if content.trim() == "application/epub+zip" {
+                return Some(DetectedFormat {
+                    format: "epub",
+                    document_type: "reflow",
+                });
+            }
+        }
+    }
+    if has_opf {
+        return Some(DetectedFormat {
+            format: "epub",
+            document_type: "reflow",
+        });
+    }
+    has_image.then_some(DetectedFormat {
+        format: "cbz",
+        document_type: "comic",
+    })
+}
+
+fn is_rar(bytes: &[u8]) -> bool {
+    bytes.len() >= 7 && bytes.starts_with(b"Rar!\x1A\x07") && matches!(bytes[6], 0x00 | 0x01)
+}
+
+fn is_mobipocket(bytes: &[u8]) -> bool {
+    bytes.len() >= 68 && &bytes[60..64] == b"BOOK" && &bytes[64..68] == b"MOBI"
+}
+
+fn looks_like_fb2(lower: &str) -> bool {
+    lower.contains("<fictionbook")
+        && (lower.starts_with("<?xml")
+            || lower.starts_with("<fictionbook")
+            || lower.starts_with("<!--"))
+}
+
+fn looks_like_html(lower: &str) -> bool {
+    lower.starts_with("<!doctype html")
+        || lower.starts_with("<html")
+        || lower.contains("<html ")
+        || lower.contains("<body")
+        || lower.contains("<head")
+}
+
+fn looks_like_markdown(text: &str) -> bool {
+    for line in text.lines().take(200) {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("```") {
+            return true;
+        }
+        let hashes = trimmed.chars().take_while(|value| *value == '#').count();
+        if (1..=6).contains(&hashes) && trimmed.chars().nth(hashes).is_some_and(char::is_whitespace)
+        {
+            return true;
+        }
+    }
+    text.contains("](")
+}
+
+fn looks_like_text(bytes: &[u8]) -> bool {
+    if bytes.is_empty() || bytes.contains(&0) {
+        return false;
+    }
+    let controls = bytes
+        .iter()
+        .filter(|byte| **byte < 0x09 || (**byte > 0x0D && **byte < 0x20))
+        .count();
+    controls * 20 <= bytes.len()
+}
+
+fn looks_like_image_name(name: &str) -> bool {
+    [".png", ".jpg", ".jpeg", ".webp", ".gif"]
+        .iter()
+        .any(|extension| name.ends_with(extension))
 }
 
 #[derive(Clone)]
@@ -712,6 +869,7 @@ struct ApiError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
 
     #[test]
     fn detects_supported_extensions_case_insensitively() {
@@ -735,5 +893,61 @@ mod tests {
     fn rejects_unsupported_or_extensionless_names() {
         assert_eq!(detect_format("archive.zip"), None);
         assert_eq!(detect_format("README"), None);
+    }
+
+    #[test]
+    fn detects_epub_content_with_an_unrelated_extension() {
+        let cursor = Cursor::new(Vec::new());
+        let mut zip = zip::ZipWriter::new(cursor);
+        let options = zip::write::SimpleFileOptions::default();
+        zip.start_file("mimetype", options).unwrap();
+        zip.write_all(b"application/epub+zip").unwrap();
+        zip.start_file("META-INF/container.xml", options).unwrap();
+        zip.write_all(b"<container/>").unwrap();
+        let bytes = zip.finish().unwrap().into_inner();
+
+        assert_eq!(
+            detect_format_bytes("book.bin", &bytes),
+            Some(DetectedFormat {
+                format: "epub",
+                document_type: "reflow",
+            })
+        );
+    }
+
+    #[test]
+    fn detects_magic_bytes_before_the_extension() {
+        assert_eq!(
+            detect_format_bytes("notes.txt", b"%PDF-1.7\n"),
+            Some(DetectedFormat {
+                format: "pdf",
+                document_type: "fixed_page",
+            })
+        );
+        assert_eq!(
+            detect_format_bytes("book.bin", b"Rar!\x1A\x07\x01\x00"),
+            Some(DetectedFormat {
+                format: "cbr",
+                document_type: "comic",
+            })
+        );
+    }
+
+    #[test]
+    fn falls_back_to_extension_for_malformed_known_files() {
+        assert_eq!(
+            detect_format_bytes("book.epub", b"not a zip"),
+            Some(DetectedFormat {
+                format: "epub",
+                document_type: "reflow",
+            })
+        );
+        assert_eq!(
+            detect_format_bytes("notes.bin", b"plain body"),
+            Some(DetectedFormat {
+                format: "txt",
+                document_type: "reflow",
+            })
+        );
     }
 }

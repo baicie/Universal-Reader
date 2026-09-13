@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?><FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">
+<description>
+  <title-info>
+    <book-title>FB2 Book</book-title>
+    <author>
+      <first-name>Ann</first-name>
+      <last-name>Author</last-name>
+    </author>
+  </title-info>
+</description>
+<body>
+  <section>
+    <title>第一章</title>
+    <p>first chapter text here</p>
+  </section>
+  <section>
+    <title>第二章</title>
+    <p>second chapter text here</p>
+  </section>
+</body>
+</FictionBook>

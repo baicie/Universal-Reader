@@ -7,6 +7,26 @@ import '../../core/pdf_document.dart';
 import '../../core/reader_runtime.dart';
 import '../../core/text_document.dart';
 
+Future<ReaderDocument> openReaderDocumentAsync({
+  required DocumentMetadata metadata,
+  List<int>? bytes,
+}) async {
+  if (bytes != null &&
+      bytes.isNotEmpty &&
+      (metadata.format == DocumentFormat.cbz ||
+          metadata.format == DocumentFormat.cbr)) {
+    try {
+      return await ComicReaderDocument.parseAsync(
+        metadata: metadata,
+        bytes: bytes,
+      );
+    } on FormatException {
+      return CorruptReaderDocument(metadata: metadata);
+    }
+  }
+  return openReaderDocument(metadata: metadata, bytes: bytes);
+}
+
 ReaderDocument openReaderDocument({
   required DocumentMetadata metadata,
   List<int>? bytes,
