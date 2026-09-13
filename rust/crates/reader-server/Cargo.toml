@@ -18,6 +18,8 @@ base64 = "0.22"
 rusqlite = { version = "0.32", features = ["bundled"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 sha2 = "0.10"
+hmac = "0.12"
+time = "0.3"
 notify = "6.1"
 libchm = "0.3"
 djvu-rs = { version = "0.32.1", features = ["cbz"] }

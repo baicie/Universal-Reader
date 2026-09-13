@@ -27,7 +27,8 @@
 - Added folder import plus push-back for files missing on either side.
 - Same-name files with different content are never overwritten.
 - WebDAV push now uses the stored portable extension for converted CHM/DjVu books.
-- Remaining v0.4 scope: S3, annotation sync, and reading-progress sync.
+- Added S3-compatible import and two-way sync with SigV4, pagination, and prefix isolation.
+- Remaining v0.4 scope: annotation sync and reading-progress sync.
 
 ## PDF 测试覆盖提升（最新完成）
 

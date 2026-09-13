@@ -265,6 +265,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String get syncFolder => '文件夹双向同步';
 
   @override
+  String get s3CompatibleStorage => 'S3 兼容存储';
+
+  @override
+  String get s3Endpoint => 'S3 地址';
+
+  @override
+  String get s3Region => '区域';
+
+  @override
+  String get s3Bucket => '存储桶';
+
+  @override
+  String get s3Prefix => '前缀';
+
+  @override
+  String get s3AccessKey => 'Access Key';
+
+  @override
+  String get s3SecretKey => 'Secret Key';
+
+  @override
+  String get importFromS3 => '从 S3 导入';
+
+  @override
+  String get syncS3 => '双向同步 S3';
+
+  @override
   String get librarySources => '书库来源';
 
   @override

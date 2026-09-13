@@ -584,6 +584,60 @@ abstract class AppLocalizations {
   /// **'文件夹双向同步'**
   String get syncFolder;
 
+  /// No description provided for @s3CompatibleStorage.
+  ///
+  /// In zh, this message translates to:
+  /// **'S3 兼容存储'**
+  String get s3CompatibleStorage;
+
+  /// No description provided for @s3Endpoint.
+  ///
+  /// In zh, this message translates to:
+  /// **'S3 地址'**
+  String get s3Endpoint;
+
+  /// No description provided for @s3Region.
+  ///
+  /// In zh, this message translates to:
+  /// **'区域'**
+  String get s3Region;
+
+  /// No description provided for @s3Bucket.
+  ///
+  /// In zh, this message translates to:
+  /// **'存储桶'**
+  String get s3Bucket;
+
+  /// No description provided for @s3Prefix.
+  ///
+  /// In zh, this message translates to:
+  /// **'前缀'**
+  String get s3Prefix;
+
+  /// No description provided for @s3AccessKey.
+  ///
+  /// In zh, this message translates to:
+  /// **'Access Key'**
+  String get s3AccessKey;
+
+  /// No description provided for @s3SecretKey.
+  ///
+  /// In zh, this message translates to:
+  /// **'Secret Key'**
+  String get s3SecretKey;
+
+  /// No description provided for @importFromS3.
+  ///
+  /// In zh, this message translates to:
+  /// **'从 S3 导入'**
+  String get importFromS3;
+
+  /// No description provided for @syncS3.
+  ///
+  /// In zh, this message translates to:
+  /// **'双向同步 S3'**
+  String get syncS3;
+
   /// No description provided for @librarySources.
   ///
   /// In zh, this message translates to:

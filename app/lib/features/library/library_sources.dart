@@ -130,6 +130,82 @@ Future<SourceImportResult> syncLibraryFolder(
   return _parseSourceResult(response.body);
 }
 
+Future<SourceImportResult> importLibraryS3(
+  LibraryRepository repository, {
+  required String endpoint,
+  required String region,
+  required String bucket,
+  required String prefix,
+  required String accessKey,
+  required String secretKey,
+}) {
+  return _postS3(
+    repository,
+    endpoint: endpoint,
+    region: region,
+    bucket: bucket,
+    prefix: prefix,
+    accessKey: accessKey,
+    secretKey: secretKey,
+    path: '/v1/library/s3/import',
+    errorLabel: 'S3 导入失败',
+  );
+}
+
+Future<SourceImportResult> syncLibraryS3(
+  LibraryRepository repository, {
+  required String endpoint,
+  required String region,
+  required String bucket,
+  required String prefix,
+  required String accessKey,
+  required String secretKey,
+}) {
+  return _postS3(
+    repository,
+    endpoint: endpoint,
+    region: region,
+    bucket: bucket,
+    prefix: prefix,
+    accessKey: accessKey,
+    secretKey: secretKey,
+    path: '/v1/library/s3/sync',
+    errorLabel: 'S3 同步失败',
+  );
+}
+
+Future<SourceImportResult> _postS3(
+  LibraryRepository repository, {
+  required String endpoint,
+  required String region,
+  required String bucket,
+  required String prefix,
+  required String accessKey,
+  required String secretKey,
+  required String path,
+  required String errorLabel,
+}) async {
+  if (repository is! HttpLibraryRepository) {
+    throw const FormatException('s3 sync needs the local server');
+  }
+  final response = await repository.httpClient.post(
+    repository.uri(path),
+    headers: const {'Content-Type': 'application/json'},
+    body: jsonEncode({
+      if (endpoint.trim().isNotEmpty) 'endpoint': endpoint.trim(),
+      if (region.trim().isNotEmpty) 'region': region.trim(),
+      if (bucket.trim().isNotEmpty) 'bucket': bucket.trim(),
+      if (prefix.trim().isNotEmpty) 'prefix': prefix.trim(),
+      if (accessKey.trim().isNotEmpty) 'access_key': accessKey.trim(),
+      if (secretKey.trim().isNotEmpty) 'secret_key': secretKey.trim(),
+    }),
+  );
+  if (response.statusCode != 200) {
+    throw FormatException('$errorLabel (${response.statusCode})');
+  }
+  return _parseSourceResult(response.body);
+}
+
 Future<ImportOutcome> applySourceImport(
   PersistedLibraryController library,
   SourceImportResult result,

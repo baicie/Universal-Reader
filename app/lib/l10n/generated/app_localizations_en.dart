@@ -269,6 +269,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get syncFolder => 'Sync folder both ways';
 
   @override
+  String get s3CompatibleStorage => 'S3-compatible storage';
+
+  @override
+  String get s3Endpoint => 'S3 endpoint';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3Bucket => 'Bucket';
+
+  @override
+  String get s3Prefix => 'Prefix';
+
+  @override
+  String get s3AccessKey => 'Access key';
+
+  @override
+  String get s3SecretKey => 'Secret key';
+
+  @override
+  String get importFromS3 => 'Import from S3';
+
+  @override
+  String get syncS3 => 'Sync S3 both ways';
+
+  @override
   String get librarySources => 'Library sources';
 
   @override

@@ -93,6 +93,7 @@
 - Added service-backed CHM reading. The Rust service detects the ITSF signature, extracts normal CHM entries with the pure-Rust libchm decoder, assembles the HTML pages and assets into an EPUB package, and lets the existing Flutter EPUB reader open the result.
 - Added service-backed DjVu reading. The Rust service detects the DjVu signature, renders pages with the pure-Rust djvu-rs decoder, converts them to a CBZ archive, and lets the existing Flutter comic reader open the result.
 - Started v0.4 local source sync: the Rust service now imports missing folder files and pushes missing library files back without overwriting same-name conflicts, with a matching Sources card action.
+- Added S3-compatible storage import and two-way sync with AWS Signature V4, paginated ListObjectsV2, object download/upload, and prefix isolation.
 
 ## 0.0.1-dev.11 - 2026-08-29
 

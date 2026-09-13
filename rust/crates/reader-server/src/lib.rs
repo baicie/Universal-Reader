@@ -26,6 +26,7 @@ mod chm;
 mod djvu;
 mod extract;
 mod library;
+mod s3;
 mod sources;
 mod sqlite;
 
@@ -467,6 +468,8 @@ fn api_router(store: LibraryStore, ai: AiConfig, sources: SourcesConfig) -> Rout
         .route("/v1/library/folder/sync", post(sync_folder))
         .route("/v1/library/webdav/import", post(import_webdav))
         .route("/v1/library/webdav/sync", post(sync_webdav))
+        .route("/v1/library/s3/import", post(import_s3))
+        .route("/v1/library/s3/sync", post(sync_s3))
         .route("/v1/library/watch", post(watch_folder))
         .layer(CorsLayer::permissive())
         .with_state(AppState {
@@ -869,6 +872,95 @@ async fn sync_webdav(
         .into_response()
 }
 
+async fn import_s3(
+    State(state): State<AppState>,
+    Json(body): Json<S3Request>,
+) -> impl IntoResponse {
+    let Some(config) = s3_config(&state.sources, &body) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(ApiError {
+                error: "s3 is not configured",
+            }),
+        )
+            .into_response();
+    };
+    match s3::list_files(&config).await {
+        Ok(files) => ingest_named_files(&state.store, files)
+            .await
+            .into_response(),
+        Err(error) => library_error(error).into_response(),
+    }
+}
+
+async fn sync_s3(State(state): State<AppState>, Json(body): Json<S3Request>) -> impl IntoResponse {
+    let Some(config) = s3_config(&state.sources, &body) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(ApiError {
+                error: "s3 is not configured",
+            }),
+        )
+            .into_response();
+    };
+    let remote = match s3::list_files(&config).await {
+        Ok(files) => files,
+        Err(error) => return library_error(error).into_response(),
+    };
+    let names = match s3::list_names(&config).await {
+        Ok(names) => names,
+        Err(error) => return library_error(error).into_response(),
+    };
+    let (imported, skipped) = match ingest_counts(&state.store, remote).await {
+        Ok(counts) => counts,
+        Err(error) => return library_error(error).into_response(),
+    };
+    let documents = match state.store.list().await {
+        Ok(documents) => documents,
+        Err(error) => return library_error(error).into_response(),
+    };
+    let mut pushed = 0usize;
+    for document in documents {
+        let file_name = portable_file_name(&document.file_name, &document.format);
+        if names.contains(&file_name) {
+            continue;
+        }
+        let Ok((_, bytes)) = state.store.read_file(&document.id).await else {
+            continue;
+        };
+        if s3::put_file(&config, &file_name, &bytes).await.is_ok() {
+            pushed += 1;
+        }
+    }
+    (
+        StatusCode::OK,
+        Json(SourceImportResponse {
+            imported,
+            skipped,
+            pushed,
+        }),
+    )
+        .into_response()
+}
+
+fn s3_config(sources: &SourcesConfig, body: &S3Request) -> Option<s3::S3Config> {
+    s3::S3Config::new(
+        requested_or_configured(body.endpoint.as_deref(), &sources.s3_endpoint),
+        requested_or_configured(body.region.as_deref(), &sources.s3_region),
+        requested_or_configured(body.bucket.as_deref(), &sources.s3_bucket),
+        requested_or_configured(body.prefix.as_deref(), &sources.s3_prefix),
+        requested_or_configured(body.access_key.as_deref(), &sources.s3_access_key),
+        requested_or_configured(body.secret_key.as_deref(), &sources.s3_secret_key),
+    )
+}
+
+fn requested_or_configured<'a>(requested: Option<&'a str>, configured: &'a str) -> &'a str {
+    requested
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(configured)
+}
+
 async fn watch_folder(
     State(state): State<AppState>,
     Json(body): Json<ScanRequest>,
@@ -1057,6 +1149,16 @@ struct WebDavRequest {
     base_url: Option<String>,
     username: Option<String>,
     password: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct S3Request {
+    endpoint: Option<String>,
+    region: Option<String>,
+    bucket: Option<String>,
+    prefix: Option<String>,
+    access_key: Option<String>,
+    secret_key: Option<String>,
 }
 
 #[derive(serde::Serialize)]

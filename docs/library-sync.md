@@ -8,6 +8,7 @@
 - 从 EPUB/FB2 抽封面，写入 `covers/`。FB2 只跟 `title-info` coverpage 的图片 href，不靠 binary id 是否含 `cover`。
 - 监视已配置文件夹，新文件只追加
 - 本地文件夹双向同步：拉缺失的书，推本地有、文件夹没有的书
+- S3 兼容存储双向同步：ListObjectsV2 分页、对象下载、对象上传、前缀隔离
 - WebDAV 双向：拉缺失的书，推本地有、远端没有的书
 
 ## Assumptions
@@ -17,6 +18,8 @@
 3. WebDAV 仍只用已配置的 http(s) URL。
 4. 封面缺失就继续用颜色块。
 5. 本地文件夹同步不覆盖不同内容的同名文件。
+6. S3 使用 AWS Signature V4；默认 path-style，兼容 AWS、MinIO 和常见 S3 实现。
+7. S3 的 access key / secret key 只从设置或服务端环境变量读取，不写入日志。
 
 ## Commands
 

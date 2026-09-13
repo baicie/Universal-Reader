@@ -31,6 +31,7 @@ Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK
 - Flutter Material 3 响应式界面
 - Library 搜索、格式筛选、排序、网格/列表视图和阅读进度；可改书架书名和作者；FB2 封面跟 title-info coverpage
 - 本机 Rust 服务支持文件夹扫描、监视和双向同步；同名但内容不同的文件保持不覆盖
+- Rust 服务支持 S3 兼容存储导入与双向同步，使用 AWS Signature V4、路径前缀隔离和 ListObjectsV2 分页
 - Reader Runtime、文档适配器与定位器契约
 - EPUB、PDF、MOBI、AZW3、FB2、TXT、Markdown、HTML、DOCX、ODT、RTF、DjVu、CHM、CBT、CB7、CBZ、CBR 内容优先格式检测，扩展名兜底
 - 本地文件导入

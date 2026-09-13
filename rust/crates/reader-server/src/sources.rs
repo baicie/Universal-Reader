@@ -21,6 +21,12 @@ pub struct SourcesConfig {
     pub webdav_url: String,
     pub webdav_user: String,
     pub webdav_password: String,
+    pub s3_endpoint: String,
+    pub s3_region: String,
+    pub s3_bucket: String,
+    pub s3_prefix: String,
+    pub s3_access_key: String,
+    pub s3_secret_key: String,
     http: reqwest::Client,
 }
 
@@ -30,6 +36,12 @@ impl SourcesConfig {
             webdav_url: env::var("UNIVERSAL_READER_WEBDAV_URL").unwrap_or_default(),
             webdav_user: env::var("UNIVERSAL_READER_WEBDAV_USER").unwrap_or_default(),
             webdav_password: env::var("UNIVERSAL_READER_WEBDAV_PASSWORD").unwrap_or_default(),
+            s3_endpoint: env::var("UNIVERSAL_READER_S3_ENDPOINT").unwrap_or_default(),
+            s3_region: env::var("UNIVERSAL_READER_S3_REGION").unwrap_or_default(),
+            s3_bucket: env::var("UNIVERSAL_READER_S3_BUCKET").unwrap_or_default(),
+            s3_prefix: env::var("UNIVERSAL_READER_S3_PREFIX").unwrap_or_default(),
+            s3_access_key: env::var("UNIVERSAL_READER_S3_ACCESS_KEY").unwrap_or_default(),
+            s3_secret_key: env::var("UNIVERSAL_READER_S3_SECRET_KEY").unwrap_or_default(),
             http: reqwest::Client::new(),
         }
     }

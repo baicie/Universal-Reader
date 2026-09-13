@@ -17,6 +17,12 @@ class _LibrarySourcesCardState extends ConsumerState<LibrarySourcesCard> {
   final webdavUrl = TextEditingController();
   final webdavUser = TextEditingController();
   final webdavPassword = TextEditingController();
+  final s3Endpoint = TextEditingController();
+  final s3Region = TextEditingController();
+  final s3Bucket = TextEditingController();
+  final s3Prefix = TextEditingController();
+  final s3AccessKey = TextEditingController();
+  final s3SecretKey = TextEditingController();
   bool busy = false;
   String? error;
 
@@ -26,6 +32,12 @@ class _LibrarySourcesCardState extends ConsumerState<LibrarySourcesCard> {
     webdavUrl.dispose();
     webdavUser.dispose();
     webdavPassword.dispose();
+    s3Endpoint.dispose();
+    s3Region.dispose();
+    s3Bucket.dispose();
+    s3Prefix.dispose();
+    s3AccessKey.dispose();
+    s3SecretKey.dispose();
     super.dispose();
   }
 
@@ -159,6 +171,81 @@ class _LibrarySourcesCardState extends ConsumerState<LibrarySourcesCard> {
                       );
                     }),
               child: Text(l10n.syncWebdav),
+            ),
+            const SizedBox(height: 12),
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 8),
+              title: Text(l10n.s3CompatibleStorage),
+              children: [
+                TextField(
+                  controller: s3Endpoint,
+                  decoration: InputDecoration(labelText: l10n.s3Endpoint),
+                ),
+                TextField(
+                  controller: s3Region,
+                  decoration: InputDecoration(labelText: l10n.s3Region),
+                ),
+                TextField(
+                  controller: s3Bucket,
+                  decoration: InputDecoration(labelText: l10n.s3Bucket),
+                ),
+                TextField(
+                  controller: s3Prefix,
+                  decoration: InputDecoration(labelText: l10n.s3Prefix),
+                ),
+                TextField(
+                  controller: s3AccessKey,
+                  decoration: InputDecoration(labelText: l10n.s3AccessKey),
+                ),
+                TextField(
+                  controller: s3SecretKey,
+                  obscureText: true,
+                  decoration: InputDecoration(labelText: l10n.s3SecretKey),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: busy
+                      ? null
+                      : () => _run(() async {
+                          final result = await importLibraryS3(
+                            ref.read(libraryRepositoryProvider),
+                            endpoint: s3Endpoint.text,
+                            region: s3Region.text,
+                            bucket: s3Bucket.text,
+                            prefix: s3Prefix.text,
+                            accessKey: s3AccessKey.text,
+                            secretKey: s3SecretKey.text,
+                          );
+                          await applySourceImport(
+                            ref.read(libraryProvider),
+                            result,
+                          );
+                        }),
+                  child: Text(l10n.importFromS3),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: busy
+                      ? null
+                      : () => _run(() async {
+                          final result = await syncLibraryS3(
+                            ref.read(libraryRepositoryProvider),
+                            endpoint: s3Endpoint.text,
+                            region: s3Region.text,
+                            bucket: s3Bucket.text,
+                            prefix: s3Prefix.text,
+                            accessKey: s3AccessKey.text,
+                            secretKey: s3SecretKey.text,
+                          );
+                          await applySourceImport(
+                            ref.read(libraryProvider),
+                            result,
+                          );
+                        }),
+                  child: Text(l10n.syncS3),
+                ),
+              ],
             ),
             if (error != null) ...[
               const SizedBox(height: 8),
