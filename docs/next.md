@@ -143,6 +143,13 @@
 - The dry run generates release notes, manifest, and `SHA256SUMS`, verifies every asset, and uploads one complete artifact bundle without publishing a release.
 - Planned Hardening N close date: 2027-01-24. Implementation completed on 2026-09-14.
 
+## v1.0 Hardening O complete: Android signing preflight
+
+- Added a manual `Signing preflight` workflow for validating Android release credentials before tagging.
+- The preflight decodes the keystore only into a temporary runner directory, validates the alias and key password, and emits only the public certificate fingerprint.
+- The normal Release workflow runs the same validation after checking secret presence and before any platform build.
+- Planned Hardening O close date: 2027-02-07. Implementation completed on 2026-09-14.
+
 ## v1.0 Hardening K complete: release candidate gate
 
 - Froze the app, Rust workspace, Cargo lock, and changelog at `1.0.0-rc.1`.

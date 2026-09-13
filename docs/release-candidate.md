@@ -39,6 +39,8 @@ gh workflow run release.yml `
 
 The dry run builds every platform artifact, uses debug signing for Android, generates release notes, creates the manifest, verifies all hashes, and uploads the complete bundle without creating a GitHub Release.
 
+After configuring Android secrets, run the manual `Signing preflight` workflow. It decodes the keystore outside the repository, validates the alias and key password, and prints only the public certificate fingerprint.
+
 ## Commands
 
 ```powershell

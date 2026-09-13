@@ -10,6 +10,7 @@
 - Release publication builds an unsigned iOS `Runner.app` archive and verifies its bundle version plus native mobile symbols.
 - Release publication independently verifies every manifest entry, SHA-256 value, and the exact asset file set before creating the release.
 - The Release workflow supports a full-matrix `dry_run` from a source ref, producing and verifying every artifact without publishing a GitHub Release.
+- Added an Android signing preflight that validates keystore, alias, and key password before release builds.
 
 ## 0.0.1-dev.12 - 2026-08-31
 

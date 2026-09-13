@@ -79,6 +79,7 @@ jobs:
               exit 1
             fi
           done
+          bash tool/verify_android_signing.sh
 
   web:
     name: Build Web release
