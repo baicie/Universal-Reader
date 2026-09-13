@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/persistence_schema.dart';
 import '../reader_tool.dart';
 
 const maxConversationTurns = 50;
@@ -115,13 +116,20 @@ class SharedPreferencesConversationRepository
   SharedPreferencesConversationRepository(this.preferences);
 
   static const storagePrefix = 'universal_reader.conversation.v1.';
+  static const versionedStoragePrefix = 'universal_reader.conversation.v2.';
   final SharedPreferences preferences;
 
   @override
   Future<List<ConversationTurn>> load(String documentId) async {
-    final raw = preferences.getString('$storagePrefix$documentId');
+    final raw =
+        preferences.getString('$versionedStoragePrefix$documentId') ??
+        preferences.getString('$storagePrefix$documentId');
     if (raw == null || raw.isEmpty) return const [];
-    return parseConversationTurns(jsonDecode(raw));
+    final payload = decodePersistedPayload(
+      jsonDecode(raw),
+      store: 'conversation',
+    ).payload;
+    return parseConversationTurns(payload);
   }
 
   @override
@@ -129,6 +137,15 @@ class SharedPreferencesConversationRepository
     final payload = trimConversation(turns)
         .map((turn) => turn.toJson())
         .toList();
+    await preferences.setString(
+      '$versionedStoragePrefix$documentId',
+      jsonEncode(
+        encodePersistedPayload(
+          schemaVersion: persistenceSchemaVersion,
+          payload: payload,
+        ),
+      ),
+    );
     await preferences.setString(
       '$storagePrefix$documentId',
       jsonEncode(payload),

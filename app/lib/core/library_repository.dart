@@ -7,6 +7,7 @@ import 'cover_extract.dart';
 import 'document_identity.dart';
 import 'format_detector.dart';
 import 'models.dart';
+import 'persistence_schema.dart';
 
 abstract interface class LibraryRepository {
   bool get usesRemoteStore;
@@ -104,6 +105,7 @@ class SharedPreferencesLibraryRepository implements LibraryRepository {
   SharedPreferencesLibraryRepository(this.preferences);
 
   static const storageKey = 'universal_reader.library.v1';
+  static const versionedStorageKey = 'universal_reader.library.v2';
   final SharedPreferences preferences;
 
   @override
@@ -111,12 +113,15 @@ class SharedPreferencesLibraryRepository implements LibraryRepository {
 
   @override
   Future<List<LibraryDocument>> load() async {
-    final raw = preferences.getString(storageKey);
+    final raw =
+        preferences.getString(versionedStorageKey) ??
+        preferences.getString(storageKey);
     if (raw == null || raw.isEmpty) return [];
     try {
       final decoded = jsonDecode(raw);
-      if (decoded is! List) return [];
-      return decoded
+      final payload = decodePersistedPayload(decoded, store: 'library').payload;
+      if (payload is! List) return [];
+      return payload
           .whereType<Map<String, dynamic>>()
           .map(LibraryDocumentCodec.fromJson)
           .toList();
@@ -130,6 +135,15 @@ class SharedPreferencesLibraryRepository implements LibraryRepository {
   @override
   Future<void> save(List<LibraryDocument> documents) async {
     final payload = documents.map(LibraryDocumentCodec.toJson).toList();
+    await preferences.setString(
+      versionedStorageKey,
+      jsonEncode(
+        encodePersistedPayload(
+          schemaVersion: persistenceSchemaVersion,
+          payload: payload,
+        ),
+      ),
+    );
     await preferences.setString(storageKey, jsonEncode(payload));
   }
 

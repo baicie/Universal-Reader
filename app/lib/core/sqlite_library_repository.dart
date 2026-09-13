@@ -10,23 +10,35 @@ import '../features/library/annotation_store.dart';
 import '../features/tools/ai/conversation_store.dart';
 import 'library_repository.dart';
 import 'models.dart';
+import 'persistence_schema.dart';
 
 class SqliteLibraryRepository implements LibraryRepository {
   SqliteLibraryRepository(this._db);
 
+  static const schemaVersion = persistenceSchemaVersion;
   final Database _db;
 
   static Future<SqliteLibraryRepository> memory() async {
     _ensureFfi();
     final db = await openDatabase(inMemoryDatabasePath);
-    await migrate(db);
+    try {
+      await migrate(db);
+    } catch (_) {
+      await db.close();
+      rethrow;
+    }
     return SqliteLibraryRepository(db);
   }
 
   static Future<SqliteLibraryRepository> open(String path) async {
     _ensureFfi();
     final db = await openDatabase(path);
-    await migrate(db);
+    try {
+      await migrate(db);
+    } catch (_) {
+      await db.close();
+      rethrow;
+    }
     return SqliteLibraryRepository(db);
   }
 
@@ -40,6 +52,16 @@ class SqliteLibraryRepository implements LibraryRepository {
   }
 
   static Future<void> migrate(Database db) async {
+    final versionRows = await db.rawQuery('PRAGMA user_version');
+    final currentVersion =
+        (versionRows.first['user_version'] as num?)?.toInt() ?? 0;
+    if (currentVersion > schemaVersion) {
+      throw UnsupportedPersistenceVersionException(
+        store: 'library database',
+        version: currentVersion,
+        supportedVersion: schemaVersion,
+      );
+    }
     await db.execute('''
 CREATE TABLE IF NOT EXISTS documents (
   id TEXT PRIMARY KEY,
@@ -80,6 +102,9 @@ CREATE TABLE IF NOT EXISTS conversations (
   turns_json TEXT NOT NULL
 )
 ''');
+    if (currentVersion < schemaVersion) {
+      await db.execute('PRAGMA user_version = $schemaVersion');
+    }
   }
 
   Future<String?> readSetting(String key) async {

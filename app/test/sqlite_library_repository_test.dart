@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:app/core/library_repository.dart';
 import 'package:app/core/models.dart';
+import 'package:app/core/persistence_schema.dart';
 import 'package:app/core/sqlite_library_repository.dart';
 import 'package:app/features/library/annotation_store.dart';
 import 'package:app/features/library/shelf_store.dart';
@@ -46,6 +47,55 @@ void main() {
       await second.close();
     },
   );
+
+  test('sqlite schema version is written and preserved', () async {
+    final dir = Directory.systemTemp.createTempSync('ur-sqlite-version-');
+    final path = '${dir.path}/library.sqlite';
+    addTearDown(() {
+      if (dir.existsSync()) dir.deleteSync(recursive: true);
+    });
+
+    final legacy = await databaseFactory.openDatabase(path);
+    final legacyVersion = await legacy.rawQuery('PRAGMA user_version');
+    expect((legacyVersion.first['user_version'] as num).toInt(), 0);
+    await SqliteLibraryRepository.migrate(legacy);
+    final migratedVersion = await legacy.rawQuery('PRAGMA user_version');
+    expect(
+      (migratedVersion.first['user_version'] as num).toInt(),
+      persistenceSchemaVersion,
+    );
+    await legacy.close();
+
+    final repository = await SqliteLibraryRepository.open(path);
+    await repository.close();
+    final versionRows = await databaseFactory.openDatabase(path).then((
+      db,
+    ) async {
+      final rows = await db.rawQuery('PRAGMA user_version');
+      await db.close();
+      return rows;
+    });
+    expect(
+      (versionRows.first['user_version'] as num).toInt(),
+      persistenceSchemaVersion,
+    );
+  });
+
+  test('sqlite rejects a database from a future schema', () async {
+    final dir = Directory.systemTemp.createTempSync('ur-sqlite-future-');
+    final path = '${dir.path}/library.sqlite';
+    addTearDown(() {
+      if (dir.existsSync()) dir.deleteSync(recursive: true);
+    });
+    final db = await databaseFactory.openDatabase(path);
+    await db.execute('PRAGMA user_version = 99');
+    await db.close();
+
+    await expectLater(
+      SqliteLibraryRepository.open(path),
+      throwsA(isA<UnsupportedPersistenceVersionException>()),
+    );
+  });
 
   test(
     'returns the existing book when the same bytes are imported again',

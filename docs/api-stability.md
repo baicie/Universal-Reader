@@ -92,6 +92,10 @@
 - 枚举新增值后，消费者必须保留兜底分支。
 - 破坏契约需要提升 major version，并提供迁移期。
 
+## Persistence compatibility
+
+本地 SharedPreferences 书目、收藏夹、笔记和问答使用版本化 envelope，并在 `.v2` key 写入新格式、继续双写旧 `.v1` payload，支持升级读取和旧版本回滚。SQLite 使用 `PRAGMA user_version`；未知未来版本会显式拒绝并关闭连接，不会静默当空库处理。详见 `docs/persistence-compatibility.md`。
+
 ## Commands
 
 ```powershell

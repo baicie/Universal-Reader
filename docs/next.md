@@ -96,7 +96,14 @@
 - Added a third-party-style RTF compatibility fixture plus JSON, composition, isolation, conflict, and failure-mode tests.
 - Plugins remain local and in-process; dynamic code fetching, marketplaces, DRM, and permission sandboxes remain out of scope.
 - Planned Hardening G close date: 2026-10-18. Implementation completed on 2026-09-13.
-- Planned Hardening E close date: 2026-11-15. Implementation completed on 2026-09-13.
+
+## v1.0 Hardening H complete: persistence compatibility
+
+- Added a versioned local persistence envelope with explicit future-version rejection and migration chaining.
+- Library, shelf, annotation, and conversation stores now prefer `.v2` envelopes while continuing to dual-write legacy `.v1` payloads for rollback compatibility.
+- Added SQLite `PRAGMA user_version` migration, legacy v0 upgrade coverage, future-schema rejection, and connection cleanup on failed migration.
+- Added dual-write, legacy-only fallback, migration-chain, rollback fixture, and schema-version regression tests.
+- Planned Hardening H close date: 2026-11-01. Implementation completed on 2026-09-14.
 
 ## PDF 测试覆盖提升（最新完成）
 

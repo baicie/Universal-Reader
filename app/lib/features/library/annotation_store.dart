@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/persistence_schema.dart';
+
 const maxAnnotations = 100;
 const userNoteSource = 'user';
 const bookmarkSource = 'bookmark';
@@ -108,23 +110,37 @@ class SharedPreferencesAnnotationRepository implements AnnotationRepository {
   SharedPreferencesAnnotationRepository(this.preferences);
 
   static const prefix = 'universal_reader.annotations.v1.';
+  static const versionedPrefix = 'universal_reader.annotations.v2.';
   final SharedPreferences preferences;
 
   @override
   Future<List<ReaderAnnotation>> load(String documentId) async {
-    final raw = preferences.getString('$prefix$documentId');
+    final raw =
+        preferences.getString('$versionedPrefix$documentId') ??
+        preferences.getString('$prefix$documentId');
     if (raw == null || raw.isEmpty) return const [];
-    return parseAnnotations(jsonDecode(raw));
+    final payload = decodePersistedPayload(
+      jsonDecode(raw),
+      store: 'annotations',
+    ).payload;
+    return parseAnnotations(payload);
   }
 
   @override
   Future<void> save(String documentId, List<ReaderAnnotation> notes) async {
+    final payload = trimAnnotations(notes)
+        .map((note) => note.toServiceJson())
+        .toList();
     await preferences.setString(
-      '$prefix$documentId',
+      '$versionedPrefix$documentId',
       jsonEncode(
-        trimAnnotations(notes).map((note) => note.toServiceJson()).toList(),
+        encodePersistedPayload(
+          schemaVersion: persistenceSchemaVersion,
+          payload: payload,
+        ),
       ),
     );
+    await preferences.setString('$prefix$documentId', jsonEncode(payload));
   }
 }
 

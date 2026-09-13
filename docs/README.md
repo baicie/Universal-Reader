@@ -11,6 +11,9 @@
 - **[api-stability.md](api-stability.md)** - Reader Runtime API 稳定性
   v1.0 公开契约、Locator JSON schema 和兼容变更规则
 
+- **[persistence-compatibility.md](persistence-compatibility.md)** - 本地持久化兼容
+  SharedPreferences envelope、双写回滚和 SQLite schema 迁移规则
+
 - **[performance-baseline.md](performance-baseline.md)** - 10k 书库性能基线
   大规模书库查询、筛选和排序的回归范围
 

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/http_library_repository.dart';
 import '../../core/library_repository.dart';
+import '../../core/persistence_schema.dart';
 import '../../core/sqlite_library_repository.dart';
 
 const favoritesSection = 'favorites';
@@ -264,10 +265,11 @@ LibraryCollection? _tryParseCollection(Map<String, dynamic> json) {
 
 LibraryShelves parseShelves(Object? raw) {
   final decoded = raw is String ? jsonDecode(raw) : raw;
-  if (decoded is! Map) {
+  final payload = decodePersistedPayload(decoded, store: 'shelves').payload;
+  if (payload is! Map) {
     throw const FormatException('corrupt shelves');
   }
-  final json = Map<String, dynamic>.from(decoded);
+  final json = Map<String, dynamic>.from(payload);
   final favorites = json['favorites'];
   final collections = json['collections'];
   return LibraryShelves(
@@ -303,21 +305,31 @@ class SharedPreferencesShelfRepository implements ShelfRepository {
   SharedPreferencesShelfRepository(this.preferences);
 
   static const storageKey = 'universal_reader.shelves.v1';
+  static const versionedStorageKey = 'universal_reader.shelves.v2';
   final SharedPreferences preferences;
 
   @override
   Future<LibraryShelves> load() async {
-    final raw = preferences.getString(storageKey);
+    final raw =
+        preferences.getString(versionedStorageKey) ??
+        preferences.getString(storageKey);
     if (raw == null || raw.isEmpty) return const LibraryShelves();
     return parseShelves(raw);
   }
 
   @override
   Future<void> save(LibraryShelves shelves) async {
+    final payload = shelves.toServiceJson();
     await preferences.setString(
-      storageKey,
-      jsonEncode(shelves.toServiceJson()),
+      versionedStorageKey,
+      jsonEncode(
+        encodePersistedPayload(
+          schemaVersion: persistenceSchemaVersion,
+          payload: payload,
+        ),
+      ),
     );
+    await preferences.setString(storageKey, jsonEncode(payload));
   }
 }
 
@@ -325,21 +337,31 @@ class SqliteShelfRepository implements ShelfRepository {
   SqliteShelfRepository(this.library);
 
   static const settingsKey = 'shelves';
+  static const versionedSettingsKey = 'shelves.v2';
   final SqliteLibraryRepository library;
 
   @override
   Future<LibraryShelves> load() async {
-    final raw = await library.readSetting(settingsKey);
+    final raw =
+        await library.readSetting(versionedSettingsKey) ??
+        await library.readSetting(settingsKey);
     if (raw == null || raw.isEmpty) return const LibraryShelves();
     return parseShelves(raw);
   }
 
   @override
-  Future<void> save(LibraryShelves shelves) {
-    return library.writeSetting(
-      settingsKey,
-      jsonEncode(shelves.toServiceJson()),
+  Future<void> save(LibraryShelves shelves) async {
+    final payload = shelves.toServiceJson();
+    await library.writeSetting(
+      versionedSettingsKey,
+      jsonEncode(
+        encodePersistedPayload(
+          schemaVersion: persistenceSchemaVersion,
+          payload: payload,
+        ),
+      ),
     );
+    await library.writeSetting(settingsKey, jsonEncode(payload));
   }
 }
 
