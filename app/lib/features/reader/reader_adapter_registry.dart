@@ -71,6 +71,9 @@ class ReaderAdapterRegistry {
 
   Set<DocumentFormat> get formats => Set.unmodifiable(_byFormat.keys);
 
+  Set<ReaderFormatAdapter> get adapters =>
+      Set.unmodifiable(_byFormat.values.toSet());
+
   ReaderDocument openSync({
     required DocumentMetadata metadata,
     required List<int>? bytes,

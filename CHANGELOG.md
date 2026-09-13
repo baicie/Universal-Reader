@@ -109,6 +109,7 @@
 - Added Android emulator and iOS Simulator smoke tests that load the native bridge and convert the fixed CHM/DjVu corpus through Dart FFI.
 - Added a physical-device smoke harness with device selection, conversion verification, optional signed release install/launch, Markdown reports, and a self-hosted manual workflow.
 - Added a versioned native ABI guard shared by Dart, Rust, and the C header, with safe fallback and load diagnostics on mismatch.
+- Added the v1 read-only plugin contract with versioned manifests, adapter composition, conflict isolation, third-party-style compatibility fixtures, and diagnostic issues.
 
 ## 0.0.1-dev.11 - 2026-08-29
 

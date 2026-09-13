@@ -86,6 +86,15 @@
 - Version mismatch, missing symbols, and missing libraries produce an explicit load diagnostic and a safe unavailable-reader fallback.
 - Device smoke tests assert the loaded API version, while a host-side contract test keeps Dart, Rust, and C declarations aligned.
 - Planned Hardening F close date: 2026-10-04. Implementation completed on 2026-09-13.
+
+## v1.0 Hardening G complete: plugin contract
+
+- Added a versioned JSON plugin manifest with reverse-domain ids, semantic versions, host API version, and declared formats.
+- Added an in-process, read-only `ReaderPluginHost` that composes plugin adapters with a base registry.
+- Invalid manifests, incompatible API versions, duplicate plugin/adapter ids, format conflicts, and adapter contract mismatches are isolated and reported without affecting standard readers.
+- Added a third-party-style RTF compatibility fixture plus JSON, composition, isolation, conflict, and failure-mode tests.
+- Plugins remain local and in-process; dynamic code fetching, marketplaces, DRM, and permission sandboxes remain out of scope.
+- Planned Hardening G close date: 2026-10-18. Implementation completed on 2026-09-13.
 - Planned Hardening E close date: 2026-11-15. Implementation completed on 2026-09-13.
 
 ## PDF 测试覆盖提升（最新完成）

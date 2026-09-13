@@ -41,6 +41,25 @@
 
 标准注册表覆盖直接解析格式：TXT、Markdown、HTML、DOCX、ODT、RTF、EPUB、PDF、FB2、MOBI、AZW3、CBZ、CBR、CBT、CB7。CHM/DjVu 仍由服务端转换，不注册客户端解析器。
 
+## Plugin contract v1
+
+插件是 App 内进程内、只读的适配器扩展，不包含动态代码下载、插件市场或权限沙箱。插件清单冻结以下 JSON 字段：
+
+```json
+{
+  "manifestVersion": 1,
+  "id": "io.example.custom-format",
+  "name": "Custom Format",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "formats": ["rtf"]
+}
+```
+
+`ReaderPluginHost` 在任何适配器进入打开路径前验证清单版本、宿主 API 版本、ID、语义版本、适配器 ID、格式冲突和声明能力。无效插件会被隔离并记录 `ReaderPluginIssue`，标准适配器和其他插件继续工作。
+
+插件不能覆盖内置格式，不能声明未实际提供的格式，也不能复用已有适配器 ID。只有验证通过的适配器会进入新的 `ReaderAdapterRegistry`。
+
 ## Locator JSON v1
 
 版本化 JSON 与旧的紧凑 `encodeLocator` 并存。旧格式继续用于已有笔记；新代码、插件和跨进程边界使用 JSON v1。
