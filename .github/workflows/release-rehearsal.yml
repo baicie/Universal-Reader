@@ -8,6 +8,16 @@ on:
         required: true
         default: v0.0.1-dev.11
         type: string
+      platform:
+        description: Launch smoke platform
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - windows
+          - web
+          - android
 
 permissions:
   contents: read
@@ -69,3 +79,116 @@ jobs:
           name: release-rehearsal
           path: release-rehearsal.md
           if-no-files-found: error
+
+  windows-launch:
+    name: Windows release launch
+    if: inputs.platform == 'all' || inputs.platform == 'windows'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download previous Windows package
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Force -Path previous-release | Out-Null
+          gh release download "$env:PREVIOUS_RELEASE_TAG" `
+            --pattern "universal-reader-$env:PREVIOUS_RELEASE_TAG-windows-x86_64.zip" `
+            --dir previous-release
+
+      - name: Run Windows launch smoke
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem -LiteralPath previous-release -Filter '*.zip' |
+            Select-Object -First 1
+          if ($null -eq $zip) { throw 'Previous Windows package missing' }
+          ./tool/release_launch_smoke.ps1 `
+            -Archive $zip.FullName `
+            -Report release-launch-windows.md
+
+      - name: Upload Windows launch report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-launch-windows
+          path: app/release-launch-windows.md
+          if-no-files-found: warn
+
+  web-launch:
+    name: Web release launch
+    if: inputs.platform == 'all' || inputs.platform == 'web'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.0'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Web release
+        run: flutter build web --release
+
+      - name: Run Web launch smoke
+        run: bash tool/release_web_smoke.sh build/web release-launch-web.md
+
+      - name: Upload Web launch report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-launch-web
+          path: app/release-launch-web.md
+          if-no-files-found: warn
+
+  android-launch:
+    name: Android release launch
+    if: inputs.platform == 'all' || inputs.platform == 'android'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download previous Android package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p previous-release
+          gh release download "$PREVIOUS_RELEASE_TAG" \
+            --pattern "universal-reader-${PREVIOUS_RELEASE_TAG}-android-x86_64.apk" \
+            --dir previous-release
+
+      - name: Run Android release launch smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_2
+          target: default
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: adb install -r "previous-release/universal-reader-${PREVIOUS_RELEASE_TAG}-android-x86_64.apk" && adb shell monkey -p io.universalreader.app -c android.intent.category.LAUNCHER 1 && sleep 8 && adb shell pidof io.universalreader.app && printf '# Release launch smoke\n\n- Platform: Android x86_64\n- Result: PASS\n' > android-release-launch.md
+
+      - name: Upload Android launch report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-launch-android
+          path: android-release-launch.md
+          if-no-files-found: warn

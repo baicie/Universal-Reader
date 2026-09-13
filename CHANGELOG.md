@@ -112,6 +112,7 @@
 - Added the v1 read-only plugin contract with versioned manifests, adapter composition, conflict isolation, third-party-style compatibility fixtures, and diagnostic issues.
 - Added versioned local persistence envelopes, dual-write rollback support, SQLite schema migration, future-version rejection, and persistence compatibility regression tests.
 - Added a SHA-256 checked released-tag persistence fixture and a manual release rehearsal workflow covering upgrade, rollback, and released SQLite migration.
+- Added Windows, Web, and Android release launch smoke checks with selectable manual workflow scopes.
 
 ## 0.0.1-dev.11 - 2026-08-29
 

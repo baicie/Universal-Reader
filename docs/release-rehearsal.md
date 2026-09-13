@@ -14,15 +14,30 @@ The golden payloads live under `app/test/fixtures/release_upgrade/v0.0.1-dev.11/
 
 ## Manual workflow
 
-Run the `Release rehearsal` workflow with a released tag. It downloads that tag's Windows x86_64 ZIP, verifies the archive and `app.exe`, then runs the same rehearsal with `PREVIOUS_RELEASE_TAG` set so the fixture and release identity must agree.
+Run the `Release rehearsal` workflow with a released tag and platform. Persistence rehearsal always runs; launch jobs can be selected independently:
+
+- `windows`: downloads the previous Windows x86_64 ZIP and starts `app.exe` for eight seconds.
+- `web`: builds the current Web release and renders it in headless Chrome.
+- `android`: installs the previous x86_64 APK in an emulator, launches it, and verifies a live app process.
+- `all`: runs every launch job.
+
+The workflow also sets `PREVIOUS_RELEASE_TAG`, so the fixture and downloaded release identity must agree.
 
 ## Limits
 
-This is a persistence and package-identity rehearsal, not an automated GUI upgrade installation. Interactive installation, first launch, and platform signing remain covered by the physical-device and release workflows.
+Windows and Web verify process/browser startup, and Android verifies package install plus process launch. These are launch smoke checks rather than full GUI interaction suites. iOS signed installation and interactive UI checks remain covered by the physical-device workflow.
 
 ## Commands
 
 ```powershell
 cd app
 flutter test test/release_upgrade_rehearsal_test.dart
+flutter build web --release
+bash tool/release_web_smoke.sh build/web release-launch-web.md
+```
+
+```powershell
+./tool/release_launch_smoke.ps1 `
+  -Archive ../universal-reader-v0.0.1-dev.11-windows-x86_64.zip `
+  -Report release-launch-windows.md
 ```

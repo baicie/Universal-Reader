@@ -113,6 +113,14 @@
 - Interactive package installation and first-launch automation remain manual platform validation.
 - Planned Hardening I close date: 2026-11-15. Implementation completed on 2026-09-14.
 
+## v1.0 Hardening J complete: release launch smoke
+
+- Added Windows package launch verification that extracts the archive, starts `app.exe`, confirms it remains alive, and writes a report.
+- Added Web release launch verification using a local static server and headless Chrome Flutter host detection.
+- Added Android release launch verification that installs the previous x86_64 APK, launches it, and verifies a running app process.
+- Extended the manual `Release rehearsal` workflow with selectable `windows`, `web`, `android`, and `all` launch scopes.
+- Planned Hardening J close date: 2026-11-29. Implementation completed on 2026-09-14.
+
 ## PDF 测试覆盖提升（最新完成）
 
 将 PDF 文档测试覆盖率从基线提升至 100%（1 个提交）。
