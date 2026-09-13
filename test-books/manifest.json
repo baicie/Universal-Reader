@@ -94,5 +94,11 @@
     "format": "chm",
     "bytes": 4991,
     "sha256": "bce781f8860caee2500781656bef068e1dc8a0992c1f2b66d5cbba030492feec"
+  },
+  {
+    "path": "djvu/minimal.djvu",
+    "format": "djvu",
+    "bytes": 392,
+    "sha256": "cb350857155f9132b43174130b6910bf1d4a034beeeec958b9c23ff37c278245"
   }
 ]

@@ -91,6 +91,7 @@
 - Added CBT comic support. CBT is detected from a validated TAR container with image entries, reuses the comic renderer, and supports ordered pages, nested paths, first-image covers, locators, progress, and search-by-page-name.
 - Added CB7 comic support. CB7 is detected from the 7z signature and decoded through the pure-Dart 7z reader with LZMA/LZMA2, solid-block, filter-chain, and CRC support.
 - Added service-backed CHM reading. The Rust service detects the ITSF signature, extracts normal CHM entries with the pure-Rust libchm decoder, assembles the HTML pages and assets into an EPUB package, and lets the existing Flutter EPUB reader open the result.
+- Added service-backed DjVu reading. The Rust service detects the DjVu signature, renders pages with the pure-Rust djvu-rs decoder, converts them to a CBZ archive, and lets the existing Flutter comic reader open the result.
 
 ## 0.0.1-dev.11 - 2026-08-29
 

@@ -22,6 +22,7 @@ use tower_http::{
 
 mod ai;
 mod chm;
+mod djvu;
 mod extract;
 mod library;
 mod sources;
@@ -58,6 +59,7 @@ pub fn detect_format(file_name: &str) -> Option<DetectedFormat> {
         "odt" => ("odt", "reflow"),
         "rtf" => ("rtf", "reflow"),
         "chm" => ("chm", "reflow"),
+        "djvu" => ("djvu", "fixed_page"),
         "cbt" => ("cbt", "comic"),
         "cb7" => ("cb7", "comic"),
         "cbz" => ("cbz", "comic"),
@@ -87,6 +89,12 @@ pub fn detect_format_bytes(file_name: &str, bytes: &[u8]) -> Option<DetectedForm
         return Some(DetectedFormat {
             format: "chm",
             document_type: "reflow",
+        });
+    }
+    if is_djvu(bytes) {
+        return Some(DetectedFormat {
+            format: "djvu",
+            document_type: "fixed_page",
         });
     }
     if is_7z(bytes) {
@@ -215,6 +223,10 @@ fn is_rar(bytes: &[u8]) -> bool {
 
 fn is_chm(bytes: &[u8]) -> bool {
     bytes.starts_with(b"ITSF")
+}
+
+fn is_djvu(bytes: &[u8]) -> bool {
+    bytes.starts_with(b"AT&TFORM") || bytes.starts_with(b"AT&T")
 }
 
 fn is_7z(bytes: &[u8]) -> bool {
@@ -1062,6 +1074,13 @@ mod tests {
                 document_type: "reflow",
             })
         );
+        assert_eq!(
+            detect_format("scan.djvu"),
+            Some(DetectedFormat {
+                format: "djvu",
+                document_type: "fixed_page",
+            })
+        );
     }
 
     #[test]
@@ -1171,6 +1190,13 @@ mod tests {
             Some(DetectedFormat {
                 format: "chm",
                 document_type: "reflow",
+            })
+        );
+        assert_eq!(
+            detect_format_bytes("book.bin", b"AT&TFORM"),
+            Some(DetectedFormat {
+                format: "djvu",
+                document_type: "fixed_page",
             })
         );
     }

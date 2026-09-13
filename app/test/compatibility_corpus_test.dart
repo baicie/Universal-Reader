@@ -43,7 +43,7 @@ void main() {
         bytes: bytes,
       );
       expect(document, isNot(isA<CorruptReaderDocument>()));
-      if (expected == DocumentFormat.chm) {
+      if (expected == DocumentFormat.chm || expected == DocumentFormat.djvu) {
         expect(document, isA<UnavailableReaderDocument>());
       } else {
         expect(document, isNot(isA<UnavailableReaderDocument>()));

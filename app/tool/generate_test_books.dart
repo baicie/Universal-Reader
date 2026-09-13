@@ -54,6 +54,10 @@ Future<void> main() async {
   if (await chm.exists()) {
     books['chm/minimal.chm'] = await chm.readAsBytes();
   }
+  final djvu = File('${root.path}/djvu/minimal.djvu');
+  if (await djvu.exists()) {
+    books['djvu/minimal.djvu'] = await djvu.readAsBytes();
+  }
 
   final manifest = <Map<String, Object>>[];
   for (final entry in books.entries) {

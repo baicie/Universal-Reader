@@ -235,16 +235,28 @@ impl LibraryStore {
         let mut stored_format = detected.format;
         let mut stored_document_type = detected.document_type;
         let mut content_name = file_name.clone();
-        if detected.format == "chm" {
-            stored_content = crate::chm::convert_to_epub(&file_name, content)
-                .ok_or(LibraryError::Unsupported)?;
-            stored_extension = "epub".to_string();
-            stored_format = "epub";
-            stored_document_type = "reflow";
+        match detected.format {
+            "chm" => {
+                stored_content = crate::chm::convert_to_epub(&file_name, content)
+                    .ok_or(LibraryError::Unsupported)?;
+                stored_extension = "epub".to_string();
+                stored_format = "epub";
+                stored_document_type = "reflow";
+            }
+            "djvu" => {
+                stored_content =
+                    crate::djvu::convert_to_cbz(content).ok_or(LibraryError::Unsupported)?;
+                stored_extension = "cbz".to_string();
+                stored_format = "cbz";
+                stored_document_type = "comic";
+            }
+            _ => {}
         }
         let stored_name = format!("{id}.{stored_extension}");
         if detected.format == "chm" {
-            content_name = stored_name.clone();
+            content_name = format!("{file_name}.epub");
+        } else if detected.format == "djvu" {
+            content_name = format!("{file_name}.cbz");
         }
         let stored_path = self.files_dir().join(&stored_name);
         tokio::fs::write(&stored_path, &stored_content)
@@ -695,6 +707,7 @@ pub fn content_type_for(format: &str) -> &'static str {
         "odt" => "application/vnd.oasis.opendocument.text",
         "rtf" => "application/rtf",
         "chm" => "application/vnd.ms-htmlhelp",
+        "djvu" => "image/vnd.djvu",
         "cbt" => "application/x-tar",
         "cb7" => "application/x-7z-compressed",
         _ => "application/octet-stream",

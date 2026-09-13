@@ -161,6 +161,15 @@ void main() {
     );
   });
 
+  test('detects DjVu content with an unrelated extension', () {
+    expect(
+      detector.detect(
+        DocumentSource(name: 'book.bin', bytes: 'AT&TFORM'.codeUnits),
+      ),
+      DocumentFormat.djvu,
+    );
+  });
+
   test('detects pdf content before trusting the extension', () {
     expect(
       detector.detect(

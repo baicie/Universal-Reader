@@ -31,7 +31,7 @@ Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK
 - Flutter Material 3 响应式界面
 - Library 搜索、格式筛选、排序、网格/列表视图和阅读进度；可改书架书名和作者；FB2 封面跟 title-info coverpage
 - Reader Runtime、文档适配器与定位器契约
-- EPUB、PDF、MOBI、AZW3、FB2、TXT、Markdown、HTML、DOCX、ODT、RTF、CHM、CBT、CB7、CBZ、CBR 内容优先格式检测，扩展名兜底
+- EPUB、PDF、MOBI、AZW3、FB2、TXT、Markdown、HTML、DOCX、ODT、RTF、DjVu、CHM、CBT、CB7、CBZ、CBR 内容优先格式检测，扩展名兜底
 - 本地文件导入
 - 阅读器目录、进度、主题和移动端交互
 - 界面默认中文，可在设置中切换 English 或跟随系统
@@ -39,6 +39,7 @@ Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK
 - 可选阅读助手，支持 DeepSeek 与 Ollama；可按书提问、提议跳转、把问答存成笔记
 - `test-books/` 提供十种主格式的最小兼容语料与 SHA-256 清单
 - CHM 在 Rust 服务可用时解包并转换为 EPUB 阅读；移动端直接解析仍待原生嵌入
+- DjVu 在 Rust 服务可用时按页渲染并转换为 CBZ 阅读；移动端直接解析仍待原生嵌入
 
 ## 阅读助手（DeepSeek）
 

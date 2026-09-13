@@ -42,6 +42,9 @@
 - **[chm-reader.md](chm-reader.md)** - CHM 阅读器
   Rust 服务解包、EPUB 转换和当前平台限制
 
+- **[djvu-reader.md](djvu-reader.md)** - DjVu 阅读器
+  Rust 服务页面渲染、CBZ 转换和当前平台限制
+
 ## 功能模块
 
 ### 书库管理

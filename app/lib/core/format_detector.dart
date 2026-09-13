@@ -34,6 +34,9 @@ class FormatDetector {
     if (name.endsWith('.odt')) return DocumentFormat.odt;
     if (name.endsWith('.rtf')) return DocumentFormat.rtf;
     if (name.endsWith('.chm')) return DocumentFormat.chm;
+    if (name.endsWith('.djvu') || name.endsWith('.djv')) {
+      return DocumentFormat.djvu;
+    }
     if (name.endsWith('.cbt')) return DocumentFormat.cbt;
     if (name.endsWith('.cb7')) return DocumentFormat.cb7;
     if (name.endsWith('.cbz')) return DocumentFormat.cbz;
@@ -49,6 +52,7 @@ class FormatDetector {
     if (_is7z(bytes)) return DocumentFormat.cb7;
     if (_looksLikeRtf(bytes)) return DocumentFormat.rtf;
     if (_isChm(bytes)) return DocumentFormat.chm;
+    if (_isDjvu(bytes)) return DocumentFormat.djvu;
     if (_isTar(bytes)) return _detectTar(bytes);
     if (_startsWith(bytes, const [0x50, 0x4B])) return _detectZip(bytes);
 
@@ -231,6 +235,15 @@ class FormatDetector {
         bytes[1] == 0x54 &&
         bytes[2] == 0x53 &&
         bytes[3] == 0x46;
+  }
+
+  bool _isDjvu(List<int> bytes) {
+    if (bytes.length < 8) return false;
+    const header = [0x41, 0x54, 0x26, 0x54, 0x46, 0x4F, 0x52, 0x4D];
+    for (var i = 0; i < header.length; i++) {
+      if (bytes[i] != header[i]) return false;
+    }
+    return true;
   }
 
   bool _isTar(List<int> bytes) {

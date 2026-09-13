@@ -11,6 +11,7 @@ enum DocumentFormat {
   odt,
   rtf,
   chm,
+  djvu,
   cbt,
   cb7,
   cbz,
@@ -34,6 +35,7 @@ extension DocumentFormatLabel on DocumentFormat {
     DocumentFormat.odt => 'ODT',
     DocumentFormat.rtf => 'RTF',
     DocumentFormat.chm => 'CHM',
+    DocumentFormat.djvu => 'DJVU',
     DocumentFormat.cbt => 'CBT',
     DocumentFormat.cb7 => 'CB7',
     DocumentFormat.cbz => 'CBZ',
@@ -42,7 +44,7 @@ extension DocumentFormatLabel on DocumentFormat {
   };
 
   DocumentType get type => switch (this) {
-    DocumentFormat.pdf => DocumentType.fixedPage,
+    DocumentFormat.pdf || DocumentFormat.djvu => DocumentType.fixedPage,
     DocumentFormat.cbz ||
     DocumentFormat.cbr ||
     DocumentFormat.cbt ||
