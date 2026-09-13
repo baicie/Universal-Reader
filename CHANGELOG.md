@@ -95,6 +95,8 @@
 - Started v0.4 local source sync: the Rust service now imports missing folder files and pushes missing library files back without overwriting same-name conflicts, with a matching Sources card action.
 - Added S3-compatible storage import and two-way sync with AWS Signature V4, paginated ListObjectsV2, object download/upload, and prefix isolation.
 - Completed v0.4 Reader Metadata Sync. Reading progress and annotations now use a versioned `universal-reader-sync.json` sidecar over local folders, WebDAV, or S3-compatible storage. Progress follows the latest open time; annotations merge by stable ID; deletion tombstones prevent deleted notes from returning on the next merge.
+- Started v1.0 hardening by versioning the public Reader Runtime contract and adding locator schema v1 JSON without changing the existing compact annotation labels.
+- Added a 10,000-document scale regression and cached the controller's filtered/sorted library view so repeated widget reads do not rebuild the list.
 
 ## 0.0.1-dev.11 - 2026-08-29
 

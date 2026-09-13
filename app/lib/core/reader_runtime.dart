@@ -2,6 +2,12 @@ import 'package:flutter/widgets.dart';
 
 import 'models.dart';
 
+/// Public Reader Runtime contract version.
+///
+/// Additive changes may land within major version 1. Removing or renaming
+/// members requires a new major version.
+const readerRuntimeApiVersion = '1.0.0';
+
 class DocumentRange {
   const DocumentRange({required this.start, required this.end});
 

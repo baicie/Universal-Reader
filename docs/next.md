@@ -33,6 +33,22 @@
 - Remote metadata for a book that is not local yet is preserved and attached after that book is imported.
 - Planned v0.4 close date: 2026-10-07. Implementation completed before the target.
 
+## v1.0 Hardening A complete: Runtime contract and 10k baseline
+
+- Froze `readerRuntimeApiVersion = 1.0.0` for the public Reader Runtime surface.
+- Added locator schema v1 JSON beside the existing compact annotation label format.
+- Added contract tests for version rejection, all locator kinds, and stable field names.
+- Added a 10,000-document regression covering load, search, type filters, sorting, progress updates, and continue-reading.
+- Cached the controller's visible document list with invalidation on search, filters, shelves, imports, deletes, renames, progress, and note-search hits.
+- Planned Hardening A close date: 2026-09-20. Implementation completed on 2026-09-13.
+
+## v1.0 Hardening B planned
+
+- Introduce a real adapter registry behind the stable `DocumentAdapter` contract.
+- Expand the compatibility corpus beyond one minimal sample per format.
+- Add Rust SQLite and cover-loading measurements at 10k documents.
+- Planned Hardening B close date: 2026-10-04.
+
 ## PDF 测试覆盖提升（最新完成）
 
 将 PDF 文档测试覆盖率从基线提升至 100%（1 个提交）。

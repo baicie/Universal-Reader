@@ -33,7 +33,7 @@ Release 包按“通用包 + 架构包”提供下载：Android 提供通用 APK
 - 本机 Rust 服务支持文件夹扫描、监视和双向同步；同名但内容不同的文件保持不覆盖
 - Rust 服务支持 S3 兼容存储导入与双向同步，使用 AWS Signature V4、路径前缀隔离和 ListObjectsV2 分页
 - 阅读进度与笔记可通过文件夹、WebDAV 或 S3 的独立 Reader Metadata Sync 合并；进度取最近打开，笔记按稳定 ID 合并，删除记录不会下次同步又出现
-- Reader Runtime、文档适配器与定位器契约
+- Reader Runtime `1.0.0`、文档适配器与版本化 Locator JSON 契约；10k 书库规模回归和可见列表缓存
 - EPUB、PDF、MOBI、AZW3、FB2、TXT、Markdown、HTML、DOCX、ODT、RTF、DjVu、CHM、CBT、CB7、CBZ、CBR 内容优先格式检测，扩展名兜底
 - 本地文件导入
 - 阅读器目录、进度、主题和移动端交互

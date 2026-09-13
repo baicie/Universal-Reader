@@ -8,6 +8,12 @@
 - **[renderer-architecture.md](renderer-architecture.md)** - 阅读渲染架构说明  
   WebView + paginator.js 方案详解，包括核心组件、数据流和架构决策
 
+- **[api-stability.md](api-stability.md)** - Reader Runtime API 稳定性
+  v1.0 公开契约、Locator JSON schema 和兼容变更规则
+
+- **[performance-baseline.md](performance-baseline.md)** - 10k 书库性能基线
+  大规模书库查询、筛选和排序的回归范围
+
 - **[cfi-logic.md](cfi-logic.md)** - CFI 计算逻辑说明  
   EPUB CFI（Canonical Fragment Identifier）生成、存储、恢复流程以及设计决策
 

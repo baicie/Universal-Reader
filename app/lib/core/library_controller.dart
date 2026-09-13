@@ -29,6 +29,7 @@ class PersistedLibraryController extends ChangeNotifier {
   final shelf.ShelfRepository shelfRepository;
   final AnnotationRepository? annotationRepository;
   List<LibraryDocument> _documents = [];
+  List<LibraryDocument>? _visibleDocuments;
   shelf.LibraryShelves _shelves = const shelf.LibraryShelves();
   Set<String> _noteOnlyHits = const {};
   Completer<void>? _pendingSearch;
@@ -76,6 +77,10 @@ class PersistedLibraryController extends ChangeNotifier {
   bool get hasStoredDocuments => _documents.isNotEmpty;
 
   List<LibraryDocument> get documents {
+    return _visibleDocuments ??= _buildVisibleDocuments();
+  }
+
+  List<LibraryDocument> _buildVisibleDocuments() {
     final result = _documents.where((document) {
       final metadata = document.metadata;
       final text =
@@ -124,6 +129,11 @@ class PersistedLibraryController extends ChangeNotifier {
     return combined;
   }
 
+  void _notifyChanged() {
+    _visibleDocuments = null;
+    notifyListeners();
+  }
+
   bool _passesTypeAndSection(LibraryDocument document) {
     final metadata = document.metadata;
     final typeMatches = formatType == 'all' || metadata.type.name == formatType;
@@ -166,7 +176,7 @@ class PersistedLibraryController extends ChangeNotifier {
     }
     await _loadShelves();
     loading = false;
-    notifyListeners();
+    _notifyChanged();
   }
 
   Future<void> _loadShelves() async {
@@ -199,7 +209,7 @@ class PersistedLibraryController extends ChangeNotifier {
   Future<void> toggleFavorite(String id) async {
     if (documentById(id) == null) return;
     _shelves = shelf.toggleFavorite(_shelves, id);
-    notifyListeners();
+    _notifyChanged();
     await _saveShelves();
   }
 
@@ -208,13 +218,13 @@ class PersistedLibraryController extends ChangeNotifier {
     if (next.collections.length == _shelves.collections.length) return null;
     final previous = _shelves;
     _shelves = next;
-    notifyListeners();
+    _notifyChanged();
     final saved = await _saveShelves();
     if (!saved) {
       // Roll back so the caller can tell persistence failed and the
       // collection will not survive a restart.
       _shelves = previous;
-      notifyListeners();
+      _notifyChanged();
       return null;
     }
     return _shelves.collections.last;
@@ -223,7 +233,7 @@ class PersistedLibraryController extends ChangeNotifier {
   Future<void> addToCollection(String collectionId, String documentId) async {
     if (documentById(documentId) == null) return;
     _shelves = shelf.addToCollection(_shelves, collectionId, documentId);
-    notifyListeners();
+    _notifyChanged();
     await _saveShelves();
   }
 
@@ -233,14 +243,14 @@ class PersistedLibraryController extends ChangeNotifier {
   ) async {
     if (documentById(documentId) == null) return;
     _shelves = shelf.toggleInCollection(_shelves, collectionId, documentId);
-    notifyListeners();
+    _notifyChanged();
     await _saveShelves();
   }
 
   Future<void> deleteCollection(String collectionId) async {
     _shelves = shelf.removeCollection(_shelves, collectionId);
     if (section == shelf.collectionSection(collectionId)) section = 'all';
-    notifyListeners();
+    _notifyChanged();
     await _saveShelves();
   }
 
@@ -256,7 +266,7 @@ class PersistedLibraryController extends ChangeNotifier {
     _shelves = shelf.pruneShelves(_shelves, {
       for (final document in _documents) document.metadata.id,
     });
-    notifyListeners();
+    _notifyChanged();
     await _saveShelves();
   }
 
@@ -264,7 +274,7 @@ class PersistedLibraryController extends ChangeNotifier {
     query = value;
     _noteOnlyHits = const {};
     _refreshSearchHits();
-    notifyListeners();
+    _notifyChanged();
   }
 
   void _refreshSearchHits() {
@@ -283,7 +293,7 @@ class PersistedLibraryController extends ChangeNotifier {
           if (hit.kind == LibrarySearchHitKind.note) hit.document.metadata.id,
       };
       if (!pending.isCompleted) pending.complete();
-      notifyListeners();
+      _notifyChanged();
     }();
   }
 
@@ -299,27 +309,27 @@ class PersistedLibraryController extends ChangeNotifier {
   @visibleForTesting
   void addDocumentForTest(LibraryDocument document) {
     _documents = [..._documents, document];
-    notifyListeners();
+    _notifyChanged();
   }
 
   void selectSection(String value) {
     section = value;
-    notifyListeners();
+    _notifyChanged();
   }
 
   void selectType(String value) {
     formatType = value;
-    notifyListeners();
+    _notifyChanged();
   }
 
   void selectSort(String value) {
     sort = value;
-    notifyListeners();
+    _notifyChanged();
   }
 
   void toggleView() {
     listView = !listView;
-    notifyListeners();
+    _notifyChanged();
   }
 
   Future<List<int>?> readFile(String id) async {
@@ -388,7 +398,7 @@ class PersistedLibraryController extends ChangeNotifier {
         failed = true;
       }
     }
-    notifyListeners();
+    _notifyChanged();
     if (count > 0) return ImportOutcome.imported(count);
     if (failed) return const ImportOutcome.failed();
     return const ImportOutcome.unsupported();
@@ -414,7 +424,7 @@ class PersistedLibraryController extends ChangeNotifier {
     } catch (_) {
       // Persistence failure does not block UI. Memory state is already updated.
     }
-    notifyListeners();
+    _notifyChanged();
   }
 
   Future<void> updateProgress(String id, double progress) async {
@@ -437,7 +447,7 @@ class PersistedLibraryController extends ChangeNotifier {
     } catch (_) {
       // 持久化失败不阻塞 UI：内存状态已更新，下次打开时重新记录。
     }
-    notifyListeners();
+    _notifyChanged();
   }
 
   Future<void> writeIdentity({
@@ -458,7 +468,7 @@ class PersistedLibraryController extends ChangeNotifier {
       title: title,
       author: author,
     );
-    notifyListeners();
+    _notifyChanged();
   }
 }
 
