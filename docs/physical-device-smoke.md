@@ -37,16 +37,16 @@ dart run tool/physical_smoke.dart \
   --release-artifact=/path/to/app-release.apk
 ```
 
-For iOS, pass the signed `Runner.app` path on macOS:
+For iOS, pass the signed `Runner.app` or signed `IPA` path on macOS:
 
 ```bash
 dart run tool/physical_smoke.dart \
   --platform=ios \
   --device-id=<udid> \
-  --release-artifact=/path/to/Runner.app
+  --release-artifact=/path/to/universal-reader-ios-signed.ipa
 ```
 
-Android installation validates the APK signature. iOS installation validates the app signature through `devicectl`. Both paths then launch the release bundle and record the result in the report.
+The harness extracts an IPA to a temporary `Payload/Runner.app`. Android installation validates the APK signature. iOS installation validates the app signature through `devicectl`. Both paths then launch the release bundle and record the result in the report.
 
 ## Self-hosted workflow
 

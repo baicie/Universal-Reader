@@ -17,11 +17,12 @@ The current candidate is:
 - `Release rehearsal`: released persistence upgrade/rollback, Windows launch, Web launch, and Android APK launch.
 - `Physical device smoke`: manually dispatched real-device conversion and optional signed package install.
 - Release publication: tag/version verification, structured `release-manifest.json`, `SHA256SUMS`, and independent asset verification.
-- iOS release: unsigned `Runner.app` archive with bundle version and native-symbol verification.
+- iOS release: signed IPA with Team ID, entitlement, embedded-profile, signature, bundle-version, and native-symbol verification; unsigned `Runner.app` is retained only when a dry run or development release has no signing material.
 
 ## Manual checklist
 
 - [ ] Android release signing secrets are configured and verified.
+- [ ] iOS release signing secrets are configured and `Signing preflight` passes.
 - [ ] iOS signing and provisioning are verified on a physical device.
 - [ ] `Release rehearsal` passes for the candidate tag.
 - [ ] `Physical device smoke` passes on Android and iOS.
@@ -37,7 +38,7 @@ gh workflow run release.yml `
   -f dry_run=true
 ```
 
-The dry run builds every platform artifact, uses debug signing for Android, generates release notes, creates the manifest, verifies all hashes, and uploads the complete bundle without creating a GitHub Release.
+The dry run builds every platform artifact, uses debug signing for Android, builds a signed IPA when iOS signing secrets are present (otherwise an unsigned archive), generates release notes, creates the manifest, verifies all hashes, and uploads the complete bundle without creating a GitHub Release.
 
 After configuring Android secrets, run the manual `Signing preflight` workflow. It decodes the keystore outside the repository, validates the alias and key password, and prints only the public certificate fingerprint.
 
@@ -64,7 +65,7 @@ For iOS, configure these GitHub secrets and run the `Signing preflight` workflow
 - `IOS_PROVISIONING_PROFILE_BASE64`: base64-encoded `.mobileprovision`
 - `IOS_TEAM_ID`
 
-The macOS preflight imports the certificate into a temporary keychain and verifies the provisioning profile UUID, Team ID, bundle entitlement, and available codesigning identity.
+The macOS preflight imports the certificate into a temporary keychain and verifies the provisioning profile UUID, Team ID, bundle entitlement, and available codesigning identity. A normal release fails before publication when any iOS signing secret is missing. Manual workflow dispatches can select `development`, `ad-hoc`, `app-store`, or `enterprise` for `ios_export_method`; tag pushes default to `development`.
 
 ## Commands
 

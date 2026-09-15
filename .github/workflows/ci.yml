@@ -46,6 +46,9 @@ jobs:
       - name: Analyze
         run: flutter analyze
 
+      - name: Check iOS release shell syntax
+        run: bash -n tool/install_ios_signing.sh tool/build_ios_signed_release.sh tool/verify_ios_ipa.sh tool/verify_ios_release.sh
+
       - name: Test with coverage
         run: flutter test --coverage
 

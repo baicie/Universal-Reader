@@ -6,6 +6,10 @@ const nativeSmokeTest =
 const androidApplicationId = 'io.universalreader.app';
 const iosBundleId = 'io.universalreader.app';
 
+bool isSupportedIosReleaseArtifact(String path) {
+  return path.endsWith('.app') || path.endsWith('.ipa');
+}
+
 class PhysicalSmokeException implements Exception {
   const PhysicalSmokeException(this.message);
 
@@ -387,35 +391,61 @@ Future<CommandOutcome> _runReleaseSmoke(
       'The iOS release artifact smoke must run on macOS.',
     );
   }
-  if (!artifact.path.endsWith('.app')) {
+  if (!isSupportedIosReleaseArtifact(artifact.path)) {
     throw const PhysicalSmokeException(
-      'Pass the signed Runner.app path for iOS, not an IPA.',
+      'Pass a signed Runner.app or signed IPA path for iOS.',
     );
   }
-  final install = await _runCommand('xcrun', [
-    'devicectl',
-    'device',
-    'install',
-    'app',
-    '--device',
-    device.id,
-    artifact.path,
-  ]);
-  if (!install.succeeded) return install;
-  final launch = await _runCommand('xcrun', [
-    'devicectl',
-    'device',
-    'process',
-    'launch',
-    '--device',
-    device.id,
-    iosBundleId,
-  ]);
-  return CommandOutcome(
-    command: '${install.command}; ${launch.command}',
-    exitCode: launch.exitCode,
-    output: '${install.output}\n${launch.output}',
-  );
+
+  Directory? extracted;
+  try {
+    var appPath = artifact.path;
+    if (artifact.path.endsWith('.ipa')) {
+      extracted = Directory.systemTemp.createTempSync('ur-ios-smoke-');
+      final extract = await _runCommand('ditto', [
+        '-x',
+        '-k',
+        artifact.path,
+        extracted.path,
+      ]);
+      if (!extract.succeeded) return extract;
+      appPath = '${extracted.path}/Payload/Runner.app';
+      if (!Directory(appPath).existsSync()) {
+        return CommandOutcome(
+          command: extract.command,
+          exitCode: 1,
+          output: '${extract.output}\nIPA does not contain Payload/Runner.app.',
+        );
+      }
+    }
+
+    final install = await _runCommand('xcrun', [
+      'devicectl',
+      'device',
+      'install',
+      'app',
+      '--device',
+      device.id,
+      appPath,
+    ]);
+    if (!install.succeeded) return install;
+    final launch = await _runCommand('xcrun', [
+      'devicectl',
+      'device',
+      'process',
+      'launch',
+      '--device',
+      device.id,
+      iosBundleId,
+    ]);
+    return CommandOutcome(
+      command: '${install.command}; ${launch.command}',
+      exitCode: launch.exitCode,
+      output: '${install.output}\n${launch.output}',
+    );
+  } finally {
+    extracted?.deleteSync(recursive: true);
+  }
 }
 
 Future<CommandOutcome> _runCommand(

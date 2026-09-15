@@ -20,6 +20,16 @@ on:
         required: false
         default: false
         type: boolean
+      ios_export_method:
+        description: iOS IPA export method used when signing secrets are configured
+        required: false
+        default: development
+        type: choice
+        options:
+          - development
+          - ad-hoc
+          - app-store
+          - enterprise
 
 permissions:
   contents: write
@@ -67,13 +77,25 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
         shell: bash
         run: |
           if [[ "$DRY_RUN" == true || "$RELEASE_TAG" == *-dev.* ]]; then
             echo "Dry run or development release: release signing is not required."
             exit 0
           fi
-          for variable in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+          for variable in \
+            ANDROID_KEYSTORE_BASE64 \
+            ANDROID_KEYSTORE_PASSWORD \
+            ANDROID_KEY_ALIAS \
+            ANDROID_KEY_PASSWORD \
+            IOS_CERTIFICATE_BASE64 \
+            IOS_CERTIFICATE_PASSWORD \
+            IOS_PROVISIONING_PROFILE_BASE64 \
+            IOS_TEAM_ID; do
             if [[ -z "${!variable:-}" ]]; then
               echo "Missing required release secret: $variable" >&2
               exit 1
@@ -473,7 +495,7 @@ jobs:
           if-no-files-found: error
 
   ios:
-    name: Build iOS unsigned release
+    name: Build iOS release
     runs-on: macos-14
     defaults:
       run:
@@ -508,10 +530,59 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Detect iOS signing
+        id: ios-signing
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+        shell: bash
+        run: |
+          signed=true
+          missing=()
+          for variable in \
+            IOS_CERTIFICATE_BASE64 \
+            IOS_CERTIFICATE_PASSWORD \
+            IOS_PROVISIONING_PROFILE_BASE64 \
+            IOS_TEAM_ID; do
+            if [[ -z "${!variable:-}" ]]; then
+              signed=false
+              missing+=("$variable")
+            fi
+          done
+          echo "signed=$signed" >> "$GITHUB_OUTPUT"
+          if [[ "$signed" == false && "$DRY_RUN" != true && "$RELEASE_TAG" != *-dev.* ]]; then
+            printf 'Missing required iOS release secret: %s\n' "${missing[@]}" >&2
+            exit 1
+          fi
+          if [[ "$signed" == true ]]; then
+            echo "iOS signing secrets detected; a signed IPA will be built."
+          else
+            echo "iOS signing secrets are absent; an unsigned archive will be built."
+          fi
+
+      - name: Build signed iOS IPA
+        if: steps.ios-signing.outputs.signed == 'true'
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          IOS_EXPORT_METHOD: ${{ inputs.ios_export_method || 'development' }}
+        shell: bash
+        run: |
+          VERSION="$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)"
+          bash tool/build_ios_signed_release.sh \
+            "$VERSION" \
+            "../universal-reader-${{ env.RELEASE_TAG }}-ios-signed.ipa"
+
       - name: Build iOS without signing
+        if: steps.ios-signing.outputs.signed != 'true'
         run: flutter build ios --release --no-codesign
 
-      - name: Package and verify iOS release
+      - name: Package and verify unsigned iOS release
+        if: steps.ios-signing.outputs.signed != 'true'
         shell: bash
         run: |
           VERSION="$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)"
@@ -520,7 +591,16 @@ jobs:
             "$VERSION" \
             "../universal-reader-${{ env.RELEASE_TAG }}-ios-unsigned.zip"
 
+      - name: Upload signed iOS IPA
+        if: steps.ios-signing.outputs.signed == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: universal-reader-${{ env.RELEASE_TAG }}-ios-signed
+          path: universal-reader-${{ env.RELEASE_TAG }}-ios-signed.ipa
+          if-no-files-found: error
+
       - name: Upload iOS unsigned artifact
+        if: steps.ios-signing.outputs.signed != 'true'
         uses: actions/upload-artifact@v7
         with:
           name: universal-reader-${{ env.RELEASE_TAG }}-ios-unsigned

@@ -15,7 +15,7 @@ on:
         required: false
         type: string
       release_artifact:
-        description: Optional signed APK or Runner.app path on the self-hosted runner
+        description: Optional signed APK, Runner.app, or IPA path on the self-hosted runner
         required: false
         type: string
 

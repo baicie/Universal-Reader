@@ -82,6 +82,12 @@ void main() {
     expect(options.reportPath, 'report.md');
   });
 
+  test('accepts signed app bundles and IPAs for iOS release smoke', () {
+    expect(isSupportedIosReleaseArtifact('/tmp/Runner.app'), isTrue);
+    expect(isSupportedIosReleaseArtifact('/tmp/Runner.ipa'), isTrue);
+    expect(isSupportedIosReleaseArtifact('/tmp/app-release.apk'), isFalse);
+  });
+
   test('renders a passing physical smoke report', () {
     final report = renderPhysicalSmokeReport(
       options: const PhysicalSmokeOptions(

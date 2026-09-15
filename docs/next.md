@@ -164,6 +164,15 @@
 - Added iOS secrets to the manual `Signing preflight` workflow; actual signed IPA packaging remains the next signed-release step.
 - Planned Hardening Q close date: 2027-03-07. Implementation completed on 2026-09-14.
 
+## v1.0 Hardening R complete: signed iOS IPA release build
+
+- Added a signed iOS release builder that keeps signing material only for the IPA build, uses manual signing with the installed certificate and provisioning profile, and removes the temporary keychain on exit.
+- The Release workflow requires all iOS signing secrets for a normal release, exports a signed IPA, and retains the unsigned archive only for dry runs or development releases without signing material.
+- Added signed IPA verification for bundle version, native symbols, codesign validity, Team ID, entitlements, embedded profile UUID, and bundle entitlement.
+- The physical-device smoke harness now accepts either a signed `Runner.app` or signed IPA and extracts `Payload/Runner.app` on macOS before installation.
+- The signed IPA participates in `release-manifest.json` and `SHA256SUMS` without changing the generic asset verifier.
+- Planned Hardening R close date: 2027-03-21. Implementation completed on 2026-09-15.
+
 ## v1.0 Hardening K complete: release candidate gate
 
 - Froze the app, Rust workspace, Cargo lock, and changelog at `1.0.0-rc.1`.
