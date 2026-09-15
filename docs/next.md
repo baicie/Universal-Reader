@@ -182,6 +182,13 @@
 - External signing material and physical Apple hardware remain required; no certificate or provisioning profile is fabricated by the repository.
 - Planned Hardening S close date: 2027-04-04. Implementation completed on 2026-09-15.
 
+## v1.0 Hardening T complete: secretless Android signing smoke
+
+- CI generates a short-lived PKCS12 release keystore outside the repository and runs the same Android signing credential preflight used by the release workflow.
+- The job writes a temporary `key.properties`, builds a release APK, and compares its `apksigner` certificate SHA-256 with the generated keystore.
+- The keystore and `key.properties` are removed on every exit path; repository secrets and physical Android hardware are still required for the final publication gate.
+- Planned Hardening T close date: 2027-04-18. Implementation completed on 2026-09-15.
+
 ## v1.0 Hardening K complete: release candidate gate
 
 - Froze the app, Rust workspace, Cargo lock, and changelog at `1.0.0-rc.1`.

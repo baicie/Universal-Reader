@@ -217,6 +217,75 @@ jobs:
           unzip -l build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk | grep -q 'lib/armeabi-v7a/libuniversal_reader_native.so'
           unzip -l build/app/outputs/flutter-apk/app-x86_64-release.apk | grep -q 'lib/x86_64/libuniversal_reader_native.so'
 
+      - name: Verify Android release signing without repository secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          keystore="$RUNNER_TEMP/universal-reader-ci.jks"
+          store_password='changeit'
+          key_alias='universal-reader-ci'
+          key_password="$store_password"
+          cleanup() {
+            rm -f android/key.properties "$keystore"
+          }
+          trap cleanup EXIT
+
+          keytool -genkeypair \
+            -keystore "$keystore" \
+            -storetype PKCS12 \
+            -storepass "$store_password" \
+            -keypass "$key_password" \
+            -alias "$key_alias" \
+            -dname "CN=Universal Reader CI, OU=CI, O=Universal Reader, C=CN" \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 2 \
+            -noprompt
+
+          export ANDROID_KEYSTORE_BASE64
+          ANDROID_KEYSTORE_BASE64="$(base64 -w 0 "$keystore")"
+          export ANDROID_KEYSTORE_PASSWORD="$store_password"
+          export ANDROID_KEY_ALIAS="$key_alias"
+          export ANDROID_KEY_PASSWORD="$key_password"
+          bash tool/verify_android_signing.sh
+
+          {
+            printf 'storeFile=%s\n' "$keystore"
+            printf 'storePassword=%s\n' "$store_password"
+            printf 'keyAlias=%s\n' "$key_alias"
+            printf 'keyPassword=%s\n' "$key_password"
+          } > android/key.properties
+
+          rm -f build/app/outputs/flutter-apk/app-release.apk
+          flutter build apk --release
+
+          expected="$(
+            keytool -J-Duser.language=en -J-Duser.country=US -list -v \
+              -keystore "$keystore" \
+              -storepass "$store_password" \
+              -alias "$key_alias" |
+              sed -n 's/.*SHA256: //p' |
+              head -n 1 |
+              tr -d ':' |
+              tr '[:upper:]' '[:lower:]'
+          )"
+          test -n "$expected"
+
+          sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$sdk_root"
+          apksigner="$(find "$sdk_root/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$apksigner"
+          actual="$(
+            "$apksigner" verify --print-certs build/app/outputs/flutter-apk/app-release.apk |
+              sed -n 's/.*SHA-256 digest: //p' |
+              head -n 1 |
+              tr -d ':' |
+              tr '[:upper:]' '[:lower:]'
+          )"
+          test -n "$actual"
+          test "$actual" = "$expected"
+          echo "Android release APK signature verified: sha256=$actual"
+
   flutter-windows:
     name: Windows build
     runs-on: windows-latest

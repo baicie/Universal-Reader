@@ -12,7 +12,7 @@ The current candidate is:
 
 ## Automated gates
 
-- Normal CI: formatting, analyze, Flutter tests, coverage, Web, Windows, Rust, Android APK packaging, and iOS symbol checks.
+- Normal CI: formatting, analyze, Flutter tests, coverage, Web, Windows, Rust, Android APK packaging, secretless Android release-signing verification, and iOS symbol checks.
 - `Native smoke`: nightly/manual Android emulator and iOS Simulator conversion tests.
 - `Release rehearsal`: released persistence upgrade/rollback, Windows launch, Web launch, and Android APK launch.
 - `Physical device smoke`: manually dispatched real-device conversion and optional signed package install.
