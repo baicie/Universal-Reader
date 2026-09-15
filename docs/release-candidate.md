@@ -65,7 +65,26 @@ For iOS, configure these GitHub secrets and run the `Signing preflight` workflow
 - `IOS_PROVISIONING_PROFILE_BASE64`: base64-encoded `.mobileprovision`
 - `IOS_TEAM_ID`
 
-The macOS preflight imports the certificate into a temporary keychain and verifies the provisioning profile UUID, Team ID, bundle entitlement, and available codesigning identity. A normal release fails before publication when any iOS signing secret is missing. Manual workflow dispatches can select `development`, `ad-hoc`, `app-store`, or `enterprise` for `ios_export_method`; tag pushes default to `development`.
+On macOS, the bootstrap helper validates the P12 and provisioning profile before uploading the four secrets through `gh` stdin:
+
+```bash
+cd app
+export IOS_CERTIFICATE_PASSWORD='...'
+./tool/configure_ios_signing.sh \
+  --certificate /secure/universal-reader.p12 \
+  --profile /secure/universal-reader.mobileprovision \
+  --team-id ABCDE12345 \
+  --export-method development \
+  --validate-only
+
+./tool/configure_ios_signing.sh \
+  --certificate /secure/universal-reader.p12 \
+  --profile /secure/universal-reader.mobileprovision \
+  --team-id ABCDE12345 \
+  --export-method development
+```
+
+The helper rejects expired profiles, Team ID or bundle mismatches, profile/export-method mismatches, and development/distribution identity mismatches. The macOS preflight imports the certificate into a temporary keychain and applies the same checks. A normal release fails before publication when any iOS signing secret is missing. Manual workflow dispatches can select `development`, `ad-hoc`, `app-store`, or `enterprise` for `ios_export_method`; tag pushes default to `development`.
 
 ## Commands
 

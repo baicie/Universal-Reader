@@ -173,6 +173,15 @@
 - The signed IPA participates in `release-manifest.json` and `SHA256SUMS` without changing the generic asset verifier.
 - Planned Hardening R close date: 2027-03-21. Implementation completed on 2026-09-15.
 
+## v1.0 Hardening S complete: iOS signing credential bootstrap
+
+- Added a macOS helper that validates a P12, provisioning profile, Team ID, expiration date, profile type, and development or distribution identity before changing GitHub state.
+- The helper uploads `IOS_CERTIFICATE_BASE64`, `IOS_CERTIFICATE_PASSWORD`, `IOS_PROVISIONING_PROFILE_BASE64`, and `IOS_TEAM_ID` through `gh` stdin without writing secrets to the repository.
+- The signing preflight workflow can now select `development`, `ad-hoc`, `app-store`, or `enterprise` and rejects a profile that does not match the selected export method.
+- The Release workflow applies the same profile and identity checks to its temporary signing import before building the signed IPA.
+- External signing material and physical Apple hardware remain required; no certificate or provisioning profile is fabricated by the repository.
+- Planned Hardening S close date: 2027-04-04. Implementation completed on 2026-09-15.
+
 ## v1.0 Hardening K complete: release candidate gate
 
 - Froze the app, Rust workspace, Cargo lock, and changelog at `1.0.0-rc.1`.

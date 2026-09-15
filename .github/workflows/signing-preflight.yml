@@ -2,6 +2,17 @@ name: Signing preflight
 
 on:
   workflow_dispatch:
+    inputs:
+      ios_export_method:
+        description: Provisioning profile type used for the iOS signing check
+        required: false
+        default: development
+        type: choice
+        options:
+          - development
+          - ad-hoc
+          - app-store
+          - enterprise
 
 permissions:
   contents: read
@@ -47,4 +58,5 @@ jobs:
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
           IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
           IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          IOS_EXPORT_METHOD: ${{ inputs.ios_export_method || 'development' }}
         run: bash tool/install_ios_signing.sh

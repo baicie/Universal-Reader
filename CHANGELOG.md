@@ -14,6 +14,8 @@
 - Added an Android signing preflight that validates keystore, alias, and key password before release builds.
 - Added a local signing credential bootstrap helper that validates and uploads Android release secrets without writing them to disk.
 - Added a macOS iOS signing preflight for P12, provisioning profile, Team ID, bundle entitlement, and codesigning identity validation.
+- Added a macOS iOS signing bootstrap that validates profile expiry, export-method compatibility, Team ID, bundle entitlement, and development or distribution identity before uploading GitHub secrets over stdin.
+- iOS signing preflight and signed release builds now reject expired profiles or profiles that do not match `development`, `ad-hoc`, `app-store`, or `enterprise`.
 
 ## 0.0.1-dev.12 - 2026-08-31
 

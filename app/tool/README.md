@@ -43,8 +43,28 @@ fallback strings in the running app, so this catches gaps before release.
 dart run tool/diff_l10n_keys.dart
 ```
 
+## configure_ios_signing.sh
+
+Runs on macOS. Validates an Apple distribution or development P12 and
+provisioning profile, then uploads the four iOS release secrets through `gh`
+stdin. Set `IOS_CERTIFICATE_PASSWORD` in the environment and use
+`--validate-only` to inspect the profile without changing GitHub state.
+
+```bash
+./tool/configure_ios_signing.sh \
+  --certificate /secure/release.p12 \
+  --profile /secure/release.mobileprovision \
+  --team-id ABCDE12345 \
+  --export-method app-store \
+  --validate-only
+```
+
+`install_ios_signing.sh` uses the same `IOS_EXPORT_METHOD` checks during the
+release preflight and signed IPA build.
+
 ## Notes
 
-These scripts are excluded from `flutter analyze` because they intentionally
-print to stdout (lints forbid `print` in production code) and use plain
-string parsing. They have no dependencies beyond the Dart SDK.
+The Dart scripts are excluded from `flutter analyze` because they intentionally
+print to stdout (lints forbid `print` in production code) and use plain string
+parsing. They have no dependencies beyond the Dart SDK. The iOS signing helper
+requires macOS, Keychain tools, and an authenticated `gh` CLI when uploading.

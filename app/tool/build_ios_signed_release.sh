@@ -31,7 +31,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-bash tool/install_ios_signing.sh --keep --output-env "$env_file"
+bash tool/install_ios_signing.sh \
+  --keep \
+  --output-env "$env_file" \
+  --export-method "$export_method"
 # shellcheck disable=SC1090
 source "$env_file"
 

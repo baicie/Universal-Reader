@@ -3,6 +3,7 @@ set -euo pipefail
 
 keep_signing_material=false
 output_env=""
+export_method="${IOS_EXPORT_METHOD:-}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -18,8 +19,16 @@ while [[ $# -gt 0 ]]; do
       output_env="$2"
       shift 2
       ;;
+    --export-method)
+      if [[ $# -lt 2 ]]; then
+        echo "--export-method requires a value" >&2
+        exit 2
+      fi
+      export_method="$2"
+      shift 2
+      ;;
     -h|--help)
-      echo "usage: install_ios_signing.sh [--keep --output-env PATH]" >&2
+      echo "usage: install_ios_signing.sh [--keep --output-env PATH] [--export-method METHOD]" >&2
       exit 0
       ;;
     *)
@@ -33,6 +42,14 @@ if [[ "$keep_signing_material" == true && -z "$output_env" ]]; then
   echo "--keep requires --output-env" >&2
   exit 2
 fi
+
+case "$export_method" in
+  ""|development|ad-hoc|app-store|enterprise) ;;
+  *)
+    echo "Unsupported export method: $export_method" >&2
+    exit 2
+    ;;
+esac
 
 for variable in IOS_CERTIFICATE_BASE64 IOS_CERTIFICATE_PASSWORD IOS_PROVISIONING_PROFILE_BASE64 IOS_TEAM_ID; do
   if [[ -z "${!variable:-}" ]]; then
@@ -92,6 +109,7 @@ profile_team="$(plutil -extract TeamIdentifier.0 raw -o - "$profile_plist")"
 application_identifier="$(
   plutil -extract Entitlements.application-identifier raw -o - "$profile_plist"
 )"
+expiration_date="$(plutil -extract ExpirationDate raw -o - "$profile_plist")"
 test -n "$profile_uuid"
 test -n "$profile_name"
 test "$profile_team" = "$IOS_TEAM_ID"
@@ -103,17 +121,82 @@ case "$application_identifier" in
     ;;
 esac
 
+expiration_epoch="$(date -j -f '%Y-%m-%dT%H:%M:%SZ' "$expiration_date" +%s)"
+now_epoch="$(date +%s)"
+if (( expiration_epoch <= now_epoch )); then
+  echo "Provisioning profile expired at $expiration_date" >&2
+  exit 1
+fi
+if (( expiration_epoch - now_epoch < 30 * 24 * 60 * 60 )); then
+  echo "Warning: provisioning profile expires soon at $expiration_date" >&2
+fi
+
+if [[ -n "$export_method" ]]; then
+  provisioned_devices="$(
+    plutil -extract ProvisionedDevices json -o - "$profile_plist" 2>/dev/null || true
+  )"
+  provisions_all_devices="$(
+    plutil -extract ProvisionsAllDevices raw -o - "$profile_plist" 2>/dev/null || true
+  )"
+  case "$export_method" in
+    development|ad-hoc)
+      if [[ -z "$provisioned_devices" || "$provisioned_devices" == "[]" ]]; then
+        echo "Provisioning profile has no registered devices for $export_method" >&2
+        exit 1
+      fi
+      ;;
+    app-store)
+      if [[ -n "$provisioned_devices" && "$provisioned_devices" != "[]" ]]; then
+        echo "App Store provisioning profile must not contain registered devices" >&2
+        exit 1
+      fi
+      if [[ "$provisions_all_devices" == true ]]; then
+        echo "App Store provisioning profile cannot provision all devices" >&2
+        exit 1
+      fi
+      ;;
+    enterprise)
+      if [[ "$provisions_all_devices" != true ]]; then
+        echo "Enterprise provisioning profile must provision all devices" >&2
+        exit 1
+      fi
+      ;;
+  esac
+fi
+
 profile_directory="$HOME/Library/MobileDevice/Provisioning Profiles"
 mkdir -p "$profile_directory"
 installed_profile="$profile_directory/$profile_uuid.mobileprovision"
 cp "$profile" "$installed_profile"
 
-identity="$(
+identity_list="$(
   security find-identity -v -p codesigning "$keychain" |
-    sed -n 's/.*"\(.*\)"/\1/p' |
-    head -n 1
+    sed -n 's/.*"\(.*\)"/\1/p'
 )"
-test -n "$identity"
+test -n "$identity_list"
+
+case "$export_method" in
+  development)
+    identity="$(
+      grep -E '^(Apple Development|iPhone Developer):' <<<"$identity_list" |
+        head -n 1 || true
+    )"
+    ;;
+  ad-hoc|app-store|enterprise)
+    identity="$(
+      grep -E '^(Apple Distribution|iPhone Distribution):' <<<"$identity_list" |
+        head -n 1 || true
+    )"
+    ;;
+  *)
+    identity="$(head -n 1 <<<"$identity_list")"
+    ;;
+esac
+
+if [[ -z "$identity" ]]; then
+  echo "No codesigning identity matches export method: $export_method" >&2
+  exit 1
+fi
 
 if [[ "$keep_signing_material" == true ]]; then
   umask 077
@@ -128,5 +211,5 @@ fi
 
 verification_succeeded=true
 
-echo "iOS signing verified: profile=$profile_uuid team=$profile_team"
+echo "iOS signing verified: profile=$profile_uuid team=$profile_team expires=$expiration_date"
 echo "Codesigning identity: $identity"
