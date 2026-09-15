@@ -57,6 +57,15 @@ cd app
 
 Set `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_PASSWORD` in the shell to avoid interactive prompts. The upload uses stdin, not command-line arguments.
 
+For iOS, configure these GitHub secrets and run the `Signing preflight` workflow:
+
+- `IOS_CERTIFICATE_BASE64`: base64-encoded `.p12`
+- `IOS_CERTIFICATE_PASSWORD`
+- `IOS_PROVISIONING_PROFILE_BASE64`: base64-encoded `.mobileprovision`
+- `IOS_TEAM_ID`
+
+The macOS preflight imports the certificate into a temporary keychain and verifies the provisioning profile UUID, Team ID, bundle entitlement, and available codesigning identity.
+
 ## Commands
 
 ```powershell

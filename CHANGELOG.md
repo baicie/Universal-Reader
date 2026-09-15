@@ -12,6 +12,7 @@
 - The Release workflow supports a full-matrix `dry_run` from a source ref, producing and verifying every artifact without publishing a GitHub Release.
 - Added an Android signing preflight that validates keystore, alias, and key password before release builds.
 - Added a local signing credential bootstrap helper that validates and uploads Android release secrets without writing them to disk.
+- Added a macOS iOS signing preflight for P12, provisioning profile, Team ID, bundle entitlement, and codesigning identity validation.
 
 ## 0.0.1-dev.12 - 2026-08-31
 

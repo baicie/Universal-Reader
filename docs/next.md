@@ -157,6 +157,13 @@
 - Added `-ValidateOnly` for dry validation and environment-variable support for non-interactive password input.
 - Planned Hardening P close date: 2027-02-21. Implementation completed on 2026-09-14.
 
+## v1.0 Hardening Q complete: iOS signing preflight
+
+- Added a macOS signing preflight that imports a P12 into a temporary keychain and installs a provisioning profile.
+- The preflight verifies profile UUID, Team ID, `io.universalreader.app` entitlement, and available codesigning identity without printing credentials.
+- Added iOS secrets to the manual `Signing preflight` workflow; actual signed IPA packaging remains the next signed-release step.
+- Planned Hardening Q close date: 2027-03-07. Implementation completed on 2026-09-14.
+
 ## v1.0 Hardening K complete: release candidate gate
 
 - Froze the app, Rust workspace, Cargo lock, and changelog at `1.0.0-rc.1`.
