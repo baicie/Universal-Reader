@@ -128,7 +128,7 @@ jobs:
         run: du -h target/android/jniLibs/*/*.so
 
       - name: Upload Android native libraries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: universal-reader-native-android
           path: rust/target/android/jniLibs
@@ -163,7 +163,7 @@ jobs:
         run: du -sh target/ios/UniversalReaderNative.xcframework
 
       - name: Upload iOS XCFramework
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: universal-reader-native-ios
           path: rust/target/ios/UniversalReaderNative.xcframework
@@ -196,7 +196,7 @@ jobs:
         run: flutter pub get
 
       - name: Download Android native libraries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: universal-reader-native-android
           path: rust/target/android/jniLibs
@@ -265,7 +265,7 @@ jobs:
         run: flutter pub get
 
       - name: Download iOS XCFramework
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: universal-reader-native-ios
           path: rust/target/ios/UniversalReaderNative.xcframework
@@ -289,7 +289,7 @@ jobs:
             "../universal-reader-ios-unsigned.zip"
 
       - name: Upload iOS unsigned artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: universal-reader-ios-unsigned
           path: universal-reader-ios-unsigned.zip

@@ -16,6 +16,7 @@
 - Added a macOS iOS signing preflight for P12, provisioning profile, Team ID, bundle entitlement, and codesigning identity validation.
 - Added a macOS iOS signing bootstrap that validates profile expiry, export-method compatibility, Team ID, bundle entitlement, and development or distribution identity before uploading GitHub secrets over stdin.
 - iOS signing preflight and signed release builds now reject expired profiles or profiles that do not match `development`, `ad-hoc`, `app-store`, or `enterprise`.
+- CI and smoke workflows now use the Node 24-compatible artifact actions, and Android native smoke prebuilds the integration-test APK before the timed emulator run.
 
 ## 0.0.1-dev.12 - 2026-08-31
 
