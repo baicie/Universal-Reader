@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0-rc.1 - 2026-09-15
+## 1.0.0-rc.1 - 2026-09-16
 
 ### Release Candidate
 - Froze Reader Runtime `1.0.0`, locator schema v1, versioned local persistence, and the read-only plugin contract.
