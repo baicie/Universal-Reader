@@ -18,6 +18,7 @@
 - iOS signing preflight and signed release builds now reject expired profiles or profiles that do not match `development`, `ad-hoc`, `app-store`, or `enterprise`.
 - CI and smoke workflows now use the Node 24-compatible artifact actions, and Android native smoke prebuilds the integration-test APK before the timed emulator run.
 - CI now generates an ephemeral Android release keystore, runs the signing credential preflight, and verifies the signed APK certificate before publication.
+- The release candidate can publish without signing credentials: Android uses the Gradle debug signing key and iOS publishes an unsigned `Runner.app` archive. Physical-device smoke is optional and is not a release gate.
 
 ## 0.0.1-dev.12 - 2026-08-31
 

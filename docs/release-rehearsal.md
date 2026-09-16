@@ -25,7 +25,7 @@ The workflow also sets `PREVIOUS_RELEASE_TAG`, so the fixture and downloaded rel
 
 ## Limits
 
-Windows and Web verify process/browser startup, and Android verifies package install plus process launch. These are launch smoke checks rather than full GUI interaction suites. iOS signed installation and interactive UI checks remain covered by the physical-device workflow.
+Windows and Web verify process/browser startup, and Android verifies package install plus process launch. These are launch smoke checks rather than full GUI interaction suites. Physical-device and interactive UI checks remain optional extensions and are not part of the release gate.
 
 ## Commands
 

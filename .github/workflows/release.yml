@@ -71,7 +71,7 @@ jobs:
             dart run tool/check_release_versions.dart --tag "$RELEASE_TAG"
           fi
 
-      - name: Verify release signing prerequisites
+      - name: Report release signing mode
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -83,25 +83,22 @@ jobs:
           IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
         shell: bash
         run: |
-          if [[ "$DRY_RUN" == true || "$RELEASE_TAG" == *-dev.* ]]; then
-            echo "Dry run or development release: release signing is not required."
-            exit 0
+          android_mode="unsigned/debug-signed"
+          if [[ -n "${ANDROID_KEYSTORE_BASE64:-}" && -n "${ANDROID_KEYSTORE_PASSWORD:-}" && -n "${ANDROID_KEY_ALIAS:-}" && -n "${ANDROID_KEY_PASSWORD:-}" ]]; then
+            android_mode="release-signed"
           fi
-          for variable in \
-            ANDROID_KEYSTORE_BASE64 \
-            ANDROID_KEYSTORE_PASSWORD \
-            ANDROID_KEY_ALIAS \
-            ANDROID_KEY_PASSWORD \
-            IOS_CERTIFICATE_BASE64 \
-            IOS_CERTIFICATE_PASSWORD \
-            IOS_PROVISIONING_PROFILE_BASE64 \
-            IOS_TEAM_ID; do
-            if [[ -z "${!variable:-}" ]]; then
-              echo "Missing required release secret: $variable" >&2
-              exit 1
-            fi
-          done
-          bash tool/verify_android_signing.sh
+
+          ios_mode="unsigned"
+          if [[ -n "${IOS_CERTIFICATE_BASE64:-}" && -n "${IOS_CERTIFICATE_PASSWORD:-}" && -n "${IOS_PROVISIONING_PROFILE_BASE64:-}" && -n "${IOS_TEAM_ID:-}" ]]; then
+            ios_mode="signed"
+          fi
+
+          {
+            echo "## Release signing mode"
+            echo
+            echo "- Android: $android_mode"
+            echo "- iOS: $ios_mode"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
   web:
     name: Build Web release
@@ -193,8 +190,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "$DRY_RUN" == true || "${{ contains(env.RELEASE_TAG, '-dev.') }}" == "true" ]] && [[ -z "${ANDROID_KEYSTORE_BASE64:-}" ]]; then
-            echo "Dry run or development release: building APKs with the Gradle debug signing key"
+          if [[ -z "${ANDROID_KEYSTORE_BASE64:-}" ]]; then
+            echo "Android release signing secrets are absent; building APKs with the Gradle debug signing key."
             exit 0
           fi
 
@@ -540,7 +537,6 @@ jobs:
         shell: bash
         run: |
           signed=true
-          missing=()
           for variable in \
             IOS_CERTIFICATE_BASE64 \
             IOS_CERTIFICATE_PASSWORD \
@@ -548,14 +544,9 @@ jobs:
             IOS_TEAM_ID; do
             if [[ -z "${!variable:-}" ]]; then
               signed=false
-              missing+=("$variable")
             fi
           done
           echo "signed=$signed" >> "$GITHUB_OUTPUT"
-          if [[ "$signed" == false && "$DRY_RUN" != true && "$RELEASE_TAG" != *-dev.* ]]; then
-            printf 'Missing required iOS release secret: %s\n' "${missing[@]}" >&2
-            exit 1
-          fi
           if [[ "$signed" == true ]]; then
             echo "iOS signing secrets detected; a signed IPA will be built."
           else

@@ -57,4 +57,4 @@ The manual `Physical device smoke` workflow expects runners with these labels:
 
 The runner must have Flutter, the device tooling, and the platform signing setup. The workflow builds the native artifact, runs the physical conversion smoke, optionally installs a signed release artifact, and uploads the Markdown report.
 
-The automated hosted CI remains responsible for simulator coverage. This workflow is only a release gate when physical hardware and production signing are available.
+The automated hosted CI remains responsible for simulator coverage. This workflow is optional and is not part of the v1.0 release gate.

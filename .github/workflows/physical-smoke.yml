@@ -1,10 +1,10 @@
-name: Physical device smoke
+name: Optional physical device smoke
 
 on:
   workflow_dispatch:
     inputs:
       platform:
-        description: Physical device platform
+        description: Optional physical device platform
         required: true
         type: choice
         options:

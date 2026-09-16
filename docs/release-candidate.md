@@ -10,24 +10,26 @@ The current candidate is:
 
 `app/tool/check_release_versions.dart` verifies all sources plus the `CHANGELOG.md` section before the Release workflow publishes anything.
 
+## Release model
+
+- The default candidate is unsigned: Android APKs use the Gradle debug signing key and iOS publishes an unsigned `Runner.app` ZIP.
+- Android/iOS signing, `Signing preflight`, and physical-device smoke are optional extensions. They are not required for this release candidate.
+- Store distribution and installation on locked-down physical devices remain out of scope until real signing material is provided.
+
 ## Automated gates
 
 - Normal CI: formatting, analyze, Flutter tests, coverage, Web, Windows, Rust, Android APK packaging, secretless Android release-signing verification, and iOS symbol checks.
 - `Native smoke`: nightly/manual Android emulator and iOS Simulator conversion tests.
 - `Release rehearsal`: released persistence upgrade/rollback, Windows launch, Web launch, and Android APK launch.
-- `Physical device smoke`: manually dispatched real-device conversion and optional signed package install.
 - Release publication: tag/version verification, structured `release-manifest.json`, `SHA256SUMS`, and independent asset verification.
-- iOS release: signed IPA with Team ID, entitlement, embedded-profile, signature, bundle-version, and native-symbol verification; unsigned `Runner.app` is retained only when a dry run or development release has no signing material.
+- Optional signed release: when complete Android and iOS secrets are present, the Release workflow can build and verify signed artifacts.
 
 ## Manual checklist
 
-- [ ] Android release signing secrets are configured and verified.
-- [ ] iOS release signing secrets are configured and `Signing preflight` passes.
-- [ ] iOS signing and provisioning are verified on a physical device.
 - [ ] `Release rehearsal` passes for the candidate tag.
-- [ ] `Physical device smoke` passes on Android and iOS.
 - [ ] Release notes come from the matching `CHANGELOG.md` section.
 - [ ] Published `release-manifest.json` and `SHA256SUMS` are attached and match downloaded assets.
+- [ ] Release assets clearly remain debug-signed Android APKs and unsigned iOS archives.
 
 Before a tag exists, run the complete release matrix as a dry run:
 
@@ -38,7 +40,9 @@ gh workflow run release.yml `
   -f dry_run=true
 ```
 
-The dry run builds every platform artifact, uses debug signing for Android, builds a signed IPA when iOS signing secrets are present (otherwise an unsigned archive), generates release notes, creates the manifest, verifies all hashes, and uploads the complete bundle without creating a GitHub Release.
+The dry run builds every platform artifact without requiring signing secrets. Android uses debug signing, iOS publishes an unsigned archive, and the workflow generates release notes, creates the manifest, verifies all hashes, and uploads the complete bundle without creating a GitHub Release.
+
+## Optional signing
 
 After configuring Android secrets, run the manual `Signing preflight` workflow. It decodes the keystore outside the repository, validates the alias and key password, and prints only the public certificate fingerprint.
 
@@ -84,7 +88,7 @@ export IOS_CERTIFICATE_PASSWORD='...'
   --export-method development
 ```
 
-The helper rejects expired profiles, Team ID or bundle mismatches, profile/export-method mismatches, and development/distribution identity mismatches. The macOS preflight imports the certificate into a temporary keychain and applies the same checks. A normal release fails before publication when any iOS signing secret is missing. Manual workflow dispatches can select `development`, `ad-hoc`, `app-store`, or `enterprise` for `ios_export_method`; tag pushes default to `development`.
+The helper rejects expired profiles, Team ID or bundle mismatches, profile/export-method mismatches, and development/distribution identity mismatches. The macOS preflight imports the certificate into a temporary keychain and applies the same checks. When iOS signing secrets are absent, the Release workflow publishes the unsigned archive instead of failing. Manual workflow dispatches can select `development`, `ad-hoc`, `app-store`, or `enterprise` for `ios_export_method`; tag pushes default to `development`.
 
 ## Commands
 

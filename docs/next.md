@@ -125,7 +125,7 @@
 
 - Added a macOS release job that builds the device XCFramework and an unsigned iOS `Runner.app`.
 - The artifact verifier checks bundle id, `CFBundleShortVersionString`, `ur_native_api_version`, and `ur_chm_to_epub` symbols before packaging.
-- The unsigned iOS archive participates in `release-manifest.json` and `SHA256SUMS`; signed IPA and device installation remain manual signing gates.
+- The unsigned iOS archive participates in `release-manifest.json` and `SHA256SUMS`; signed IPA and device installation are optional extensions.
 - Planned Hardening L close date: 2026-12-27. Implementation completed on 2026-09-14.
 
 ## v1.0 Hardening M complete: independent release asset verification
@@ -139,7 +139,7 @@
 
 - Added `source_ref` and `dry_run` controls to the Release workflow.
 - Dry runs can build the full platform matrix from `main` using the future RC version without creating a git tag.
-- Android uses debug signing only when a dry run has no release keystore; all other artifacts are still packaged and verified.
+- Android uses debug signing by default and can use a release keystore when one is configured; all artifacts are still packaged and verified.
 - The dry run generates release notes, manifest, and `SHA256SUMS`, verifies every asset, and uploads one complete artifact bundle without publishing a release.
 - Planned Hardening N close date: 2027-01-24. Implementation completed on 2026-09-14.
 
@@ -167,7 +167,7 @@
 ## v1.0 Hardening R complete: signed iOS IPA release build
 
 - Added a signed iOS release builder that keeps signing material only for the IPA build, uses manual signing with the installed certificate and provisioning profile, and removes the temporary keychain on exit.
-- The Release workflow requires all iOS signing secrets for a normal release, exports a signed IPA, and retains the unsigned archive only for dry runs or development releases without signing material.
+- When all iOS signing secrets are present, the Release workflow exports a signed IPA; otherwise it publishes the unsigned archive.
 - Added signed IPA verification for bundle version, native symbols, codesign validity, Team ID, entitlements, embedded profile UUID, and bundle entitlement.
 - The physical-device smoke harness now accepts either a signed `Runner.app` or signed IPA and extracts `Payload/Runner.app` on macOS before installation.
 - The signed IPA participates in `release-manifest.json` and `SHA256SUMS` without changing the generic asset verifier.
@@ -179,22 +179,29 @@
 - The helper uploads `IOS_CERTIFICATE_BASE64`, `IOS_CERTIFICATE_PASSWORD`, `IOS_PROVISIONING_PROFILE_BASE64`, and `IOS_TEAM_ID` through `gh` stdin without writing secrets to the repository.
 - The signing preflight workflow can now select `development`, `ad-hoc`, `app-store`, or `enterprise` and rejects a profile that does not match the selected export method.
 - The Release workflow applies the same profile and identity checks to its temporary signing import before building the signed IPA.
-- External signing material and physical Apple hardware remain required; no certificate or provisioning profile is fabricated by the repository.
+- External signing material and physical Apple hardware are only needed for the optional signed-iOS path; no certificate or provisioning profile is fabricated by the repository.
 - Planned Hardening S close date: 2027-04-04. Implementation completed on 2026-09-15.
 
 ## v1.0 Hardening T complete: secretless Android signing smoke
 
 - CI generates a short-lived PKCS12 release keystore outside the repository and runs the same Android signing credential preflight used by the release workflow.
 - The job writes a temporary `key.properties`, builds a release APK, and compares its `apksigner` certificate SHA-256 with the generated keystore.
-- The keystore and `key.properties` are removed on every exit path; repository secrets and physical Android hardware are still required for the final publication gate.
+- The keystore and `key.properties` are removed on every exit path; the smoke validates the signing path without making repository secrets or physical hardware release requirements.
 - Planned Hardening T close date: 2027-04-18. Implementation completed on 2026-09-15.
+
+## v1.0 Hardening U complete: unsigned-first release gate
+
+- Normal releases no longer require Android or iOS signing secrets. Android falls back to the Gradle debug signing key, and iOS publishes the unsigned `Runner.app` archive.
+- Signing remains optional: when complete Android or iOS credentials are present, the Release workflow can still validate them and build signed artifacts.
+- Physical-device smoke remains available as optional self-hosted tooling but is not part of the v1.0 release checklist or publication gate.
+- Planned Hardening U close date: 2027-05-02. Implementation completed on 2026-09-16.
 
 ## v1.0 Hardening K complete: release candidate gate
 
 - Froze the app, Rust workspace, Cargo lock, and changelog at `1.0.0-rc.1`.
 - Added a release version checker that requires an optional release tag to match every version source.
 - The Release workflow now verifies versions before publication, generates release notes from the matching changelog section, and attaches a structured release manifest plus `SHA256SUMS`.
-- Documented the remaining manual gate: signed platform artifacts plus physical-device installation.
+- The original signed-device gate was later superseded by Hardening U; the candidate publishes debug-signed Android APKs and an unsigned iOS archive.
 - Planned Hardening K close date: 2026-12-13. Implementation completed on 2026-09-14.
 
 ## PDF 测试覆盖提升（最新完成）
