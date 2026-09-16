@@ -4,10 +4,10 @@
 
 ### Release Candidate
 - Froze Reader Runtime `1.0.0`, locator schema v1, versioned local persistence, and the read-only plugin contract.
-- Added compatibility corpus, 10k scale, native mobile ABI, physical-device, simulator, release upgrade/rollback, and package launch rehearsal gates.
+- Added compatibility corpus, 10k scale, native mobile ABI, simulator, release upgrade/rollback, and package launch rehearsal gates.
 - Frozen versions across `app/pubspec.yaml`, the Rust workspace, `Cargo.lock`, and this changelog.
 - Release publication now verifies tag/version alignment, generates release notes from this changelog, and attaches `release-manifest.json` plus `SHA256SUMS`.
-- Release publication builds a signed iOS IPA when signing secrets are configured, and keeps an unsigned `Runner.app` archive for dry runs or development releases without signing material.
+- Release publication builds a signed iOS IPA when signing secrets are configured and otherwise publishes the unsigned `Runner.app` archive.
 - Signed IPA verification checks bundle version, native mobile symbols, codesign validity, Team ID, entitlements, and the embedded provisioning profile before publication.
 - Release publication independently verifies every manifest entry, SHA-256 value, and the exact asset file set before creating the release.
 - The Release workflow supports a full-matrix `dry_run` from a source ref, producing and verifying every artifact without publishing a GitHub Release.

@@ -22,7 +22,7 @@ The current candidate is:
 - `Native smoke`: nightly/manual Android emulator and iOS Simulator conversion tests.
 - `Release rehearsal`: released persistence upgrade/rollback, Windows launch, Web launch, and Android APK launch.
 - Release publication: tag/version verification, structured `release-manifest.json`, `SHA256SUMS`, and independent asset verification.
-- Optional signed release: when complete Android and iOS secrets are present, the Release workflow can build and verify signed artifacts.
+- Optional signed release: when a complete credential set is present for a platform, the Release workflow can build and verify that platform's signed artifact.
 
 ## Manual checklist
 
