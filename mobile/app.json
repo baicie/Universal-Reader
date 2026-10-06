@@ -27,6 +27,12 @@
       "expo-localization",
       "expo-sqlite",
       "expo-asset"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7b26aada-985d-4a60-898d-69371e8ed989"
+      }
+    },
+    "owner": "baicie"
   }
 }
