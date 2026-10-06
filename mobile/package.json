@@ -1,0 +1,43 @@
+{
+  "name": "mobile",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "dependencies": {
+    "7z-wasm": "^1.2.0",
+    "buffer": "^6.0.3",
+    "chmlib-ts": "^0.3.0",
+    "djvu-rs": "^0.40.2",
+    "expo": "~57.0.26",
+    "expo-asset": "~57.0.18",
+    "expo-document-picker": "~57.0.3",
+    "expo-file-system": "~57.0.7",
+    "expo-localization": "~57.0.2",
+    "expo-sqlite": "~57.0.3",
+    "expo-status-bar": "~57.0.1",
+    "fast-xml-parser": "^5.11.2",
+    "fflate": "^0.8.3",
+    "iconv-lite": "^0.7.3",
+    "pdfjs-dist": "^4.10.38",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-web": "^0.21.2",
+    "react-native-webview": "13.16.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "@types/react": "~19.2.2",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "test": "tsx --test src/**/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "expo lint"
+  },
+  "private": true
+}

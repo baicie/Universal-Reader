@@ -7,818 +7,100 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing tag to release
-        required: true
-        type: string
-      source_ref:
-        description: Source ref to build, defaults to the tag
+        description: 'Tag to release (e.g. v1.0.0). Leave empty to use the latest pushed tag.'
         required: false
-        default: ''
-        type: string
-      dry_run:
-        description: Build, manifest, and verify without publishing a GitHub Release
-        required: false
-        default: false
-        type: boolean
-      ios_export_method:
-        description: iOS IPA export method used when signing secrets are configured
-        required: false
-        default: development
-        type: choice
-        options:
-          - development
-          - ad-hoc
-          - app-store
-          - enterprise
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.ref_name }}
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-  RELEASE_REF: ${{ inputs.source_ref || inputs.tag || github.ref_name }}
-  DRY_RUN: ${{ inputs.dry_run || false }}
-
 jobs:
-  verify:
-    name: Verify release versions
+  build:
+    name: Build Android APK
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: app
     steps:
-      - name: Checkout release tag
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ env.RELEASE_REF }}
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          channel: stable
-          flutter-version: '3.47.0'
-          cache: true
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
 
-      - name: Verify tag and version sources
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Resolve tag
+        id: tag
         run: |
-          if [[ "$DRY_RUN" == true ]]; then
-            dart run tool/check_release_versions.dart
+          if [ -n "${{ inputs.tag }}" ]; then
+            echo "value=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
           else
-            dart run tool/check_release_versions.dart --tag "$RELEASE_TAG"
+            echo "value=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Report release signing mode
+      - name: Build with EAS
+        id: start
+        working-directory: mobile
         env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
-          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
-          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
-        shell: bash
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          android_mode="unsigned/debug-signed"
-          if [[ -n "${ANDROID_KEYSTORE_BASE64:-}" && -n "${ANDROID_KEYSTORE_PASSWORD:-}" && -n "${ANDROID_KEY_ALIAS:-}" && -n "${ANDROID_KEY_PASSWORD:-}" ]]; then
-            android_mode="release-signed"
-          fi
+          npx eas-cli@latest build \
+            --platform android \
+            --profile preview \
+            --non-interactive \
+            --json > build.json
+          cat build.json
+          BUILD_ID=$(node -e "const b=require('./build.json'); console.log(b[0]?.id || b.id)")
+          echo "id=$BUILD_ID" >> "$GITHUB_OUTPUT"
 
-          ios_mode="unsigned"
-          if [[ -n "${IOS_CERTIFICATE_BASE64:-}" && -n "${IOS_CERTIFICATE_PASSWORD:-}" && -n "${IOS_PROVISIONING_PROFILE_BASE64:-}" && -n "${IOS_TEAM_ID:-}" ]]; then
-            ios_mode="signed"
-          fi
-
-          {
-            echo "## Release signing mode"
-            echo
-            echo "- Android: $android_mode"
-            echo "- iOS: $ios_mode"
-          } | tee -a "$GITHUB_STEP_SUMMARY"
-
-  web:
-    name: Build Web release
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: app
-    steps:
-      - name: Checkout release tag
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ env.RELEASE_REF }}
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: '3.47.0'
-          cache: true
-
-      - name: Set up Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Verify release
-        run: |
-          flutter analyze
-          flutter test
-
-      - name: Build Web
-        run: flutter build web --release
-
-      - name: Package Web
-        shell: bash
-        run: |
-          (cd build/web && zip -r "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-web.zip" .)
-
-      - name: Verify Web artifact
-        shell: bash
-        run: |
-          unzip -Z1 "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-web.zip" | grep -qx 'index.html'
-
-      - name: Upload Web artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-web
-          path: universal-reader-${{ env.RELEASE_TAG }}-web.zip
-          if-no-files-found: error
-
-  android:
-    name: Build Android release
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: app
-    steps:
-      - name: Checkout release tag
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ env.RELEASE_REF }}
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: '3.47.0'
-          cache: true
-
-      - name: Set up Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Configure Android release signing
+      - name: Wait for build
+        id: wait
+        working-directory: mobile
         env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        shell: bash
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          set -euo pipefail
-          if [[ -z "${ANDROID_KEYSTORE_BASE64:-}" ]]; then
-            echo "Android release signing secrets are absent; building APKs with the Gradle debug signing key."
-            exit 0
-          fi
-
-          for variable in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
-            if [[ -z "${!variable:-}" ]]; then
-              echo "Missing required repository secret: $variable" >&2
-              exit 1
-            fi
+          BUILD_ID="${{ steps.start.outputs.id }}"
+          npx eas-cli@latest build:view "$BUILD_ID" --json > status.json
+          STATUS=$(node -e "const s=require('./status.json'); console.log(s.status)")
+          echo "Initial status: $STATUS"
+          while [ "$STATUS" = "in_queue" ] || [ "$STATUS" = "building" ]; do
+            sleep 60
+            npx eas-cli@latest build:view "$BUILD_ID" --json > status.json
+            STATUS=$(node -e "const s=require('./status.json'); console.log(s.status)")
+            echo "Status: $STATUS"
           done
-
-          umask 077
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/universal-reader-release.jks
-          {
-            printf 'storeFile=universal-reader-release.jks\n'
-            printf 'storePassword=%s\n' "$ANDROID_KEYSTORE_PASSWORD"
-            printf 'keyAlias=%s\n' "$ANDROID_KEY_ALIAS"
-            printf 'keyPassword=%s\n' "$ANDROID_KEY_PASSWORD"
-          } > android/key.properties
-
-      - name: Build Android universal APK
-        run: flutter build apk --release
-
-      - name: Build Android split APKs
-        run: flutter build apk --release --split-per-abi
-
-      - name: Package Android APKs
-        shell: bash
-        run: |
-          cp build/app/outputs/flutter-apk/app-release.apk ../universal-reader-${{ env.RELEASE_TAG }}-android.apk
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk ../universal-reader-${{ env.RELEASE_TAG }}-android-arm64-v8a.apk
-          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk ../universal-reader-${{ env.RELEASE_TAG }}-android-armeabi-v7a.apk
-          cp build/app/outputs/flutter-apk/app-x86_64-release.apk ../universal-reader-${{ env.RELEASE_TAG }}-android-x86_64.apk
-
-      - name: Verify Android artifacts
-        shell: bash
-        run: |
-          for apk in ../universal-reader-${{ env.RELEASE_TAG }}-android*.apk; do
-            test -s "$apk"
-            unzip -tq "$apk"
-          done
-
-      - name: Remove Android signing material
-        if: always()
-        shell: bash
-        run: rm -f android/key.properties android/universal-reader-release.jks
-
-      - name: Upload Android artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-android
-          path: universal-reader-${{ env.RELEASE_TAG }}-android-*.apk
-          if-no-files-found: error
-
-  windows:
-    name: Build Windows release
-    runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: app
-    steps:
-      - name: Checkout release tag
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ env.RELEASE_REF }}
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: '3.47.0'
-          cache: true
-
-      - name: Enable Windows desktop
-        run: flutter config --enable-windows-desktop
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build Windows
-        run: flutter build windows --release
-
-      - name: Install Inno Setup
-        shell: pwsh
-        run: choco install innosetup --no-progress --yes
-
-      - name: Package Windows
-        shell: pwsh
-        env:
-          RELEASE_TAG: ${{ env.RELEASE_TAG }}
-          RELEASE_VERSION: ${{ env.RELEASE_TAG }}
-        run: |
-          $env:RELEASE_VERSION = "${{ env.RELEASE_TAG }}".TrimStart('v')
-          $bundle = "build\windows\x64\runner\Release"
-          Compress-Archive -Path "$bundle\*" -DestinationPath "..\universal-reader-${{ env.RELEASE_TAG }}-windows.zip"
-          Compress-Archive -Path "$bundle\*" -DestinationPath "..\universal-reader-${{ env.RELEASE_TAG }}-windows-x86_64.zip"
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
-            "/DSourceDir=$((Resolve-Path $bundle).Path)" `
-            windows\UniversalReader.iss
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Verify Windows artifacts
-        shell: pwsh
-        run: |
-          Get-Item "..\universal-reader-${{ env.RELEASE_TAG }}-windows.zip"
-          Get-Item "windows\universal-reader-${{ env.RELEASE_TAG }}-windows-x86_64-setup.exe"
-
-      - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-windows
-          path: |
-            universal-reader-${{ env.RELEASE_TAG }}-windows.zip
-            universal-reader-${{ env.RELEASE_TAG }}-windows-x86_64.zip
-            app/windows/universal-reader-${{ env.RELEASE_TAG }}-windows-x86_64-setup.exe
-          if-no-files-found: error
-
-  linux:
-    name: Build Linux desktop release
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: app
-    steps:
-      - name: Checkout release tag
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ env.RELEASE_REF }}
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: '3.47.0'
-          cache: true
-
-      - name: Enable Linux desktop
-        run: flutter config --enable-linux-desktop
-
-      - name: Install Linux build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build Linux
-        run: flutter build linux --release
-
-      - name: Package Linux
-        shell: bash
-        run: |
-          bundle="build/linux/x64/release/bundle"
-          tar -C "$bundle" -czf "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-linux.tar.gz" .
-          tar -C "$bundle" -czf "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-linux-x86_64.tar.gz" .
-
-      - name: Verify Linux artifacts
-        shell: bash
-        run: |
-          archive_contents="$(mktemp)"
-          trap 'rm -f "$archive_contents"' EXIT
-          for archive in "$GITHUB_WORKSPACE"/universal-reader-${{ env.RELEASE_TAG }}-linux*.tar.gz; do
-            tar -tzf "$archive" > "$archive_contents"
-            grep -Eq '^(.\/)?app$' "$archive_contents"
-          done
-
-      - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-linux
-          path: universal-reader-${{ env.RELEASE_TAG }}-linux*.tar.gz
-          if-no-files-found: error
-
-  macos-native:
-    name: Build macOS ${{ matrix.arch }} release
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: arm64
-            flutter_architecture: arm64
-            runner: macos-14
-          - arch: x86_64
-            flutter_architecture: x64
-            runner: macos-15-intel
-    runs-on: ${{ matrix.runner }}
-    defaults:
-      run:
-        working-directory: app
-    steps:
-      - name: Checkout release tag
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ env.RELEASE_REF }}
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: '3.47.0'
-          architecture: ${{ matrix.flutter_architecture }}
-          cache: true
-
-      - name: Enable macOS desktop
-        run: flutter config --enable-macos-desktop
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Configure ARM64-only macOS build
-        if: matrix.arch == 'arm64'
-        run: flutter config --enable-macos-arm64-only
-
-      - name: Configure x86_64-only macOS build
-        if: matrix.arch == 'x86_64'
-        shell: bash
-        run: echo 'EXCLUDED_ARCHS = arm64' >> macos/Flutter/Flutter-Release.xcconfig
-
-      - name: Build macOS ${{ matrix.arch }}
-        run: flutter build macos --release
-
-      - name: Verify macOS ${{ matrix.arch }} binary architecture
-        shell: bash
-        run: |
-          binary="build/macos/Build/Products/Release/app.app/Contents/MacOS/app"
-          expected_arch="${{ matrix.arch }}"
-          actual_arches="$(lipo -archs "$binary")"
-          if [[ "$actual_arches" != "$expected_arch" ]]; then
-            echo "Expected $expected_arch, got: $actual_arches" >&2
+          if [ "$STATUS" != "finished" ]; then
+            echo "Build ended in status: $STATUS"
             exit 1
           fi
 
-      - name: Package macOS ${{ matrix.arch }}
-        shell: bash
-        run: |
-          bundle="build/macos/Build/Products/Release/app.app"
-          tar -C "$(dirname "$bundle")" -czf "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-macos-${{ matrix.arch }}.tar.gz" "$(basename "$bundle")"
-          hdiutil create -volname "Universal Reader ${{ matrix.arch }}" -srcfolder "$bundle" -ov -format UDZO "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-macos-${{ matrix.arch }}.dmg"
-
-      - name: Verify macOS ${{ matrix.arch }} artifacts
-        shell: bash
-        run: |
-          archive_contents="$(mktemp)"
-          trap 'rm -f "$archive_contents"' EXIT
-          tar -tzf "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-macos-${{ matrix.arch }}.tar.gz" > "$archive_contents"
-          grep -Eq '^app.app/$' "$archive_contents"
-          hdiutil imageinfo "$GITHUB_WORKSPACE/universal-reader-${{ env.RELEASE_TAG }}-macos-${{ matrix.arch }}.dmg" >/dev/null
-
-      - name: Upload macOS ${{ matrix.arch }} artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-macos-${{ matrix.arch }}
-          path: |
-            universal-reader-${{ env.RELEASE_TAG }}-macos-${{ matrix.arch }}.tar.gz
-            universal-reader-${{ env.RELEASE_TAG }}-macos-${{ matrix.arch }}.dmg
-          if-no-files-found: error
-
-  macos-universal:
-    name: Build macOS Universal installer
-    needs: macos-native
-    runs-on: macos-14
-    steps:
-      - name: Download native macOS bundles
-        uses: actions/download-artifact@v8
-        with:
-          pattern: universal-reader-${{ env.RELEASE_TAG }}-macos-*
-          path: artifacts
-          merge-multiple: true
-
-      - name: Create Universal app and DMG
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p arm64 x86_64 universal
-          tar -xzf "artifacts/universal-reader-${{ env.RELEASE_TAG }}-macos-arm64.tar.gz" -C arm64
-          tar -xzf "artifacts/universal-reader-${{ env.RELEASE_TAG }}-macos-x86_64.tar.gz" -C x86_64
-          ditto arm64/app.app universal/app.app
-          while IFS= read -r file; do
-            relative="${file#universal/app.app/}"
-            arm_file="arm64/app.app/$relative"
-            x86_file="x86_64/app.app/$relative"
-            if [[ -f "$arm_file" && -f "$x86_file" ]] && file "$arm_file" | grep -q 'Mach-O'; then
-              lipo -create "$arm_file" "$x86_file" -output "$file"
-            fi
-          done < <(find universal/app.app -type f)
-          ditto universal/app.app "universal-reader-${{ env.RELEASE_TAG }}-macos-universal.app"
-          hdiutil create -volname "Universal Reader" -srcfolder universal/app.app -ov -format UDZO "universal-reader-${{ env.RELEASE_TAG }}-macos-universal.dmg"
-          tar -C universal -czf "universal-reader-${{ env.RELEASE_TAG }}-macos-universal.tar.gz" app.app
-          hdiutil imageinfo "universal-reader-${{ env.RELEASE_TAG }}-macos-universal.dmg" >/dev/null
-
-      - name: Upload macOS Universal artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-macos-universal
-          path: |
-            universal-reader-${{ env.RELEASE_TAG }}-macos-universal.tar.gz
-            universal-reader-${{ env.RELEASE_TAG }}-macos-universal.dmg
-          if-no-files-found: error
-
-  ios:
-    name: Build iOS release
-    runs-on: macos-14
-    defaults:
-      run:
-        working-directory: app
-    steps:
-      - name: Checkout release tag
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ env.RELEASE_REF }}
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
-
-      - name: Cache Cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: rust
-
-      - name: Build iOS XCFramework
-        working-directory: rust
-        run: bash tool/build-mobile-ios.sh
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: '3.47.0'
-          cache: true
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Detect iOS signing
-        id: ios-signing
+      - name: Download artifact
+        working-directory: mobile
         env:
-          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
-          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
-          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
-        shell: bash
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          signed=true
-          for variable in \
-            IOS_CERTIFICATE_BASE64 \
-            IOS_CERTIFICATE_PASSWORD \
-            IOS_PROVISIONING_PROFILE_BASE64 \
-            IOS_TEAM_ID; do
-            if [[ -z "${!variable:-}" ]]; then
-              signed=false
-            fi
-          done
-          echo "signed=$signed" >> "$GITHUB_OUTPUT"
-          if [[ "$signed" == true ]]; then
-            echo "iOS signing secrets detected; a signed IPA will be built."
-          else
-            echo "iOS signing secrets are absent; an unsigned archive will be built."
-          fi
-
-      - name: Build signed iOS IPA
-        if: steps.ios-signing.outputs.signed == 'true'
-        env:
-          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
-          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
-          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
-          IOS_EXPORT_METHOD: ${{ inputs.ios_export_method || 'development' }}
-        shell: bash
-        run: |
-          VERSION="$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)"
-          bash tool/build_ios_signed_release.sh \
-            "$VERSION" \
-            "../universal-reader-${{ env.RELEASE_TAG }}-ios-signed.ipa"
-
-      - name: Build iOS without signing
-        if: steps.ios-signing.outputs.signed != 'true'
-        run: flutter build ios --release --no-codesign
-
-      - name: Package and verify unsigned iOS release
-        if: steps.ios-signing.outputs.signed != 'true'
-        shell: bash
-        run: |
-          VERSION="$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)"
-          bash tool/verify_ios_release.sh \
-            build/ios/iphoneos/Runner.app \
-            "$VERSION" \
-            "../universal-reader-${{ env.RELEASE_TAG }}-ios-unsigned.zip"
-
-      - name: Upload signed iOS IPA
-        if: steps.ios-signing.outputs.signed == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-ios-signed
-          path: universal-reader-${{ env.RELEASE_TAG }}-ios-signed.ipa
-          if-no-files-found: error
-
-      - name: Upload iOS unsigned artifact
-        if: steps.ios-signing.outputs.signed != 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-ios-unsigned
-          path: universal-reader-${{ env.RELEASE_TAG }}-ios-unsigned.zip
-          if-no-files-found: error
-
-  server-linux:
-    name: Build Rust server (Linux)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: rust
-    steps:
-      - name: Checkout release tag
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ env.RELEASE_REF }}
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - name: Cache Cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: rust
-
-      - name: Verify Rust service
-        run: |
-          cargo fmt --all -- --check
-          cargo clippy --workspace --all-targets -- -D warnings
-          cargo test --workspace
-
-      - name: Build Rust server
-        run: cargo build --release --package universal-reader-server
-
-      - name: Package Rust server
-        shell: bash
-        run: tar -C target/release -czf ../universal-reader-${{ env.RELEASE_TAG }}-server-linux-x86_64.tar.gz universal-reader-server
-
-      - name: Upload Rust server artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-server-linux-x86_64
-          path: universal-reader-${{ env.RELEASE_TAG }}-server-linux-x86_64.tar.gz
-          if-no-files-found: error
-
-  server-windows:
-    name: Build Rust server (Windows)
-    runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: rust
-    steps:
-      - name: Checkout release tag
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ env.RELEASE_REF }}
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - name: Cache Cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: rust
-
-      - name: Verify Rust service
-        run: |
-          cargo fmt --all -- --check
-          cargo clippy --workspace --all-targets -- -D warnings
-          cargo test --workspace
-
-      - name: Build Rust server
-        run: cargo build --release --package universal-reader-server
-
-      - name: Package Rust server
-        shell: pwsh
-        run: Compress-Archive -Path target\release\universal-reader-server.exe -DestinationPath ..\universal-reader-${{ env.RELEASE_TAG }}-server-windows-x86_64.zip
-
-      - name: Upload Rust server artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-server-windows-x86_64
-          path: universal-reader-${{ env.RELEASE_TAG }}-server-windows-x86_64.zip
-          if-no-files-found: error
-
-  web-server-linux:
-    name: Bundle Web + Rust server (Linux)
-    needs: [web, server-linux]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Web artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-web
-          path: dist
-
-      - name: Download Rust server artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-server-linux-x86_64
-          path: dist
-
-      - name: Bundle Web with Rust server
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p staging/web
-          tar -xzf "dist/universal-reader-${{ env.RELEASE_TAG }}-server-linux-x86_64.tar.gz" -C staging
-          unzip -q "dist/universal-reader-${{ env.RELEASE_TAG }}-web.zip" -d staging/web
-          test -f staging/universal-reader-server
-          test -f staging/web/index.html
-          chmod +x staging/universal-reader-server
-          tar -C staging -czf "universal-reader-${{ env.RELEASE_TAG }}-web-server-linux-x86_64.tar.gz" universal-reader-server web
-
-      - name: Upload Web + Rust server artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-web-server-linux-x86_64
-          path: universal-reader-${{ env.RELEASE_TAG }}-web-server-linux-x86_64.tar.gz
-          if-no-files-found: error
-
-  web-server-windows:
-    name: Bundle Web + Rust server (Windows)
-    needs: [web, server-windows]
-    runs-on: windows-latest
-    steps:
-      - name: Download Web artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-web
-          path: dist
-
-      - name: Download Rust server artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-server-windows-x86_64
-          path: dist
-
-      - name: Bundle Web with Rust server
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          New-Item -ItemType Directory -Path staging/web | Out-Null
-          Expand-Archive -Path "dist/universal-reader-${{ env.RELEASE_TAG }}-server-windows-x86_64.zip" -DestinationPath staging
-          Expand-Archive -Path "dist/universal-reader-${{ env.RELEASE_TAG }}-web.zip" -DestinationPath staging/web
-          if (-not (Test-Path "staging/universal-reader-server.exe")) { throw "missing server binary" }
-          if (-not (Test-Path "staging/web/index.html")) { throw "missing web index.html" }
-          Compress-Archive -Path staging\universal-reader-server.exe, staging\web -DestinationPath "universal-reader-${{ env.RELEASE_TAG }}-web-server-windows-x86_64.zip"
-
-      - name: Upload Web + Rust server artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-web-server-windows-x86_64
-          path: universal-reader-${{ env.RELEASE_TAG }}-web-server-windows-x86_64.zip
-          if-no-files-found: error
-
-  publish:
-    name: Package release
-    needs: [verify, android, web, windows, linux, macos-native, macos-universal, ios, server-linux, server-windows, web-server-linux, web-server-windows]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout release tag
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ env.RELEASE_REF }}
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: '3.47.0'
-          cache: true
-
-      - name: Download release artifacts
-        uses: actions/download-artifact@v8
-        with:
-          path: artifacts
-          pattern: universal-reader-*
-          merge-multiple: true
-
-      - name: Generate release checksums
-        run: |
-          dart run app/tool/release_manifest.dart \
-            --artifacts artifacts \
-            --version "${RELEASE_TAG#v}" \
-            --commit "$GITHUB_SHA" \
-            --output artifacts
-          test -s artifacts/SHA256SUMS
-          test -s artifacts/release-manifest.json
-          dart run app/tool/verify_release_assets.dart \
-            --directory artifacts \
-            --version "${RELEASE_TAG#v}" \
-            --commit "$GITHUB_SHA"
-
-      - name: Generate release notes
-        run: |
-          dart run app/tool/extract_changelog_section.dart \
-            "$RELEASE_TAG" \
-            --file CHANGELOG.md > release-notes.md
-          test -s release-notes.md
-
-      - name: Create GitHub Release
-        if: ${{ inputs.dry_run != true }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mapfile -d '' -t release_assets < <(find artifacts -type f -print0)
-          if [[ "${#release_assets[@]}" -eq 0 ]]; then
-            echo "No release assets were downloaded." >&2
+          BUILD_ID="${{ steps.start.outputs.id }}"
+          npx eas-cli@latest build:view "$BUILD_ID" --json > status.json
+          ARTIFACT_URL=$(node -e "const s=require('./status.json'); console.log(s.artifacts?.buildUrl || s.artifacts?.applicationArchiveUrl || '')")
+          if [ -z "$ARTIFACT_URL" ]; then
+            echo "No artifact URL in build response"
+            cat status.json
             exit 1
           fi
+          echo "Downloading $ARTIFACT_URL"
+          curl -L -o app.apk "$ARTIFACT_URL"
 
-          gh release create "${{ env.RELEASE_TAG }}" "${release_assets[@]}" \
-            --repo "${{ github.repository }}" \
-            --title "Universal Reader ${{ env.RELEASE_TAG }}" \
-            --prerelease \
-            --notes-file release-notes.md
-
-      - name: Upload dry-run artifact bundle
-        if: ${{ inputs.dry_run == true }}
-        uses: actions/upload-artifact@v7
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
         with:
-          name: universal-reader-${{ env.RELEASE_TAG }}-dry-run
-          path: artifacts/**
-          if-no-files-found: error
+          tag_name: ${{ steps.tag.outputs.value }}
+          name: ${{ steps.tag.outputs.value }}
+          generate_release_notes: true
+          files: mobile/app.apk

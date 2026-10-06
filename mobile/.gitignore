@@ -1,0 +1,17 @@
+node_modules/
+.expo/
+dist/
+web-build/
+
+# Native (Continuous Native Generation)
+ios/
+android/
+
+# Build artifacts
+*.apk
+*.aab
+*.ipa
+*.app
+
+# Local EAS config (use eas.json instead)
+*.eas.json
