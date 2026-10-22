@@ -50,3 +50,17 @@ test("search stays inside this chm", async () => {
   assert.equal(later[0]?.chapterIndex, 1);
   assert.equal(opened.document.search("not in this help").length, 0);
 });
+
+test("a CHM archive with no HTML pages is corrupt rather than empty", async () => {
+  const bytes = readFileSync(new URL("../../test-books/chm/minimal.chm", import.meta.url));
+  // Directory names keep their length, so the archive remains structurally valid.
+  const suffix = Buffer.from(".htm");
+  const replacement = Buffer.from(".dat");
+  let offset = bytes.indexOf(suffix);
+  assert.notEqual(offset, -1);
+  while (offset !== -1) {
+    bytes.set(replacement, offset);
+    offset = bytes.indexOf(suffix, offset + suffix.length);
+  }
+  assert.equal((await openChmDocument(bytes)).kind, "corrupt");
+});

@@ -7,12 +7,14 @@ config.resolver.assetExts.push("wasm");
 
 const nodeBuiltinsShim = path.resolve(__dirname, "shims/node-builtins.native.js");
 
-// Node builtins used transitively by 7z-wasm / iconv-lite UMD wrappers.
+// Node builtins used transitively by 7z-wasm / iconv-lite UMD wrappers and
+// chmlib-ts's optional file reader. The CHM decoder uses its in-memory reader.
 // In RN `process.versions.node` is undefined, so the Node branches are
 // dead code at runtime — Metro still needs an importable module to satisfy
 // `require(...)` calls at bundle time.
 const nodeBuiltins = new Set([
   "fs",
+  "fs/promises",
   "crypto",
   "path",
   "url",

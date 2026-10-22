@@ -12,7 +12,7 @@ test("chinese locales use the chinese interface copy", () => {
 test("other locales use english interface copy", () => {
   assert.equal(languageFromCode("en"), "en");
   assert.equal(languageFromCode(null), "en");
-  assert.equal(copyFor("en").scope, "This version reads TXT, Markdown, HTML, RTF, DOCX, ODT, EPUB, PDF, FB2, MOBI, AZW3, CHM, DJVU, and CBZ, CBT, CBR, or CB7 comics.");
+  assert.equal(copyFor("en").scope, "Import books and comics, and keep your reading progress, bookmarks and notes on this device.");
   assert.equal(copyFor("en").nextPage, "Next page");
   assert.equal(copyFor("en").readingSettings, "Reading settings");
   assert.equal(copyFor("zh").readingSettings, "阅读设置");

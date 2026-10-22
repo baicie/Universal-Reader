@@ -106,14 +106,16 @@ export function EpubReaderScreen({
     },
     [document],
   );
+  const currentChapterHtml = document?.currentChapterHtml ?? "";
+  const currentChapterHref = document?.currentChapterHref ?? "";
   const chapterHtml = useMemo(() => {
     if (document == null) return "";
     return buildFoliateDocument({
       hostSource,
       paginatorSource,
-      chapterHtml: document.currentChapterHtml,
+      chapterHtml: currentChapterHtml,
       quotes: quoteHighlights(notes),
-      href: document.currentChapterHref,
+      href: currentChapterHref,
       pageIndex: openPageIndex,
       fragment,
       fontSize: surface.fontSize,
@@ -124,7 +126,8 @@ export function EpubReaderScreen({
     });
   }, [
     document,
-    chapterIndex,
+    currentChapterHtml,
+    currentChapterHref,
     fragment,
     notes,
     openPageIndex,

@@ -105,7 +105,7 @@ export function PdfReaderScreen({
     },
     [pageIndex, pageText],
   );
-  const openedZoom = useRef(readingPrefs.pdfZoom);
+  const [openedZoom] = useState(readingPrefs.pdfZoom);
   const html = useMemo(
     () =>
       buildPdfViewer({
@@ -113,9 +113,9 @@ export function PdfReaderScreen({
         pdfWorkerSource,
         bytes: entry.bytes,
         pageIndex: entry.pageIndex,
-        zoom: openedZoom.current,
+        zoom: openedZoom,
       }),
-    [entry.bytes, entry.pageIndex],
+    [entry.bytes, entry.pageIndex, openedZoom],
   );
   useEffect(() => {
     pdfView.current?.setZoom(readingPrefs.pdfZoom);

@@ -1,5 +1,2 @@
-import type { ChmParseResult } from "./chm-bytes";
-
-export async function readChmFromBytes(_bytes: Uint8Array): Promise<ChmParseResult | null> {
-  return null;
-}
+// The in-memory chmlib reader and LZX decoder use JavaScript on every platform.
+export { readChmFromBytes, type ChmChapter, type ChmParseResult } from "./chm-reader";
