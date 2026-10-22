@@ -7,100 +7,181 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release (e.g. v1.0.0). Leave empty to use the latest pushed tag.'
-        required: false
+        description: 'Existing version tag to release (for example v1.0.0 or v1.0.0-test).'
+        required: true
+        type: string
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
+
+env:
+  EAS_CLI_VERSION: 24.14.0
 
 jobs:
   build:
     name: Build Android APK
     runs-on: ubuntu-latest
+    timeout-minutes: 90
+    outputs:
+      tag: ${{ steps.tag.outputs.value }}
+      commit: ${{ steps.source.outputs.commit }}
     steps:
-      - name: Checkout
+      # Rebuilding an older tag still uses release tooling from the workflow revision.
+      - name: Checkout release tooling
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: release-tools
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+
+      - name: Test release tooling
+        run: node --test release-tools/mobile/tool/release.test.cjs
+
+      - name: Resolve explicit release tag
+        id: tag
+        env:
+          RELEASE_INPUT_TAG: ${{ inputs.tag }}
+        run: node release-tools/mobile/tool/release.cjs resolve-tag
+
+      - name: Check Expo credential configuration
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: node release-tools/mobile/tool/release.cjs check-token
+
+      - name: Checkout tagged source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'push' && github.sha || format('refs/tags/{0}', steps.tag.outputs.value) }}
+          path: source
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify source commit
+        id: source
+        working-directory: source
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          set -euo pipefail
+          SOURCE_COMMIT=$(git rev-parse HEAD)
+          TAG_COMMIT=$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")
+          if [ "$SOURCE_COMMIT" != "$TAG_COMMIT" ]; then
+            echo '::error::The selected tag no longer matches the checked out commit.'
+            exit 1
+          fi
+          echo "commit=$SOURCE_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "Building $RELEASE_TAG at $SOURCE_COMMIT"
+
+      - name: Cache npm dependencies
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
           cache: npm
-          cache-dependency-path: mobile/package-lock.json
+          cache-dependency-path: source/mobile/package-lock.json
 
       - name: Install dependencies
-        working-directory: mobile
+        working-directory: source/mobile
         run: npm ci
 
-      - name: Resolve tag
-        id: tag
+      - name: Verify tagged source is still clean
+        working-directory: source
         run: |
-          if [ -n "${{ inputs.tag }}" ]; then
-            echo "value=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          if [ -n "$(git status --porcelain --untracked-files=all)" ]; then
+            echo '::error::Dependency installation changed the tagged source. Refusing to publish a modified working tree.'
+            git status --short --untracked-files=all
+            exit 1
           fi
 
-      - name: Build with EAS
-        id: start
-        working-directory: mobile
+      - name: Verify Expo authentication
+        working-directory: source/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          npx eas-cli@latest build \
+          if ! npx --yes "eas-cli@$EAS_CLI_VERSION" whoami > /dev/null; then
+            echo '::error::Expo authentication failed. Check the EXPO_TOKEN repository secret and its project access.'
+            exit 1
+          fi
+
+      - name: Build with EAS and wait for completion
+        working-directory: source/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          npx --yes "eas-cli@$EAS_CLI_VERSION" build \
             --platform android \
             --profile preview \
             --non-interactive \
-            --json > build.json
-          cat build.json
-          BUILD_ID=$(node -e "const b=require('./build.json'); console.log(b[0]?.id || b.id)")
-          echo "id=$BUILD_ID" >> "$GITHUB_OUTPUT"
+            --freeze-credentials \
+            --wait \
+            --json > "$RUNNER_TEMP/eas-build.json"
 
-      - name: Wait for build
-        id: wait
-        working-directory: mobile
+      - name: Validate completed build
+        id: build
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          BUILD_ID="${{ steps.start.outputs.id }}"
-          npx eas-cli@latest build:view "$BUILD_ID" --json > status.json
-          STATUS=$(node -e "const s=require('./status.json'); console.log(s.status)")
-          echo "Initial status: $STATUS"
-          while [ "$STATUS" = "in_queue" ] || [ "$STATUS" = "building" ]; do
-            sleep 60
-            npx eas-cli@latest build:view "$BUILD_ID" --json > status.json
-            STATUS=$(node -e "const s=require('./status.json'); console.log(s.status)")
-            echo "Status: $STATUS"
-          done
-          if [ "$STATUS" != "finished" ]; then
-            echo "Build ended in status: $STATUS"
-            exit 1
-          fi
+          RELEASE_COMMIT: ${{ steps.source.outputs.commit }}
+        run: >-
+          node release-tools/mobile/tool/release.cjs validate-build
+          "$RUNNER_TEMP/eas-build.json" "$RELEASE_COMMIT" source/mobile/app.json
 
-      - name: Download artifact
-        working-directory: mobile
+      - name: Download and verify APK
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          ARTIFACT_URL: ${{ steps.build.outputs.artifact-url }}
         run: |
-          BUILD_ID="${{ steps.start.outputs.id }}"
-          npx eas-cli@latest build:view "$BUILD_ID" --json > status.json
-          ARTIFACT_URL=$(node -e "const s=require('./status.json'); console.log(s.artifacts?.buildUrl || s.artifacts?.applicationArchiveUrl || '')")
-          if [ -z "$ARTIFACT_URL" ]; then
-            echo "No artifact URL in build response"
-            cat status.json
-            exit 1
-          fi
-          echo "Downloading $ARTIFACT_URL"
-          curl -L -o app.apk "$ARTIFACT_URL"
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/release-assets"
+          curl --fail --silent --show-error --location \
+            --proto '=https' --proto-redir '=https' \
+            --retry 3 --connect-timeout 30 --max-time 600 \
+            --output "$RUNNER_TEMP/release-assets/app.apk" "$ARTIFACT_URL"
+          unzip -t -qq "$RUNNER_TEMP/release-assets/app.apk"
+          unzip -Z1 "$RUNNER_TEMP/release-assets/app.apk" > "$RUNNER_TEMP/apk-entries.txt"
+          grep -Fxq 'AndroidManifest.xml' "$RUNNER_TEMP/apk-entries.txt"
+          node release-tools/mobile/tool/release.cjs checksum "$RUNNER_TEMP/release-assets/app.apk"
+
+      - name: Save verified release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: ${{ runner.temp }}/release-assets/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish verified Android APK
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified release assets
+        uses: actions/download-artifact@v4
+        with:
+          name: android-release
+          path: release-assets
+
+      - name: Verify asset checksum before publishing
+        working-directory: release-assets
+        run: sha256sum --check app.apk.sha256
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.value }}
-          name: ${{ steps.tag.outputs.value }}
+          tag_name: ${{ needs.build.outputs.tag }}
+          target_commitish: ${{ needs.build.outputs.commit }}
+          name: ${{ needs.build.outputs.tag }}
           generate_release_notes: true
-          files: mobile/app.apk
+          fail_on_unmatched_files: true
+          files: |
+            release-assets/app.apk
+            release-assets/app.apk.sha256
