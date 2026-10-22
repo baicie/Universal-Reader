@@ -1,5 +1,51 @@
 # Changelog
 
+## Unreleased
+
+- Restored Expo lint dependencies and React Hooks checks, aligned CI/release tooling on Node.js 22, and added Android/iOS Metro export verification.
+- Hardened EAS Android releases with explicit tagged source, credential preflight, a pinned CLI, clean-source and build identity checks, APK verification, and published SHA-256 checksums.
+- Reused the shared JavaScript CHM decoder on Android/iOS instead of the native placeholder.
+- DjVu and RAR/7z comics now report unsupported when WebAssembly is absent, rather than incorrectly marking valid files corrupt.
+- Read picker-granted Android URIs directly to avoid Expo SDK 57 cache-file permission failures. Device validation is tracked separately in [Expo device smoke](docs/expo-device-smoke.md).
+- Use portable SHA-256/HMAC for shelf identities and S3 signatures in Hermes without Web Crypto, preserving existing content hashes and signature golden values.
+- Aligned Expo SDK 57 patch dependencies: `expo` 57.0.30, `expo-asset` 57.0.20, and `expo-sqlite` 57.0.4.
+
+- `tool/extract_changelog_section.dart` prints one version's CHANGELOG section for release notes. `Unreleased` is refused unless `--include-unreleased` is passed, and an unknown version exits non-zero instead of printing an empty body.
+- Format detection now inspects document content first in both Flutter and the Rust service. EPUB, PDF, MobiPocket, FB2, HTML, Markdown, plain text, CBZ, and RAR/CBR container evidence override an unrelated extension; known extensions remain the fallback for malformed files.
+- Non-ZIP CBR books now decode through a pure-Dart RAR4/RAR5 reader. Real RAR CBR files open as ordered image pages instead of being reported corrupt.
+- Added the generated `test-books/` compatibility corpus with one minimal sample for EPUB, PDF, MOBI, AZW3, FB2, TXT, Markdown, HTML, CBZ, and CBR. A compatibility test verifies each sample's digest, detected format, and reader opening path.
+- Added the iOS Runner project with bundle id `io.universalreader.app`, localhost transport access, and Universal Reader display metadata.
+- Aligned Flutter and Rust package versions with the `0.0.1-dev.13` changelog line.
+- Started the v0.3 Office line with DOCX reflow support. DOCX is detected from `word/document.xml`, reads core title/author properties, splits Heading 1/2 into reader chapters, and renders paragraphs, heading levels, bold/italic/underline/strike/script runs, external hyperlinks, lists, and basic tables.
+- Added ODT on the shared office reflow pipeline. ODT is detected from the package `mimetype`, reads `meta.xml` title/author, splits Heading 1/2 into chapters, and renders paragraphs, inherited text styles, lists, tables, and external hyperlinks.
+- Extracted the common office chapter builder and reader contract shared by DOCX and ODT.
+- Added RTF on the shared office reflow pipeline. RTF is detected from `{\\rtf`, reads `\\info` metadata, decodes ANSI/GBK/UTF-8 escapes, follows nested style groups, and renders headings, paragraphs, basic inline formatting, Unicode text, and tables.
+- Added CBT comic support. CBT is detected from a validated TAR container with image entries, reuses the comic renderer, and supports ordered pages, nested paths, first-image covers, locators, progress, and search-by-page-name.
+- Added CB7 comic support. CB7 is detected from the 7z signature and decoded through the pure-Dart 7z reader with LZMA/LZMA2, solid-block, filter-chain, and CRC support.
+- Added service-backed CHM reading. The Rust service detects the ITSF signature, extracts normal CHM entries with the pure-Rust libchm decoder, assembles the HTML pages and assets into an EPUB package, and lets the existing Flutter EPUB reader open the result.
+- Added service-backed DjVu reading. The Rust service detects the DjVu signature, renders pages with the pure-Rust djvu-rs decoder, converts them to a CBZ archive, and lets the existing Flutter comic reader open the result.
+- Started v0.4 local source sync: the Rust service now imports missing folder files and pushes missing library files back without overwriting same-name conflicts, with a matching Sources card action.
+- Added S3-compatible storage import and two-way sync with AWS Signature V4, paginated ListObjectsV2, object download/upload, and prefix isolation.
+- Completed v0.4 Reader Metadata Sync. Reading progress and annotations now use a versioned `universal-reader-sync.json` sidecar over local folders, WebDAV, or S3-compatible storage. Progress follows the latest open time; annotations merge by stable ID; deletion tombstones prevent deleted notes from returning on the next merge.
+- Started v1.0 hardening by versioning the public Reader Runtime contract and adding locator schema v1 JSON without changing the existing compact annotation labels.
+- Added a 10,000-document scale regression and cached the controller's filtered/sorted library view so repeated widget reads do not rebuild the list.
+- Added a real `ReaderAdapterRegistry`; the sync and async reader factories now share registered format adapters, and `DocumentSource` can carry stable metadata.
+- Expanded the compatibility corpus to 28 samples with nested, CJK, BOM, no-heading, script, leading-space, nested-comic, and cover-page variants.
+- Added Rust 10k SQLite load/lookup and cover-latency regressions. Single-document and cover reads now use direct ID queries, and catalog reconciliation only rewrites SQLite when the filesystem changed.
+- Added a bounded cover LRU and a 10k lazy-grid regression so offscreen covers are neither loaded nor retained indefinitely.
+- Added restartable folder scan sessions with 1–500 item batches and progress reporting in the Sources card.
+- Completed the mobile CHM/DjVu decoder audit; the recommended implementation is a shared Rust static library with a minimal C ABI, packaged in Hardening D.
+- Extracted CHM/DjVu conversion into `reader-format-native`, shared by the server and the new `reader-mobile` C ABI library.
+- Added Android arm64-v8a, armeabi-v7a, and x86_64 builds plus an iOS device/simulator XCFramework build pipeline, with fixture tests, corrupt-input coverage, artifact uploads, size reports, and MIT / Apache-2.0 license review.
+- Linked the native core into Android APKs and the iOS Runner through conditional Dart FFI; mobile CHM/DjVu now convert in-process and open through the existing EPUB/CBZ readers.
+- Added Android emulator and iOS Simulator smoke tests that load the native bridge and convert the fixed CHM/DjVu corpus through Dart FFI.
+- Added a physical-device smoke harness with device selection, conversion verification, optional signed release install/launch, Markdown reports, and a self-hosted manual workflow.
+- Added a versioned native ABI guard shared by Dart, Rust, and the C header, with safe fallback and load diagnostics on mismatch.
+- Added the v1 read-only plugin contract with versioned manifests, adapter composition, conflict isolation, third-party-style compatibility fixtures, and diagnostic issues.
+- Added versioned local persistence envelopes, dual-write rollback support, SQLite schema migration, future-version rejection, and persistence compatibility regression tests.
+- Added a SHA-256 checked released-tag persistence fixture and a manual release rehearsal workflow covering upgrade, rollback, and released SQLite migration.
+- Added Windows, Web, and Android release launch smoke checks with selectable manual workflow scopes.
+
 ## 1.0.0-rc.1 - 2026-09-16
 
 ### Release Candidate
@@ -95,44 +141,6 @@
 
 ### Formatting
 - Applied `dart format` to `lib/` and `test/` (72 files were out of compliance). CI's `dart format --output=none --set-exit-if-changed` step is green again.
-
-## Unreleased
-
-- `tool/extract_changelog_section.dart` prints one version's CHANGELOG section for release notes. `Unreleased` is refused unless `--include-unreleased` is passed, and an unknown version exits non-zero instead of printing an empty body.
-- Format detection now inspects document content first in both Flutter and the Rust service. EPUB, PDF, MobiPocket, FB2, HTML, Markdown, plain text, CBZ, and RAR/CBR container evidence override an unrelated extension; known extensions remain the fallback for malformed files.
-- Non-ZIP CBR books now decode through a pure-Dart RAR4/RAR5 reader. Real RAR CBR files open as ordered image pages instead of being reported corrupt.
-- Added the generated `test-books/` compatibility corpus with one minimal sample for EPUB, PDF, MOBI, AZW3, FB2, TXT, Markdown, HTML, CBZ, and CBR. A compatibility test verifies each sample's digest, detected format, and reader opening path.
-- Added the iOS Runner project with bundle id `io.universalreader.app`, localhost transport access, and Universal Reader display metadata.
-- Aligned Flutter and Rust package versions with the `0.0.1-dev.13` changelog line.
-- Started the v0.3 Office line with DOCX reflow support. DOCX is detected from `word/document.xml`, reads core title/author properties, splits Heading 1/2 into reader chapters, and renders paragraphs, heading levels, bold/italic/underline/strike/script runs, external hyperlinks, lists, and basic tables.
-- Added ODT on the shared office reflow pipeline. ODT is detected from the package `mimetype`, reads `meta.xml` title/author, splits Heading 1/2 into chapters, and renders paragraphs, inherited text styles, lists, tables, and external hyperlinks.
-- Extracted the common office chapter builder and reader contract shared by DOCX and ODT.
-- Added RTF on the shared office reflow pipeline. RTF is detected from `{\\rtf`, reads `\\info` metadata, decodes ANSI/GBK/UTF-8 escapes, follows nested style groups, and renders headings, paragraphs, basic inline formatting, Unicode text, and tables.
-- Added CBT comic support. CBT is detected from a validated TAR container with image entries, reuses the comic renderer, and supports ordered pages, nested paths, first-image covers, locators, progress, and search-by-page-name.
-- Added CB7 comic support. CB7 is detected from the 7z signature and decoded through the pure-Dart 7z reader with LZMA/LZMA2, solid-block, filter-chain, and CRC support.
-- Added service-backed CHM reading. The Rust service detects the ITSF signature, extracts normal CHM entries with the pure-Rust libchm decoder, assembles the HTML pages and assets into an EPUB package, and lets the existing Flutter EPUB reader open the result.
-- Added service-backed DjVu reading. The Rust service detects the DjVu signature, renders pages with the pure-Rust djvu-rs decoder, converts them to a CBZ archive, and lets the existing Flutter comic reader open the result.
-- Started v0.4 local source sync: the Rust service now imports missing folder files and pushes missing library files back without overwriting same-name conflicts, with a matching Sources card action.
-- Added S3-compatible storage import and two-way sync with AWS Signature V4, paginated ListObjectsV2, object download/upload, and prefix isolation.
-- Completed v0.4 Reader Metadata Sync. Reading progress and annotations now use a versioned `universal-reader-sync.json` sidecar over local folders, WebDAV, or S3-compatible storage. Progress follows the latest open time; annotations merge by stable ID; deletion tombstones prevent deleted notes from returning on the next merge.
-- Started v1.0 hardening by versioning the public Reader Runtime contract and adding locator schema v1 JSON without changing the existing compact annotation labels.
-- Added a 10,000-document scale regression and cached the controller's filtered/sorted library view so repeated widget reads do not rebuild the list.
-- Added a real `ReaderAdapterRegistry`; the sync and async reader factories now share registered format adapters, and `DocumentSource` can carry stable metadata.
-- Expanded the compatibility corpus to 28 samples with nested, CJK, BOM, no-heading, script, leading-space, nested-comic, and cover-page variants.
-- Added Rust 10k SQLite load/lookup and cover-latency regressions. Single-document and cover reads now use direct ID queries, and catalog reconciliation only rewrites SQLite when the filesystem changed.
-- Added a bounded cover LRU and a 10k lazy-grid regression so offscreen covers are neither loaded nor retained indefinitely.
-- Added restartable folder scan sessions with 1–500 item batches and progress reporting in the Sources card.
-- Completed the mobile CHM/DjVu decoder audit; the recommended implementation is a shared Rust static library with a minimal C ABI, packaged in Hardening D.
-- Extracted CHM/DjVu conversion into `reader-format-native`, shared by the server and the new `reader-mobile` C ABI library.
-- Added Android arm64-v8a, armeabi-v7a, and x86_64 builds plus an iOS device/simulator XCFramework build pipeline, with fixture tests, corrupt-input coverage, artifact uploads, size reports, and MIT / Apache-2.0 license review.
-- Linked the native core into Android APKs and the iOS Runner through conditional Dart FFI; mobile CHM/DjVu now convert in-process and open through the existing EPUB/CBZ readers.
-- Added Android emulator and iOS Simulator smoke tests that load the native bridge and convert the fixed CHM/DjVu corpus through Dart FFI.
-- Added a physical-device smoke harness with device selection, conversion verification, optional signed release install/launch, Markdown reports, and a self-hosted manual workflow.
-- Added a versioned native ABI guard shared by Dart, Rust, and the C header, with safe fallback and load diagnostics on mismatch.
-- Added the v1 read-only plugin contract with versioned manifests, adapter composition, conflict isolation, third-party-style compatibility fixtures, and diagnostic issues.
-- Added versioned local persistence envelopes, dual-write rollback support, SQLite schema migration, future-version rejection, and persistence compatibility regression tests.
-- Added a SHA-256 checked released-tag persistence fixture and a manual release rehearsal workflow covering upgrade, rollback, and released SQLite migration.
-- Added Windows, Web, and Android release launch smoke checks with selectable manual workflow scopes.
 
 ## 0.0.1-dev.11 - 2026-08-29
 

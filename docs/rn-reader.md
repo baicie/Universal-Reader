@@ -4,9 +4,23 @@
 
 用 Expo（React Native）重做手机阅读器。Flutter 的 WebView 和桌面插件把阅读路径做成了难用的宿主；新客户端把阅读壳放在 `react-native-webview` 和原生视图上，阅读协议仍用现有 Reader Runtime 1.0.0 与 locator schema v1。
 
-用户是把书放在自己手机里、要翻页读完的人。纯文本、RTF、DOCX、ODT、MOBI、AZW3、CHM、DJVU、EPUB、PDF、FB2、CBZ、CBT、CBR 和 CB7 已经能打开，刷新后书、进度和封面还在。WebDAV 和 S3 都可以拉书，也可以把书架上还没有的书推回去。阅读进度写进 `universal-reader-sync.json`，和另一台设备按内容哈希合并。当前文本、EPUB 章节和 PDF 当前页可以向用户自己填写的 OpenAI 兼容接口提问，问答记在这本书上。文本和 EPUB 可以问整本书，把这本书的命中交给模型，确认后才跳到命中处。模型也可以提议跳到这本书的另一处，用户确认后才翻页。用户可以把一条回答存成这本书的笔记。引文如果就在当前文本、EPUB 章节或 PDF 当前页里，会标在原文上。PDF 可以在这本书的页文本里查找，也可以把命中交给模型，确认后才打开那一页。
+用户是把书放在自己手机里、要翻页读完的人。目标覆盖纯文本、RTF、DOCX、ODT、MOBI、AZW3、CHM、DJVU、EPUB、PDF、FB2、CBZ、CBT、CBR 和 CB7；当前原生平台差异见下表。书架、进度和封面保存在本机。WebDAV 和 S3 可以拉书，也可以把书架上还没有的书推回去。阅读进度写进 `universal-reader-sync.json`，和另一台设备按内容哈希合并。当前文本、EPUB 章节和 PDF 当前页可以向用户自己填写的 OpenAI 兼容接口提问，问答记在这本书上。文本和 EPUB 可以问整本书，把这本书的命中交给模型，确认后才跳到命中处。模型也可以提议跳到这本书的另一处，用户确认后才翻页。用户可以把一条回答存成这本书的笔记。引文如果就在当前文本、EPUB 章节或 PDF 当前页里，会标在原文上。PDF 可以在这本书的页文本里查找，也可以把命中交给模型，确认后才打开那一页。
 
 Flutter 工程 `app/` 保留，直到 Expo 能打开同一批 `test-books/` 样本。桌面（Windows / macOS / Linux）仍由现有 Flutter 与 Rust 服务负责，不在 Expo 目标里。
+
+## Current platform status
+
+以下 Assumptions、Testing Strategy 和 Success Criteria 是行为规格与验收要求。Node / Expo Web 中的结果不能视为 Android / iOS 真机结果。当前没有在此文档中记录 Expo 真机验收通过；执行时使用 [Expo device smoke](expo-device-smoke.md)。
+
+| 范围 | Expo Web / Node | Expo Android / iOS |
+| --- | --- | --- |
+| 文本、EPUB、PDF、FB2、RTF、DOCX、ODT、CBZ、CBT | 有解析与测试路径 | 有原生阅读路径，文件导入、WebView 渲染与位置恢复待逐设备验收 |
+| MOBI / AZW3 | 内嵌 EPUB 或可读片段提取 | 同一路径，不能视为完整 MOBI / Kindle 格式兼容 |
+| CHM | `chmlib-ts` 解析 HTML 章节 | 共用纯 TypeScript 解析路径，原生入口样本测试通过；文件导入与实际阅读待设备验收 |
+| DjVu | `djvu-rs` 的 WASM 页面渲染 | 无 WebAssembly 时明确提示尚不支持；有 WASM 时的解码与页面显示待设备验收 |
+| CBR / CB7 | `7z-wasm` 解 RAR / 7z 图片 | 无 WebAssembly 时明确提示尚不支持；有 WASM 时的解码与可解码图片显示待设备验收 |
+
+当前 CI 检查手机端类型、lint、Node 测试、Android / iOS Metro 导出和 Rust；当前 Release 通过 EAS 发布 Android `preview` APK，详见 [release-candidate.md](release-candidate.md)。保留的 Flutter `Native smoke` 只验证 `app/` 的 CHM / DjVu FFI 转换，不能证明 Expo 版本支持这些格式。
 
 ## Assumptions
 
@@ -61,7 +75,7 @@ Flutter 工程 `app/` 保留，直到 Expo 能打开同一批 `test-books/` 样�
 
 | 层 | 选择 |
 | --- | --- |
-| App | Expo SDK（`create-expo-app` 当前稳定版）+ TypeScript |
+| App | Expo SDK + TypeScript，实际版本以 `mobile/package.json` 和 lockfile 为准 |
 | 导航 | 这一刀用屏幕状态；多路由再引入 expo-router |
 | 选文件 | expo-document-picker |
 | 读字节 | expo-file-system，Web 上用 `fetch` |
@@ -69,28 +83,32 @@ Flutter 工程 `app/` 保留，直到 Expo 能打开同一批 `test-books/` 样�
 | EPUB | fflate 解压，fast-xml-parser 读 OPF / nav / NCX |
 | 章节版面 | react-native-webview 加载 Foliate `paginator.js`，按页翻；Web 用 iframe |
 | PDF | pdfjs-dist，在同一套 WebView / iframe 里按页画到 canvas |
-| 漫画 | fflate 解 CBZ；自带 ustar 读 CBT。图片用 `Image` 按页显示 |
+| 漫画 | fflate 解 CBZ；自带 ustar 读 CBT；`7z-wasm` 解 CBR / CB7。图片用 `Image` 按页显示；原生 WASM 状态见上表 |
 | FB2 | fast-xml-parser 读 FictionBook，按章节显示正文 |
 | RTF | 按控制词读出章节正文，标题不重复进正文 |
 | DOCX | fflate 解压，fast-xml-parser 读 `word/document.xml`，按标题分章 |
 | ODT | fflate 解压，fast-xml-parser 读 `content.xml`，按标题分章 |
 | MOBI / AZW3 | 内嵌 EPUB 用 EPUB 章节；否则留下够长的可读片段 |
-| CHM | chmlib-ts 解开 HTML 页面，按标题显示正文 |
-| DjVu | djvu-rs 按页面自己的分辨率画成 PNG，按漫画页显示 |
+| CHM | Web / Node / 原生入口共用纯 TypeScript 解析器，解开 HTML 页面并按标题显示正文 |
+| DjVu | djvu-rs 按页面自己的分辨率画成 PNG，按漫画页显示；原生 WASM 状态见上表 |
 | 书架 | expo-sqlite。保存书的字节、格式、章、页和封面 |
-| 测试 | Node 内置测试运行器，测解析器，不测原生壳 |
+| 测试 | Node 内置测试运行器，测解析器、存储与同步；模拟无 Web Crypto / WebAssembly 的平台限制，不等同原生壳验收 |
 
 ## Commands
 
 ```powershell
 cd mobile
+npm ci
+npm run typecheck
+npm run lint -- --max-warnings=0
 npm test
-npx expo start --web
+npx expo export --platform android --platform ios --output-dir dist/native
 ```
 
 ```powershell
 cd mobile
-npx tsc --noEmit
+npm start
+# 或：npm run web / npm run android / npm run ios
 ```
 
 ## Project Structure
@@ -130,9 +148,13 @@ mobile/src/mobi-document.ts       MOBI / AZW3：内嵌 EPUB 或可读片段
 mobile/src/mobi-document.test.ts  对齐 Dart MOBI 阅读器的行为测试
 mobile/src/chm-document.ts        CHM 解开 HTML 页面、章节正文和书内查找
 mobile/src/chm-document.test.ts   共享 CHM 样本打开自己的页面
+mobile/src/chm-reader.ts          Web / Node / 原生入口共用的纯 TypeScript CHM 解析器
+mobile/src/chm-bytes.native.ts    原生 CHM 入口，复用共享解析器
 mobile/src/djvu-document.ts       DjVu 按页面分辨率画成 PNG
 mobile/src/djvu-document.test.ts  共享 DjVu 样本打开自己的页面
 mobile/src/djvu-bytes.ts          读取与平台匹配的 DjVu WASM
+mobile/src/wasm-runtime.ts        检查 WebAssembly 能力；缺失时明确返回尚不支持
+mobile/src/native-format-compatibility.test.ts 原生入口与无 WASM 环境回归
 mobile/src/reading-prefs.ts       正文字号、行距、字体、纸张和 PDF 缩放
 mobile/src/reading-prefs.test.ts  阅读设置的范围、损坏回退和保存
 mobile/src/shelf-removal.ts       取消删除时留下这本书，确认后只删这一本
@@ -315,6 +337,6 @@ export function openTextDocument(
 
 文本、EPUB 和 PDF 可以就当前章节或当前页提问。文本、EPUB 和 PDF 可以问整本书，命中经确认后才跳转。模型也可以提议跳到这本书的另一处，用户确认后才翻页。这本书的笔记引文会标在当前文本、EPUB 章节和 PDF 当前页上。Flutter 目录在这一版也能打开这些样本之前不删。
 
-## Open Questions
+## Platform decision
 
-1. 桌面客户端是继续留 Flutter，还是以后另做？这一刀默认留 Flutter。
+桌面 Windows / macOS / Linux 继续使用 Flutter + Rust。Expo 的验收范围是 Android / iOS 手机端与开发用 Web；桌面不计入 Expo 完成标准。
