@@ -2,6 +2,8 @@
 
 本目录包含 Universal Reader 的技术设计文档和开发指南。
 
+手机端当前使用 `mobile/` 的 Expo / React Native，桌面端保留 `app/` 的 Flutter 与 `rust/` 服务。优先阅读 [Expo 阅读器规格](rn-reader.md)、[当前发布清单](release-candidate.md) 和 [Expo 真机验收清单](expo-device-smoke.md)。下方原有 Flutter 架构与原生转换文档继续适用于 `app/`，不代表 Expo 已具备同样的平台能力。
+
 ## 架构与设计
 
 ### 渲染架构
@@ -17,14 +19,17 @@
 - **[release-rehearsal.md](release-rehearsal.md)** - 发布升级演练
   上一版发布金样、升级/回滚读取和发布包身份校验
 
-- **[release-candidate.md](release-candidate.md)** - Release Candidate 门禁
-  版本冻结、自动门禁、checksum 和人工发布清单
+- **[release-candidate.md](release-candidate.md)** - 当前发布清单
+  Expo EAS Android 发布、配置要求、人工验收与旧 Flutter RC 范围
+
+- **[expo-device-smoke.md](expo-device-smoke.md)** - Expo 手机端真机验收
+  构建身份、格式解码与渲染、持久化、同步和已知平台限制
 
 - **[performance-baseline.md](performance-baseline.md)** - 10k 书库性能基线
   大规模书库查询、筛选和排序的回归范围
 
-- **[mobile-decoders.md](mobile-decoders.md)** - 移动端 CHM / DjVu 解码审计
-  共享 Rust 静态库路线、平台构建约束和发布门禁
+- **[mobile-decoders.md](mobile-decoders.md)** - Flutter 移动端 CHM / DjVu 解码审计
+  `app/` 的共享 Rust 静态库路线、平台构建约束和验证范围
 
 - **[cfi-logic.md](cfi-logic.md)** - CFI 计算逻辑说明  
   EPUB CFI（Canonical Fragment Identifier）生成、存储、恢复流程以及设计决策

@@ -1,6 +1,8 @@
-# Physical device smoke
+# Flutter physical device smoke
 
-The regular CI jobs run Android and iOS simulator smoke tests. Physical-device validation is manual because it requires attached hardware, trusted development signing, or a self-hosted runner.
+This page and the `Native smoke` / `Physical device smoke` workflows cover the Flutter project in `app/`, including its Rust CHM / DjVu FFI converters. They do not exercise the Expo phone client in `mobile/`. Use [expo-device-smoke.md](expo-device-smoke.md) for Expo phone validation.
+
+The separate `Native smoke` workflow runs Android emulator and iOS Simulator smoke tests. The current normal CI checks Expo bundles and Rust. Flutter physical-device validation is manual because it requires attached hardware, trusted development signing, or a self-hosted runner.
 
 ## Local run
 
@@ -57,4 +59,4 @@ The manual `Physical device smoke` workflow expects runners with these labels:
 
 The runner must have Flutter, the device tooling, and the platform signing setup. The workflow builds the native artifact, runs the physical conversion smoke, optionally installs a signed release artifact, and uploads the Markdown report.
 
-The automated hosted CI remains responsible for simulator coverage. This workflow is optional and is not part of the v1.0 release gate.
+The separate hosted `Native smoke` workflow provides Flutter simulator coverage. This physical-device workflow remains optional historical Flutter tooling; it is not an Expo release gate.

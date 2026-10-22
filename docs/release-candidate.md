@@ -1,96 +1,64 @@
-# Release candidate gate
+# Release checklist
 
-## Frozen version
+## Current release path
 
-The current candidate is:
+The active phone client is the Expo / React Native project in `mobile/`. The current [Release workflow](../.github/workflows/release.yml) builds an Android APK through EAS using `mobile/eas.json`'s `preview` profile and attaches it to a GitHub Release. iOS and Flutter desktop artifacts are not part of this workflow.
 
-- Tag: `v1.0.0-rc.1`
-- Flutter: `1.0.0-rc.1+15`
-- Rust workspace and lockfile: `1.0.0-rc.1`
+Published versions remain available independently:
 
-`app/tool/check_release_versions.dart` verifies all sources plus the `CHANGELOG.md` section before the Release workflow publishes anything.
+- [v0.1.0-test](https://github.com/baicie/Universal-Reader/releases/tag/v0.1.0-test), published 2026-10-06: Expo Android test APK.
+- [v1.0.0-rc.1](https://github.com/baicie/Universal-Reader/releases/tag/v1.0.0-rc.1), published 2026-09-16: historical Flutter multi-platform RC, including desktop and Web/server packages.
 
-## Release model
+The latest observed pre-fix Release failure was missing `EXPO_TOKEN`. The corrected workflow checks token presence and Expo authentication before starting an EAS build. A published test APK does not establish that the current automation is working; the workflow must complete for the intended source revision and tag.
 
-- The default candidate is unsigned: Android APKs use the Gradle debug signing key and iOS publishes an unsigned `Runner.app` ZIP.
-- Android/iOS signing, `Signing preflight`, and physical-device smoke are optional extensions. They are not required for this release candidate.
-- Store distribution and installation on locked-down physical devices remain out of scope until real signing material is provided.
+## Automated checks
 
-## Automated gates
+The normal [CI workflow](../.github/workflows/ci.yml) covers:
 
-- Normal CI: formatting, analyze, Flutter tests, coverage, Web, Windows, Rust, Android APK packaging, secretless Android release-signing verification, and iOS symbol checks.
-- `Native smoke`: nightly/manual Android emulator and iOS Simulator conversion tests.
-- `Release rehearsal`: released persistence upgrade/rollback, Windows launch, Web launch, and Android APK launch.
-- Release publication: tag/version verification, structured `release-manifest.json`, `SHA256SUMS`, and independent asset verification.
-- Optional signed release: when a complete credential set is present for a platform, the Release workflow can build and verify that platform's signed artifact.
+- Mobile: `npm ci`, TypeScript, lint with zero warnings, Node tests, and Android / iOS Metro bundle export.
+- Rust: `cargo fmt --all -- --check` and `cargo test --all`.
 
-## Manual checklist
+Metro export verifies native bundles and asset resolution. It does not compile or install Android / iOS applications and does not prove that WASM decoders run inside the phone runtime.
 
-- [ ] `Release rehearsal` passes for the candidate tag.
-- [ ] Release notes come from the matching `CHANGELOG.md` section.
-- [ ] Published `release-manifest.json` and `SHA256SUMS` are attached and match downloaded assets.
-- [ ] Release assets clearly remain debug-signed Android APKs and unsigned iOS archives.
+The retained `Native smoke`, `Physical device smoke`, `Release rehearsal`, and `Signing preflight` workflows target the Flutter project in `app/`. Their conversion, signing, launch, persistence, and rollback results apply to Flutter artifacts only. The former Flutter tag/version, manifest, and checksum gates are not the active Expo release workflow.
 
-Before a tag exists, run the complete release matrix as a dry run:
+## EAS prerequisites
 
-```powershell
-gh workflow run release.yml `
-  -f tag=v1.0.0-rc.1 `
-  -f source_ref=main `
-  -f dry_run=true
-```
+- `mobile/app.json` must identify the intended Expo owner, project, Android package, and application version.
+- The EAS project must be accessible to the Expo account used by CI, with Android build credentials configured.
+- A GitHub Actions secret named `EXPO_TOKEN` must provide an authorized Expo access token. Keep the value in the secret store; do not commit it or print it in logs.
+- The intended tag must resolve to the source revision being released. Manual dispatch must use that source, rather than accidentally packaging another checkout.
 
-The dry run builds every platform artifact without requiring signing secrets. Android uses debug signing, iOS publishes an unsigned archive, and the workflow generates release notes, creates the manifest, verifies all hashes, and uploads the complete bundle without creating a GitHub Release.
+The `preview` profile creates an internally distributed APK. The `release` profile creates an Android App Bundle, but is not used by the current GitHub release path. `Signing preflight` checks the separate Flutter signing setup; it does not configure EAS credentials. No iOS EAS release is currently automated.
 
-## Optional signing
+## Run the workflow
 
-After configuring Android secrets, run the manual `Signing preflight` workflow. It decodes the keystore outside the repository, validates the alias and key password, and prints only the public certificate fingerprint.
-
-The local PowerShell helper can validate and upload the four secrets without writing them to disk:
+Tag pushes matching `v*` invoke the workflow. To rebuild an existing tag with the workflow on `main`, supply the tag explicitly:
 
 ```powershell
-cd app
-./tool/configure_android_signing.ps1 `
-  -Keystore C:\secure\universal-reader-release.jks `
-  -Alias universal-reader `
-  -ValidateOnly
-
-./tool/configure_android_signing.ps1 `
-  -Keystore C:\secure\universal-reader-release.jks `
-  -Alias universal-reader
+gh workflow run release.yml --ref main -f tag=v0.1.0-test
 ```
 
-Set `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_PASSWORD` in the shell to avoid interactive prompts. The upload uses stdin, not command-line arguments.
+This command publishes an actual GitHub Release if the build succeeds; it is not a dry run. Use the intended existing version tag. The workflow reads its release tooling from the workflow revision and checks out the application source at that tag, then verifies that the checked-out commit matches the tag. After dependency installation, the source checkout must still be clean, including untracked files, so EAS cannot silently include changes absent from the tag.
 
-For iOS, configure these GitHub secrets and run the `Signing preflight` workflow:
+The workflow pins EAS CLI, authenticates before building, and runs `eas build --platform android --profile preview --non-interactive --freeze-credentials --wait --json`. A missing credential must be configured in EAS before this run; CI does not create or replace signing credentials. The completed build must match the Android platform, APK profile, EAS project, and tagged commit. The downloaded file must be an intact APK containing `AndroidManifest.xml`. It generates `app.apk.sha256`, then a separate publication job verifies that checksum before uploading both files.
 
-- `IOS_CERTIFICATE_BASE64`: base64-encoded `.p12`
-- `IOS_CERTIFICATE_PASSWORD`
-- `IOS_PROVISIONING_PROFILE_BASE64`: base64-encoded `.mobileprovision`
-- `IOS_TEAM_ID`
+## Before publishing a phone build
 
-On macOS, the bootstrap helper validates the P12 and provisioning profile before uploading the four secrets through `gh` stdin:
+- [ ] Record the source commit, release tag, Expo application version, and Android version code.
+- [ ] Normal CI passes for the source revision.
+- [ ] EAS produces a finished Android build; the artifact is downloaded successfully and confirmed to be an APK.
+- [ ] Complete [Expo device smoke](expo-device-smoke.md) on the actual APK. Record the device, OS, commit, APK SHA-256, and outcome. Leave unavailable or untested cases explicit.
+- [ ] Release notes name the tested formats and known limitations. Expo CHM now uses the shared TypeScript parser, but native-entry unit tests do not establish device validation. DjVu and RAR / 7z comics report unsupported when WebAssembly is absent; their successful decoding still requires a suitable runtime and device validation.
+- [ ] The published APK matches the EAS build and tag. Retain its SHA-256 with the release record.
 
-```bash
-cd app
-export IOS_CERTIFICATE_PASSWORD='...'
-./tool/configure_ios_signing.sh \
-  --certificate /secure/universal-reader.p12 \
-  --profile /secure/universal-reader.mobileprovision \
-  --team-id ABCDE12345 \
-  --export-method development \
-  --validate-only
+Do not check an item merely because a corresponding instruction exists. Physical-device verification is pending until a device report records actual results.
 
-./tool/configure_ios_signing.sh \
-  --certificate /secure/universal-reader.p12 \
-  --profile /secure/universal-reader.mobileprovision \
-  --team-id ABCDE12345 \
-  --export-method development
-```
+## Historical Flutter RC
 
-The helper rejects expired profiles, Team ID or bundle mismatches, profile/export-method mismatches, and development/distribution identity mismatches. The macOS preflight imports the certificate into a temporary keychain and applies the same checks. When iOS signing secrets are absent, the Release workflow publishes the unsigned archive instead of failing. Manual workflow dispatches can select `development`, `ad-hoc`, `app-store`, or `enterprise` for `ios_export_method`; tag pushes default to `development`.
+`v1.0.0-rc.1` froze Flutter `1.0.0-rc.1+15` and Rust `1.0.0-rc.1`. Its published assets and associated manifests, checksums, and rehearsal reports describe that release, not the current Expo build.
 
-## Commands
+The Flutter tooling remains available for manual maintenance:
 
 ```powershell
 cd app
@@ -98,9 +66,4 @@ dart run tool/check_release_versions.dart --tag v1.0.0-rc.1
 flutter test test/tool/check_release_versions_test.dart
 ```
 
-Create and publish the tag only after the manual checklist is ready:
-
-```powershell
-git tag -a v1.0.0-rc.1 -m "Universal Reader v1.0.0-rc.1"
-git push origin v1.0.0-rc.1
-```
+Flutter signing helpers remain in `app/tool/`; physical-device FFI validation is described in [physical-device-smoke.md](physical-device-smoke.md). A future Flutter release needs a separately reviewed build and publication path; pushing a new `v*` tag currently invokes the Expo Android workflow.
