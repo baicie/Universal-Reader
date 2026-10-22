@@ -7,9 +7,15 @@ import { hostSource, paginatorSource } from "./foliate-source";
 
 const foliateDir = new URL("../../app/assets/reader/foliate/", import.meta.url);
 
+function readAsset(name: string): string {
+  // Git may check the assets out with CRLF on Windows while CI uses LF.
+  // The bundled sources are generated on Windows, so compare normalized text.
+  return readFileSync(new URL(name, foliateDir), "utf8").replaceAll("\r\n", "\n");
+}
+
 test("bundled foliate sources match the flutter assets", () => {
-  assert.equal(hostSource, readFileSync(new URL("host.html", foliateDir), "utf8"));
-  assert.equal(paginatorSource, readFileSync(new URL("paginator.js", foliateDir), "utf8"));
+  assert.equal(hostSource.replaceAll("\r\n", "\n"), readAsset("host.html"));
+  assert.equal(paginatorSource.replaceAll("\r\n", "\n"), readAsset("paginator.js"));
 });
 
 test("a chapter document loads the paginator and reports pages to the parent", () => {
