@@ -3,6 +3,7 @@ import { unzipSync } from "fflate";
 
 import { extractArchive } from "./compressed-archive";
 import { FormatError } from "./text-document";
+import { supportsWebAssembly } from "./wasm-runtime";
 
 const imageSuffixes = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
 
@@ -51,6 +52,7 @@ async function openCompressedComic(format: "cbr" | "cb7", bytes: Uint8Array): Pr
   if (startsWithZip(bytes) || looksLikeTar(bytes)) return { kind: "unsupported" };
   if (format === "cbr" && !isRar(bytes)) return { kind: "corrupt" };
   if (format === "cb7" && !is7z(bytes)) return { kind: "corrupt" };
+  if (!supportsWebAssembly()) return { kind: "unsupported" };
   try {
     const pages = collectPages(await extractArchive(bytes));
     if (pages.length === 0) return { kind: "corrupt" };

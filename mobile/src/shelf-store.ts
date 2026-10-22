@@ -1,3 +1,5 @@
+import { sha256 } from "@noble/hashes/sha2.js";
+
 export type ShelfFormat = "txt" | "markdown" | "html" | "rtf" | "docx" | "odt" | "mobi" | "azw3" | "chm" | "djvu" | "epub" | "pdf" | "fb2" | "cbz" | "cbt" | "cbr" | "cb7";
 
 export type ShelfBook = {
@@ -33,8 +35,8 @@ export class ShelfSchemaError extends Error {
 }
 
 export async function contentHash(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new Uint8Array(bytes));
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  const digest = sha256(bytes);
+  return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 export async function loadShelf(db: ShelfDatabase): Promise<ShelfBook[]> {

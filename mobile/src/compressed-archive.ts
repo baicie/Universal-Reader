@@ -1,4 +1,3 @@
-import SevenZip from "7z-wasm";
 import type { SevenZipModule } from "7z-wasm";
 
 import { wasmBytes } from "./archive-bytes";
@@ -9,13 +8,10 @@ let gate: Promise<void> = Promise.resolve();
 let ticket = 0;
 
 function engine(): Promise<SevenZipModule> {
-  loading ??= wasmBytes().then((wasmBinary) =>
-    SevenZip({
-      wasmBinary,
-      print() {},
-      printErr() {},
-    }),
-  );
+  loading ??= wasmBytes().then(async (wasmBinary) => {
+    const { default: SevenZip } = await import("7z-wasm");
+    return SevenZip({ wasmBinary, print() {}, printErr() {} });
+  });
   return loading;
 }
 

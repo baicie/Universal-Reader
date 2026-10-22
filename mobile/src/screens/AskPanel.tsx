@@ -56,6 +56,17 @@ export function AskPanel({
   const [notes, setNotes] = useState<BookNote[]>([]);
   const [notesBroken, setNotesBroken] = useState(false);
   const [choices, setChoices] = useState<number[]>([]);
+  const placeKey = `${bookId}:${placeIndex}:${placeCount}`;
+  const [answerPlace, setAnswerPlace] = useState(placeKey);
+
+  if (answerPlace !== placeKey) {
+    setAnswerPlace(placeKey);
+    setAnswer(null);
+    setAskFailed(false);
+    setNoExcerpt(false);
+    setNoHits(false);
+    setChoices([]);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -87,14 +98,6 @@ export function AskPanel({
       cancelled = true;
     };
   }, [bookId, onLoadNotes, onNotesChanged]);
-
-  useEffect(() => {
-    setAnswer(null);
-    setAskFailed(false);
-    setNoExcerpt(false);
-    setNoHits(false);
-    setChoices([]);
-  }, [placeIndex, placeCount]);
 
   async function saveTurn(turn: ConversationTurn) {
     try {

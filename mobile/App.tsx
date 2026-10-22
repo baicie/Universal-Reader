@@ -2,7 +2,7 @@ import { getDocumentAsync } from "expo-document-picker";
 import { getLocales } from "expo-localization";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
-import { SafeAreaView, StyleSheet } from "react-native";
+import { Platform, SafeAreaView, StyleSheet } from "react-native";
 
 import { bytesFromAsset } from "./src/bytes-from-asset";
 import { extractCover } from "./src/cover";
@@ -57,7 +57,9 @@ export default function App() {
     setNotice(null);
     const picked = await getDocumentAsync({
       base64: false,
-      copyToCacheDirectory: true,
+      // The File API reads Android content URIs directly. In Expo Go, the
+      // picker's copied cache URI can fall outside the experience's sandbox.
+      copyToCacheDirectory: Platform.OS !== "android",
       multiple: false,
     });
     if (picked.canceled) return;

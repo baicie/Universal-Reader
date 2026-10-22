@@ -117,7 +117,7 @@ export function ReaderScreen({
   useEffect(() => {
     if (entry.format !== "chm") return;
     let cancelled = false;
-    setChmOpening(true);
+    // App keys this screen by book ID; the initial state covers CHM loading.
     void openChmDocument(entry.bytes)
       .then((opened) => {
         if (cancelled) return;

@@ -145,7 +145,11 @@ export function LibraryScreen({
   const [draftTitle, setDraftTitle] = useState("");
   const [draftAuthor, setDraftAuthor] = useState("");
   const [shelfQuery, setShelfQuery] = useState("");
-  const [section, setSection] = useState("all");
+  const [selectedSection, setSection] = useState("all");
+  const section = selectedSection.startsWith("collection:") &&
+    !sections.collections.some((collection) => collectionSection(collection.id) === selectedSection)
+    ? "all"
+    : selectedSection;
   const [sortMode, setSortMode] = useState<ShelfSort>("shelf");
   const [formatFilter, setFormatFilter] = useState<ShelfFormatFilter>("all");
   const [creatingCollection, setCreatingCollection] = useState(false);
@@ -195,11 +199,6 @@ export function LibraryScreen({
   const noSearchHits = shelfQuery.trim().length > 0 && searched.length === 0 && shelf.length > 0;
   const openCollection = sections.collections.find((collection) => collectionSection(collection.id) === section) ?? null;
   const collectionBook = shelf.find((entry) => entry.id === collectionTarget) ?? null;
-  useEffect(() => {
-    if (!section.startsWith("collection:")) return;
-    const id = section.slice("collection:".length);
-    if (!sections.collections.some((collection) => collection.id === id)) setSection("all");
-  }, [section, sections]);
   useEffect(() => {
     let cancelled = false;
     void (async () => {

@@ -1,3 +1,6 @@
+import { hmac } from "@noble/hashes/hmac.js";
+import { sha256 } from "@noble/hashes/sha2.js";
+
 export const S3_BYTE_LIMIT = 64 * 1024 * 1024;
 
 const SYNC_FILE = "universal-reader-sync.json";
@@ -316,14 +319,11 @@ function textBytes(value: string): Uint8Array<ArrayBuffer> {
 }
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new Uint8Array(bytes));
-  return hex(new Uint8Array(digest));
+  return hex(sha256(bytes));
 }
 
 async function hmacSha256(key: Uint8Array, value: string): Promise<Uint8Array<ArrayBuffer>> {
-  const cryptoKey = await crypto.subtle.importKey("raw", new Uint8Array(key), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const signature = await crypto.subtle.sign("HMAC", cryptoKey, textBytes(value));
-  return new Uint8Array(signature);
+  return new Uint8Array(hmac(sha256, key, textBytes(value)));
 }
 
 function hex(bytes: Uint8Array): string {

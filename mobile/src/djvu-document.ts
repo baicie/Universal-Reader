@@ -1,6 +1,7 @@
 import { zlibSync } from "fflate";
 
 import { wasmBytes } from "./djvu-bytes";
+import { supportsWebAssembly } from "./wasm-runtime";
 
 export type DjvuPage = {
   name: string;
@@ -10,6 +11,7 @@ export type DjvuPage = {
 export type OpenedDjvu =
   | { kind: "djvu"; pages: DjvuPage[] }
   | { kind: "unavailable" }
+  | { kind: "unsupported" }
   | { kind: "corrupt" };
 
 const pngSignature = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -24,6 +26,7 @@ export function isDjvuName(name: string): boolean {
 export async function openDjvuDocument(bytes: Uint8Array | null): Promise<OpenedDjvu> {
   if (bytes == null || bytes.length === 0) return { kind: "unavailable" };
   if (!looksLikeDjvu(bytes)) return { kind: "corrupt" };
+  if (!supportsWebAssembly()) return { kind: "unsupported" };
   try {
     const djvu = await import("djvu-rs");
     await loadWasm(djvu);

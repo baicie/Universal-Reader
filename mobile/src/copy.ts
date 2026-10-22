@@ -140,7 +140,7 @@ export type Copy = {
 const zh: Copy = {
   appTitle: "通用阅读器",
   openFile: "打开文件",
-  scope: "这一版读 TXT、Markdown、HTML、RTF、DOCX、ODT、EPUB、PDF、FB2、MOBI、AZW3、CHM、DJVU，以及 CBZ、CBT、CBR、CB7 漫画。",
+  scope: "在本机导入电子书与漫画，保存阅读进度、书签和笔记。",
   emptyShelf: "还没有打开过文件。",
   back: "返回",
   previous: "上一章",
@@ -277,7 +277,7 @@ const zh: Copy = {
 const en: Copy = {
   appTitle: "Universal Reader",
   openFile: "Open a file",
-  scope: "This version reads TXT, Markdown, HTML, RTF, DOCX, ODT, EPUB, PDF, FB2, MOBI, AZW3, CHM, DJVU, and CBZ, CBT, CBR, or CB7 comics.",
+  scope: "Import books and comics, and keep your reading progress, bookmarks and notes on this device.",
   emptyShelf: "No file opened yet.",
   back: "Back",
   previous: "Previous",

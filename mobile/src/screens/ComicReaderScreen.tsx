@@ -61,6 +61,7 @@ export function ComicReaderScreen({
   onReadingPrefs,
 }: Props) {
   const [pages, setPages] = useState<ComicPage[] | null>(null);
+  const [openFailure, setOpenFailure] = useState<"unavailable" | "unsupported" | "corrupt">("corrupt");
   const [pageIndex, setPageIndex] = useState(entry.pageIndex);
   const [notes, setNotes] = useState<BookNote[]>([]);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
@@ -72,7 +73,7 @@ export function ComicReaderScreen({
   const direction = comic ? readingPrefs.comicDirection : "ltr";
   useEffect(() => {
     let cancelled = false;
-    setPages(null);
+    // App keys the reader by book ID, so a new book starts with null pages.
     void (entry.format === "djvu"
       ? openDjvuDocument(entry.bytes)
       : openComicDocument(entry.title + "." + entry.format, entry.bytes)
@@ -80,11 +81,15 @@ export function ComicReaderScreen({
       .then((opened) => {
         if (cancelled) return;
         const next = opened.kind === "comic" || opened.kind === "djvu" ? opened.pages : [];
+        if (opened.kind !== "comic" && opened.kind !== "djvu") setOpenFailure(opened.kind);
         setPages(next);
         setPageIndex((current) => Math.min(current < 0 ? 0 : current, Math.max(next.length - 1, 0)));
       })
       .catch(() => {
-        if (!cancelled) setPages([]);
+        if (!cancelled) {
+          setOpenFailure("corrupt");
+          setPages([]);
+        }
       });
     return () => {
       cancelled = true;
@@ -248,7 +253,7 @@ export function ComicReaderScreen({
           {pageBody}
         </Pressable>
       ) : pages != null ? (
-        <Text style={styles.notice}>{copy.corrupt}</Text>
+        <Text style={styles.notice}>{copy[openFailure]}</Text>
       ) : null}
       {chromeOpen && pages != null && pages.length > 0 ? (
         <ReadingProgress
